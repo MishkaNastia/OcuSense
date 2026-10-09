@@ -4,16 +4,17 @@ import unittest
 
 from blink_counter import BlinkCounter
 
-OPEN = 0.1
-CLOSED = 0.9
-MIDDLE = 0.4  # between the two thresholds
+# Personal eye openness values: 1 = open, 0 = closed.
+OPEN = 0.95
+CLOSED = 0.05
+MIDDLE = 0.5  # between the two thresholds
 LOST = None
 
 
-def run(scores):
+def run(values):
     counter = BlinkCounter()
-    for s in scores:
-        counter.update(s)
+    for v in values:
+        counter.update(v)
     return counter
 
 
@@ -36,16 +37,23 @@ class BlinkCounterTest(unittest.TestCase):
     def test_wobble_in_middle_does_not_count(self):
         self.assertEqual(run([OPEN, MIDDLE, OPEN, MIDDLE, CLOSED, MIDDLE]).count, 0)
 
+    def test_half_reopen_then_close_counts_once(self):
+        self.assertEqual(run([OPEN, CLOSED, MIDDLE, CLOSED, OPEN]).count, 1)
+
     def test_tracking_lost_resets_incomplete_blink(self):
         counter = run([OPEN, CLOSED, LOST, OPEN])
         self.assertEqual(counter.count, 0)
         # After tracking comes back, a normal blink still counts.
-        for s in [CLOSED, OPEN]:
-            counter.update(s)
+        for v in [CLOSED, OPEN]:
+            counter.update(v)
         self.assertEqual(counter.count, 1)
 
     def test_tracking_lost_keeps_total(self):
         self.assertEqual(run([OPEN, CLOSED, OPEN, LOST, OPEN]).count, 1)
+
+    def test_thresholds_must_be_ordered(self):
+        with self.assertRaises(ValueError):
+            BlinkCounter(close_below=0.7, reopen_above=0.3)
 
 
 if __name__ == "__main__":
