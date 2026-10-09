@@ -3,6 +3,7 @@
 Run with:  python main.py
 Keys (click the video window first):
   SPACE or C  start / redo personal calibration
+  M           show / hide the face mesh
   Q           quit
 
 Privacy: every frame is analysed in memory on this computer and then
@@ -19,7 +20,7 @@ from mediapipe.tasks.python import BaseOptions, vision
 
 from blink_counter import CLOSE_BELOW, REOPEN_ABOVE, BlinkCounter
 from calibration import GuidedCalibration
-from eye_metrics import measure_eyes
+from eye_metrics import EYE_LANDMARKS, measure_eyes
 
 MODEL_PATH = Path(__file__).parent / "models" / "face_landmarker.task"
 CAMERA_INDEX = 0  # 0 = the laptop's built-in webcam
@@ -30,6 +31,12 @@ RED = (0, 0, 255)
 YELLOW = (0, 220, 255)
 WHITE = (255, 255, 255)
 FONT = cv2.FONT_HERSHEY_SIMPLEX
+
+# Which landmark pairs MediaPipe joins to form the mesh.
+MESH_CONNECTIONS = vision.FaceLandmarksConnections.FACE_LANDMARKS_TESSELATION
+OUTLINE_CONNECTIONS = vision.FaceLandmarksConnections.FACE_LANDMARKS_CONTOURS
+MESH_COLOR = (170, 170, 170)
+OUTLINE_COLOR = (255, 200, 0)
 
 
 def create_landmarker():
@@ -74,6 +81,18 @@ def draw_openness_bar(frame, openness, y, height=18):
     return y + height + 30
 
 
+def draw_mesh(frame, landmarks):
+    """Draw the face mesh, the face/eye/lip outlines and the 12 EAR points."""
+    height, width = frame.shape[:2]
+    points = [(int(p.x * width), int(p.y * height)) for p in landmarks]
+    for connections, color in ((MESH_CONNECTIONS, MESH_COLOR), (OUTLINE_CONNECTIONS, OUTLINE_COLOR)):
+        for c in connections:
+            cv2.line(frame, points[c.start], points[c.end], color, 1, cv2.LINE_AA)
+    for indices in EYE_LANDMARKS.values():
+        for i in indices:
+            cv2.circle(frame, points[i], 3, RED, -1, cv2.LINE_AA)
+
+
 def main():
     if not MODEL_PATH.exists():
         print(f"Model file not found: {MODEL_PATH}")
@@ -93,6 +112,7 @@ def main():
     eye_counters = {"left": BlinkCounter(), "right": BlinkCounter()}
     calibrator = GuidedCalibration()
     calibration = None  # PersonalCalibration once calibrated
+    show_mesh = True
     landmarker = create_landmarker()
     start = time.monotonic()
     last_timestamp_ms = -1
@@ -148,6 +168,8 @@ def main():
             eye_counters["right"].update(openness[1] if openness else None)
 
             # --- drawing ---
+            if show_mesh and result.face_landmarks:
+                draw_mesh(frame, result.face_landmarks[0])
             y = draw_text(frame, f"Blinks: {counter.count}", 35, WHITE)
             if measurement is None:
                 y = draw_text(frame, "Face: NOT tracked", y, RED)
@@ -183,13 +205,15 @@ def main():
                 ears = measurement.ears
                 draw_text(frame, f"EAR left {ears['left']:.3f} | right {ears['right']:.3f}",
                           height - 45, WHITE, 0.5)
-            draw_text(frame, "SPACE or C = calibrate | Q = quit", height - 15, WHITE, 0.5)
+            draw_text(frame, "SPACE or C = calibrate | M = mesh on/off | Q = quit", height - 15, WHITE, 0.5)
 
             cv2.imshow(WINDOW_NAME, frame)
 
             key = cv2.waitKey(1) & 0xFF
             if key in (ord("q"), ord("Q")):
                 break
+            if key in (ord("m"), ord("M")):
+                show_mesh = not show_mesh
             if key in (ord(" "), ord("c"), ord("C")):
                 calibration = None  # forget the old one; never mix old and new
                 calibrator.start(now)

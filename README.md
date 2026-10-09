@@ -25,6 +25,7 @@ python main.py
 In the video window:
 - **SPACE** (or **C**): start / redo the ~30-second personal calibration
   (eyes open → eyes gently closed → a few natural blinks)
+- **M**: show / hide the face mesh (grey), outlines (blue) and the 12 EAR points (red)
 - **Q**: quit
 
 Blinks are only counted after a successful calibration.
