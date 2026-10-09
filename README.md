@@ -45,6 +45,9 @@ Blinks are only counted after a successful calibration.
 5. The screen also shows each eye separately: its openness, EAR,
    calibration references and its own blink count. Per-eye counts also
    include one-eyed winks; the main "Blinks" count needs both eyes.
+6. A live graph at the bottom shows the last 10 seconds of personal eye
+   openness (left, right, both), the two thresholds, and a green tick for
+   each counted blink (`score_graph.py`). It is kept in memory only.
 
 Personal eye openness is relative to your own calibration only. It is not
 a fatigue or health measure, and accuracy has not been established for

@@ -21,6 +21,7 @@ from mediapipe.tasks.python import BaseOptions, vision
 from blink_counter import CLOSE_BELOW, REOPEN_ABOVE, BlinkCounter
 from calibration import GuidedCalibration
 from eye_metrics import EYE_LANDMARKS, measure_eyes
+from score_graph import ScoreHistory, draw_score_graph
 
 MODEL_PATH = Path(__file__).parent / "models" / "face_landmarker.task"
 CAMERA_INDEX = 0  # 0 = the laptop's built-in webcam
@@ -113,6 +114,7 @@ def main():
     calibrator = GuidedCalibration()
     calibration = None  # PersonalCalibration once calibrated
     show_mesh = True
+    history = ScoreHistory()  # last few seconds of openness, for the graph
     landmarker = create_landmarker()
     start = time.monotonic()
     last_timestamp_ms = -1
@@ -163,7 +165,9 @@ def main():
                 openness = calibration.openness(reliable_ears)
 
             # None = calibrating or paused: resets any half-finished blink.
-            counter.update(openness[2] if openness else None)
+            blinked = counter.update(openness[2] if openness else None)
+            if calibration is not None:
+                history.add(now, openness, blinked)
             eye_counters["left"].update(openness[0] if openness else None)
             eye_counters["right"].update(openness[1] if openness else None)
 
@@ -201,6 +205,8 @@ def main():
                                   y, WHITE, 0.55)
                     y = draw_openness_bar(frame, openness[i], y - 10, height=10)
 
+            if calibration is not None:
+                draw_score_graph(frame, history, now, y_bottom=height - 65)
             if measurement is not None and measurement.ears:
                 ears = measurement.ears
                 draw_text(frame, f"EAR left {ears['left']:.3f} | right {ears['right']:.3f}",
@@ -216,6 +222,7 @@ def main():
                 show_mesh = not show_mesh
             if key in (ord(" "), ord("c"), ord("C")):
                 calibration = None  # forget the old one; never mix old and new
+                history.clear()
                 calibrator.start(now)
     finally:
         # Always give the webcam back, even if something went wrong.
