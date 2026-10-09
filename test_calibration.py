@@ -2,7 +2,7 @@
 
 import unittest
 
-from calibration import (
+from ocusense.core.calibration import (
     STEPS, CalibrationError, EyeReference, GuidedCalibration, PersonalCalibration,
     build_eye_reference, combine, count_blinks, robust_reference,
 )

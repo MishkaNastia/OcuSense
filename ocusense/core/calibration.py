@@ -19,7 +19,7 @@ It says nothing about fatigue or health.
 import statistics
 from dataclasses import dataclass
 
-from blink_counter import BlinkCounter
+from .blink_counter import BlinkCounter
 
 # A calibration is rejected unless all of these hold.
 MIN_SAMPLES = 15  # reliable frames needed per phase

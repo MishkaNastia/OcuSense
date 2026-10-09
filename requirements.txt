@@ -1,3 +1,5 @@
 # MediaPipe also installs OpenCV (opencv-contrib-python), so we don't list it
 # separately - two OpenCV packages at once overwrite each other.
 mediapipe==1.1.0
+# Desktop interface (Qt). "Essentials" = core Qt modules only, smaller download.
+PySide6-Essentials==6.12.0

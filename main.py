@@ -1,4 +1,7 @@
-"""OcuSense: live webcam blink counter using the Eye Aspect Ratio (EAR).
+"""OcuSense OpenCV prototype: live webcam blink counter using the Eye Aspect Ratio (EAR).
+
+The measuring, calibration and counting live in ocusense/core; this file
+only opens the camera, draws on the video and handles keys.
 
 Run with:  python main.py
 Keys (click the video window first):
@@ -12,18 +15,18 @@ thrown away. Nothing is saved to disk and nothing is uploaded.
 
 import sys
 import time
-from pathlib import Path
 
 import cv2
-import mediapipe as mp
-from mediapipe.tasks.python import BaseOptions, vision
+from mediapipe.tasks.python import vision
 
-from blink_counter import CLOSE_BELOW, REOPEN_ABOVE, BlinkCounter
-from calibration import GuidedCalibration
-from eye_metrics import EYE_LANDMARKS, measure_eyes
-from score_graph import ScoreHistory, draw_score_graph
+from ocusense.core.blink_counter import CLOSE_BELOW, REOPEN_ABOVE
+from ocusense.core.calibration import GuidedCalibration
+from ocusense.core.eye_metrics import EYE_LANDMARKS
+from ocusense.core.monitor import (
+    CALIBRATION_DONE, CALIBRATION_FAILED, CLOSED_STEP_FINISHED, MODEL_PATH, EyeMonitor,
+)
+from score_graph import draw_score_graph
 
-MODEL_PATH = Path(__file__).parent / "models" / "face_landmarker.task"
 CAMERA_INDEX = 0  # 0 = the laptop's built-in webcam
 WINDOW_NAME = "OcuSense - press Q to quit"
 
@@ -38,15 +41,6 @@ MESH_CONNECTIONS = vision.FaceLandmarksConnections.FACE_LANDMARKS_TESSELATION
 OUTLINE_CONNECTIONS = vision.FaceLandmarksConnections.FACE_LANDMARKS_CONTOURS
 MESH_COLOR = (170, 170, 170)
 OUTLINE_COLOR = (255, 200, 0)
-
-
-def create_landmarker():
-    options = vision.FaceLandmarkerOptions(
-        base_options=BaseOptions(model_asset_path=str(MODEL_PATH)),
-        running_mode=vision.RunningMode.VIDEO,
-        num_faces=1,
-    )
-    return vision.FaceLandmarker.create_from_options(options)
 
 
 def draw_text(frame, text, y, color, scale=0.8):
@@ -107,73 +101,38 @@ def main():
         print("allow your Terminal (or VS Code), then quit and reopen it.")
         return 1
 
-    counter = BlinkCounter()  # both eyes together (the main count)
-    # One extra counter per eye, fed with that eye's own openness. These
-    # also count one-eyed winks, which the main count ignores.
-    eye_counters = {"left": BlinkCounter(), "right": BlinkCounter()}
-    calibrator = GuidedCalibration()
-    calibration = None  # PersonalCalibration once calibrated
     show_mesh = True
-    history = ScoreHistory()  # last few seconds of openness, for the graph
-    landmarker = create_landmarker()
-    start = time.monotonic()
-    last_timestamp_ms = -1
+    monitor = EyeMonitor()
+    # Short names for the parts of the monitor the drawing code reads.
+    counter, eye_counters, calibrator = monitor.counter, monitor.eye_counters, monitor.calibrator
 
     try:
         while True:
-            ok, frame = camera.read()
+            ok, camera_frame = camera.read()
             if not ok:
                 print("Could not read a frame from the webcam.")
                 break
             now = time.monotonic()
 
-            # Mirror the image so it behaves like a mirror.
-            frame = cv2.flip(frame, 1)
-            height, width = frame.shape[:2]
-
-            # MediaPipe expects RGB colours; OpenCV gives BGR.
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-
-            # VIDEO mode needs a timestamp that always increases.
-            timestamp_ms = max(int((now - start) * 1000), last_timestamp_ms + 1)
-            last_timestamp_ms = timestamp_ms
-            result = landmarker.detect_for_video(mp_image, timestamp_ms)
-
-            measurement = None
-            if result.face_landmarks:
-                measurement = measure_eyes(result.face_landmarks[0], width, height)
+            result = monitor.process(camera_frame, now)
+            frame, measurement, openness = result.frame, result.measurement, result.openness
+            height = frame.shape[0]
+            calibration = monitor.calibration
             reliable_ears = measurement.ears if measurement and measurement.reliable else None
 
-            # --- calibration or counting ---
-            openness = None  # (left, right, both) once measuring
-            if calibrator.status == GuidedCalibration.RUNNING:
-                step_before = calibrator.step.name
-                calibrator.update(now, reliable_ears)
-                if calibrator.step is None or calibrator.step.name != step_before:
-                    if step_before == "closed":
-                        print("\a", end="", flush=True)  # beep: you can open your eyes
-                if calibrator.status == GuidedCalibration.DONE:
-                    calibration = calibrator.result
-                    print("Calibration complete. Your EAR references:")
-                    for eye in ("left", "right"):
-                        ref = getattr(calibration, eye)
-                        print(f"  {eye:>5} eye: open {ref.open_ear:.3f}, closed {ref.closed_ear:.3f}")
-                elif calibrator.status == GuidedCalibration.FAILED:
-                    print(f"Calibration failed: {calibrator.error}")
-            elif calibration is not None and reliable_ears is not None:
-                openness = calibration.openness(reliable_ears)
-
-            # None = calibrating or paused: resets any half-finished blink.
-            blinked = counter.update(openness[2] if openness else None)
-            if calibration is not None:
-                history.add(now, openness, blinked)
-            eye_counters["left"].update(openness[0] if openness else None)
-            eye_counters["right"].update(openness[1] if openness else None)
+            if CLOSED_STEP_FINISHED in result.events:
+                print("\a", end="", flush=True)  # beep: you can open your eyes
+            if CALIBRATION_DONE in result.events:
+                print("Calibration complete. Your EAR references:")
+                for eye in ("left", "right"):
+                    ref = getattr(calibration, eye)
+                    print(f"  {eye:>5} eye: open {ref.open_ear:.3f}, closed {ref.closed_ear:.3f}")
+            elif CALIBRATION_FAILED in result.events:
+                print(f"Calibration failed: {calibrator.error}")
 
             # --- drawing ---
-            if show_mesh and result.face_landmarks:
-                draw_mesh(frame, result.face_landmarks[0])
+            if show_mesh and result.landmarks:
+                draw_mesh(frame, result.landmarks)
             y = draw_text(frame, f"Blinks: {counter.count}", 35, WHITE)
             if measurement is None:
                 y = draw_text(frame, "Face: NOT tracked", y, RED)
@@ -206,7 +165,7 @@ def main():
                     y = draw_openness_bar(frame, openness[i], y - 10, height=10)
 
             if calibration is not None:
-                draw_score_graph(frame, history, now, y_bottom=height - 65)
+                draw_score_graph(frame, monitor.history, now, y_bottom=height - 65)
             if measurement is not None and measurement.ears:
                 ears = measurement.ears
                 draw_text(frame, f"EAR left {ears['left']:.3f} | right {ears['right']:.3f}",
@@ -221,12 +180,10 @@ def main():
             if key in (ord("m"), ord("M")):
                 show_mesh = not show_mesh
             if key in (ord(" "), ord("c"), ord("C")):
-                calibration = None  # forget the old one; never mix old and new
-                history.clear()
-                calibrator.start(now)
+                monitor.start_calibration(now)
     finally:
         # Always give the webcam back, even if something went wrong.
-        landmarker.close()
+        monitor.close()
         camera.release()
         cv2.destroyAllWindows()
         cv2.waitKey(1)  # lets macOS actually close the window

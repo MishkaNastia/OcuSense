@@ -3,7 +3,7 @@
 import unittest
 from types import SimpleNamespace
 
-from eye_metrics import EYE_LANDMARKS, eye_aspect_ratio, measure_eyes
+from ocusense.core.eye_metrics import EYE_LANDMARKS, eye_aspect_ratio, measure_eyes
 
 
 def fake_landmarks(eyes):

@@ -1,16 +1,11 @@
-"""A live graph of personal eye openness over the last few seconds.
+"""Draws the live graph of personal eye openness for the OpenCV prototype.
 
-The history only lives in memory, like the video frames: nothing is
-saved to disk.
+The data comes from ocusense.core.history.ScoreHistory.
 """
-
-from collections import deque
 
 import cv2
 
-from blink_counter import CLOSE_BELOW, REOPEN_ABOVE
-
-GRAPH_SECONDS = 10.0  # how much history the graph shows
+from ocusense.core.blink_counter import CLOSE_BELOW, REOPEN_ABOVE
 
 # BGR colours, matching the openness bars in main.py where they overlap.
 LEFT_COLOR = (255, 150, 50)
@@ -20,27 +15,6 @@ CLOSE_COLOR = (0, 0, 255)
 REOPEN_COLOR = (0, 220, 255)
 BLINK_COLOR = (0, 200, 0)
 FONT = cv2.FONT_HERSHEY_SIMPLEX
-
-
-class ScoreHistory:
-    """Remembers the last few seconds of openness scores.
-
-    Each sample is (time, openness, blinked), where openness is the
-    (left, right, both) tuple from calibration, or None while measurement
-    is paused (shown as a gap in the graph).
-    """
-
-    def __init__(self, seconds=GRAPH_SECONDS):
-        self.seconds = seconds
-        self.samples = deque()
-
-    def add(self, now, openness, blinked=False):
-        self.samples.append((now, openness, blinked))
-        while now - self.samples[0][0] > self.seconds:
-            self.samples.popleft()
-
-    def clear(self):
-        self.samples.clear()
 
 
 def draw_score_graph(frame, history, now, y_bottom, height=100):

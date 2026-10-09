@@ -2,7 +2,7 @@
 
 import unittest
 
-from blink_counter import BlinkCounter
+from ocusense.core.blink_counter import BlinkCounter
 
 # Personal eye openness values: 1 = open, 0 = closed.
 OPEN = 0.95
