@@ -1,0 +1,3 @@
+# MediaPipe also installs OpenCV (opencv-contrib-python), so we don't list it
+# separately - two OpenCV packages at once overwrite each other.
+mediapipe==1.1.0
