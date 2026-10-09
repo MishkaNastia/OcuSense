@@ -63,15 +63,15 @@ def _put(frame, text, y, color, scale):
     cv2.putText(frame, text, (10, y), FONT, scale, color, 2, cv2.LINE_AA)
 
 
-def draw_openness_bar(frame, openness, y):
+def draw_openness_bar(frame, openness, y, height=18):
     """Horizontal bar for personal eye openness, with the two thresholds marked."""
-    x0, width, height = 10, 300, 18
+    x0, width = 10, 300
     cv2.rectangle(frame, (x0, y), (x0 + width, y + height), WHITE, 1)
     cv2.rectangle(frame, (x0, y), (x0 + int(width * openness), y + height), GREEN, -1)
     for threshold, color in ((CLOSE_BELOW, RED), (REOPEN_ABOVE, YELLOW)):
         x = x0 + int(width * threshold)
         cv2.line(frame, (x, y - 4), (x, y + height + 4), color, 2)
-    return y + height + 34
+    return y + height + 30
 
 
 def main():
@@ -87,7 +87,10 @@ def main():
         print("allow your Terminal (or VS Code), then quit and reopen it.")
         return 1
 
-    counter = BlinkCounter()
+    counter = BlinkCounter()  # both eyes together (the main count)
+    # One extra counter per eye, fed with that eye's own openness. These
+    # also count one-eyed winks, which the main count ignores.
+    eye_counters = {"left": BlinkCounter(), "right": BlinkCounter()}
     calibrator = GuidedCalibration()
     calibration = None  # PersonalCalibration once calibrated
     landmarker = create_landmarker()
@@ -121,24 +124,28 @@ def main():
             reliable_ears = measurement.ears if measurement and measurement.reliable else None
 
             # --- calibration or counting ---
-            openness = None
+            openness = None  # (left, right, both) once measuring
             if calibrator.status == GuidedCalibration.RUNNING:
                 step_before = calibrator.step.name
                 calibrator.update(now, reliable_ears)
-                counter.update(None)  # never count while calibrating
                 if calibrator.step is None or calibrator.step.name != step_before:
                     if step_before == "closed":
                         print("\a", end="", flush=True)  # beep: you can open your eyes
                 if calibrator.status == GuidedCalibration.DONE:
                     calibration = calibrator.result
-                    print("Calibration complete.")
+                    print("Calibration complete. Your EAR references:")
+                    for eye in ("left", "right"):
+                        ref = getattr(calibration, eye)
+                        print(f"  {eye:>5} eye: open {ref.open_ear:.3f}, closed {ref.closed_ear:.3f}")
                 elif calibrator.status == GuidedCalibration.FAILED:
                     print(f"Calibration failed: {calibrator.error}")
             elif calibration is not None and reliable_ears is not None:
                 openness = calibration.openness(reliable_ears)
-                counter.update(openness[2])
-            else:
-                counter.update(None)  # paused: resets any half-finished blink
+
+            # None = calibrating or paused: resets any half-finished blink.
+            counter.update(openness[2] if openness else None)
+            eye_counters["left"].update(openness[0] if openness else None)
+            eye_counters["right"].update(openness[1] if openness else None)
 
             # --- drawing ---
             y = draw_text(frame, f"Blinks: {counter.count}", 35, WHITE)
@@ -160,11 +167,17 @@ def main():
             elif calibration is None:
                 y = draw_text(frame, "Press SPACE to calibrate (about 30 seconds)", y, YELLOW)
             elif openness is not None:
-                left, right, combined = openness
-                y = draw_text(frame, f"Personal eye openness: {combined:.2f} "
-                                     f"(left {left:.2f}, right {right:.2f}) | eyes: {counter.state}",
-                              y, WHITE, 0.7)
-                y = draw_openness_bar(frame, combined, y)
+                y = draw_text(frame, f"Personal eye openness (both): {openness[2]:.2f} "
+                                     f"| eyes: {counter.state}", y, WHITE, 0.7)
+                y = draw_openness_bar(frame, openness[2], y)
+                for i, eye in enumerate(("left", "right")):
+                    ref = getattr(calibration, eye)
+                    y = draw_text(frame, f"{eye.capitalize()} eye: openness {openness[i]:.2f} "
+                                         f"| blinks {eye_counters[eye].count} "
+                                         f"| EAR {reliable_ears[eye]:.3f} "
+                                         f"(open {ref.open_ear:.3f}, closed {ref.closed_ear:.3f})",
+                                  y, WHITE, 0.55)
+                    y = draw_openness_bar(frame, openness[i], y - 10, height=10)
 
             if measurement is not None and measurement.ears:
                 ears = measurement.ears
@@ -187,7 +200,8 @@ def main():
         cv2.destroyAllWindows()
         cv2.waitKey(1)  # lets macOS actually close the window
 
-    print(f"Total blinks: {counter.count}")
+    print(f"Total blinks: {counter.count} "
+          f"(left eye alone: {eye_counters['left'].count}, right eye alone: {eye_counters['right'].count})")
     return 0
 
 

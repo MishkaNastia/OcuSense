@@ -41,6 +41,9 @@ Blinks are only counted after a successful calibration.
 4. A blink is counted once per open → closed (below 0.35) → open
    (above 0.65) sequence (`blink_counter.py`). Measurement pauses when the
    face is lost, too small or turned away.
+5. The screen also shows each eye separately: its openness, EAR,
+   calibration references and its own blink count. Per-eye counts also
+   include one-eyed winks; the main "Blinks" count needs both eyes.
 
 Personal eye openness is relative to your own calibration only. It is not
 a fatigue or health measure, and accuracy has not been established for

@@ -81,6 +81,13 @@ class CombineTest(unittest.TestCase):
         opened = self.cal.openness({"left": 0.30, "right": 0.22})[2]
         self.assertEqual(count_blinks([opened, wink, opened]), 0)
 
+    def test_per_eye_values_see_the_wink(self):
+        frames = [{"left": 0.30, "right": 0.22}, {"left": 0.30, "right": 0.08}, {"left": 0.30, "right": 0.22}]
+        values = [self.cal.openness(ears) for ears in frames]
+        self.assertEqual(count_blinks([v[0] for v in values]), 0)  # left eye stayed open
+        self.assertEqual(count_blinks([v[1] for v in values]), 1)  # right eye winked
+        self.assertEqual(count_blinks([v[2] for v in values]), 0)  # both together: no blink
+
 
 def run_guided(open_ear, closed_ear, blink_ears, unreliable=lambda t: False):
     """Simulate the whole guided calibration at 30 frames per second.
