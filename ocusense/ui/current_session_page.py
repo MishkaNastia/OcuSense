@@ -24,7 +24,6 @@ from .widgets.artwork import Composition
 from .widgets.common import label, rule, vline
 from .widgets.openness_graph import OpennessGraph
 from .widgets.page import Page, paragraph
-from .widgets.posture_chart import PostureChart
 from .widgets.status_indicator import StatusIndicator
 
 UNAVAILABLE = "—"
@@ -130,14 +129,6 @@ class CurrentSessionPage(Page):
                                 "Moved your chair or desk? Press Recalibrate posture.")
         self.posture_detail = label(self.posture_off_text, "secondary", theme.ui_font(14), wrap=True)
         body.addWidget(self.posture_detail)
-        self.posture_score = label("", font=theme.ui_font(15, QFont.Weight.DemiBold), wrap=True)
-        body.addWidget(self.posture_score)
-        self.posture_chart = PostureChart()
-        body.addWidget(self.posture_chart)
-        self.posture_chart_caption = label("Posture score per minute: the share of tracked time within all your "
-                                           "limits. Minutes with less than 20 s tracked have no bar.",
-                                           "secondary", theme.ui_font(13), wrap=True)
-        body.addWidget(self.posture_chart_caption)
         self.set_posture_enabled(False)
         body.addWidget(label("Head angle, distance (estimated from your iris, so approximate) and how low your face "
                              "sits in the picture. A limit must be exceeded for "
@@ -259,7 +250,7 @@ class CurrentSessionPage(Page):
                                   "different.")
 
     def set_posture_enabled(self, enabled: bool) -> None:
-        """Ticked or not in Settings: the section explains itself when off; the score stays visible once there is one."""
+        """Ticked or not in Settings: the section explains itself when off."""
         self.posture_button.setEnabled(enabled)
         if not enabled:
             self.posture_indicator.set("paused", "Posture monitoring is off")
@@ -267,18 +258,6 @@ class CurrentSessionPage(Page):
         elif self.posture_indicator.text.text() == "Posture monitoring is off":
             self.posture_indicator.set("ready", "Waiting for a posture baseline")
             self.posture_detail.setText(self.posture_on_text)
-
-    def show_posture_score(self, minutes, score) -> None:
-        """minutes: [PostureMinute] and the session score (0–1 or None), both from core/posture.PostureScore."""
-        has = bool(minutes)
-        self.posture_chart.setVisible(has)
-        self.posture_chart_caption.setVisible(has)
-        self.posture_score.setVisible(has)
-        if not has:
-            return
-        self.posture_chart.set_data(minutes)
-        self.posture_score.setText(f"Posture score this session: {score * 100:.0f} % of tracked time within your limits"
-                                   if score is not None else "Posture score this session: not enough tracked time yet")
 
     def show_posture(self, update) -> None:
         """update: the window's MonitorUpdate. Only shows what core/posture.py worked out."""

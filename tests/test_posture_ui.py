@@ -5,7 +5,7 @@ import unittest
 
 from tests.test_main_window import FakeThread, update  # sets offscreen Qt and a temporary recordings folder
 
-from ocusense.core.models import PostureMinute, PostureStatus
+from ocusense.core.models import PostureStatus
 from ocusense.core.posture import HEAD_DROPPED, SLUMPED, PostureCalibration
 from ocusense.monitoring.pipeline import MODEL_PATH, SCREEN_TILTED
 
@@ -54,17 +54,6 @@ class PostureUiTest(unittest.TestCase):
         self.assertEqual(self.thread.posture_enabled_requests, [False])
         self.send(posture_enabled=False, posture_cal_status=PostureCalibration.RUNNING)  # frames while off
         self.assertEqual(self.page.posture_indicator.text.text(), "Posture monitoring is off")
-
-    def test_posture_score_over_time(self):
-        self.monitoring()
-        self.assertTrue(self.page.posture_chart.isHidden())  # nothing yet
-        self.page.show_posture_score([PostureMinute(0, 60.0, 45.0), PostureMinute(1, 10.0, 10.0)], 0.786)
-        self.assertFalse(self.page.posture_chart.isHidden())
-        self.assertEqual(self.page.posture_score.text(),
-                         "Posture score this session: 79 % of tracked time within your limits")
-        self.assertIn("minute 1: 75 %", self.page.posture_chart.accessibleDescription())
-        self.assertNotIn("minute 2", self.page.posture_chart.accessibleDescription())  # under 20 s: no bar
-        self.assertFalse(self.page.posture_chart.grab().isNull())
 
     def test_button_needs_a_running_session(self):
         self.page.posture_button.click()

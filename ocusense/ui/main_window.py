@@ -333,7 +333,6 @@ class MainWindow(QMainWindow):
             return
         if self.recorder:
             self.recorder.add_observation(update.observation)
-            self.recorder.add_posture(update.now, update.posture_status if update.posture_enabled else None)
         if SCREEN_TILTED in update.events:
             self.notify(TILT_MESSAGE, "OcuSense")  # the posture baseline is recorded again (2 min)
             self.study.message_label.setText(f"{TILT_MESSAGE} ({datetime.now():%H:%M}).")
@@ -443,7 +442,6 @@ class MainWindow(QMainWindow):
             self.current_page.show_session(current, paused=self.state == "paused")
             if self.recorder is not None:
                 self._show_live_distributions()
-                self.current_page.show_posture_score(self.recorder.posture.minutes(), self.recorder.posture.score())
                 self.current_page.show_drift(self._drift_for(self.recorder), self.recorder.distributions.intervals,
                                              time.monotonic(), self.reference, self.reference_error)
             if current is not None and self.last_update is not None and self.state != "monitoring":

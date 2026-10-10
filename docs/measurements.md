@@ -328,7 +328,7 @@ files rotate every **10 minutes**.
 | Study time, tracking coverage, blinks counted | for the whole session so far (section 7, 8.1) |
 | Eye measurements · whole session so far | blink rate, median closure duration and time classified as closed over **all** valid observation of the session (not just the last 60 s) |
 | Personal eye openness graph | the same 10 s live graph as on the Study page |
-| Posture | when ticked in Settings: good / poor (with the limits exceeded), the current changes from your posture baseline (including a corrected screen tilt), the 2-minute baseline's progress, a **Recalibrate posture** button, the session's posture score and a bar per minute — see [14](#14-posture) |
+| Posture | when ticked in Settings: good / poor (with the limits exceeded), the current changes from your posture baseline (including a corrected screen tilt), the 2-minute baseline's progress, and a **Recalibrate posture** button — see [14](#14-posture) |
 | Blink distributions | five histograms, updated every 2 s — see [11](#11-blink-distributions-histograms) |
 | Compared with your reference | the saved reference (or, without one, this session's first 10 minutes), the latest 5-minute window's test result and a count of windows so far — see [11.7](#117-compared-with-your-reference) |
 
@@ -589,9 +589,8 @@ and barely changes with distance.
 ## 14. Posture
 
 Statistics › Current session shows whether you are sitting the way you did when your posture
-baseline was recorded, and a posture score over time. It uses the same Face Landmarker as the
-eyes (no extra model) and, on MacBooks that report it, the screen's angle. Nothing
-posture-related is saved.
+baseline was recorded. It uses the same Face Landmarker as the eyes (no extra model) and, on
+MacBooks that report it, the screen's angle. Nothing posture-related is saved.
 
 **On and off.** Posture monitoring is **off** until you tick **Settings › Monitoring › Posture
 monitoring** (remembered between launches in `preferences.json`). While it is off nothing
@@ -667,18 +666,6 @@ with an external camera, or if it can't be read, posture uses the camera alone.
   message, at the end), a Mac notification says **"You tilted your screen, recalibrating now"**
   (also shown under the Study page buttons), and the 2-minute baseline starts again.
 
-**Posture score over time.** For every minute of the session: the share of tracked time
-within **all** limits (a bar from 0 to 100 %), and the same for the whole session ("Posture score
-this session: 81 % of tracked time within your limits").
-- Time-weighted like the other measurements: the time between two judged frames (at most 0.5 s
-  apart) counts for the first one, so the frame rate doesn't matter. Frames without a face,
-  longer gaps, pauses and the baseline's own 2 minutes aren't judged.
-- "Within all limits" is judged at each moment, not after 30 s: a glance away lowers that
-  minute's score a little while it lasts, but never marks posture as poor.
-- A minute needs at least **20 s** judged for a bar (otherwise a short tick, so a gap never looks
-  like 0 %); the session score needs at least **30 s**.
-- Kept with the session in memory, like the other statistics; never written to disk.
-
 **Not the distance reminder.** The distance reminder (section 13) compares apparent face size
 with the eye calibration and reacts after 3 s; the posture "too close" limit uses the
 estimated centimetres and the 30 s rule. They can disagree a little.
@@ -728,5 +715,5 @@ They describe position, not health.
 | Exports | `ocusense/exports.py` |
 | Distance reminder rules | `ocusense/core/proximity.py` (face size in `core/eye_metrics.py`) |
 | Reminder card and macOS notifications | `ocusense/ui/widgets/alert_banner.py`, `ocusense/ui/notifications.py` |
-| Posture: head angle, distance, slump, baseline, limits, screen tilt, score | `ocusense/core/posture.py` (values in `core/models.py`), `ocusense/lid_sensor.py`; chart `ocusense/ui/widgets/posture_chart.py`; on/off in `ocusense/preferences.py` |
+| Posture: head angle, distance, slump, baseline, limits, screen tilt | `ocusense/core/posture.py` (values in `core/models.py`), `ocusense/lid_sensor.py`; on/off in `ocusense/preferences.py` |
 | Frame processing per camera frame | `ocusense/monitoring/pipeline.py` |

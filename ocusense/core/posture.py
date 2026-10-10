@@ -22,9 +22,6 @@ poor when a limit stays exceeded for POSTURE_SUSTAIN_SECONDS without a break, so
 glance away or a quick stretch never counts. A frame without a face is handled like
 lost tracking in the blink counter: the half-finished count is forgotten and starts again.
 
-PostureScore turns the per-frame results into a score over time: the share of tracked
-time within all limits, per minute and for the whole session.
-
 Like the rest of OcuSense, this describes position only; it is not a health assessment.
 """
 
@@ -32,13 +29,13 @@ import math
 import statistics
 
 from ocusense.config import (
-    FOCAL_LENGTH_PER_FRAME_WIDTH, IRIS_DIAMETER_MM, LID_RECALIBRATE_DEGREES, LID_SETTLE_SECONDS, MAX_FRAME_GAP,
-    MIN_VALID_SECONDS_FOR_RATE, POSTURE_CALIBRATION_SECONDS, POSTURE_CENTRE_DROP, POSTURE_CLOSER_FRACTION,
-    POSTURE_MAX_PITCH_SPREAD, POSTURE_MIN_DISTANCE_CM, POSTURE_MIN_SAMPLES, POSTURE_PITCH_DROP_DEGREES,
-    POSTURE_ROLL_DEGREES, POSTURE_SLUMP_GROWTH, POSTURE_SUSTAIN_SECONDS,
+    FOCAL_LENGTH_PER_FRAME_WIDTH, IRIS_DIAMETER_MM, LID_RECALIBRATE_DEGREES, LID_SETTLE_SECONDS,
+    POSTURE_CALIBRATION_SECONDS, POSTURE_CENTRE_DROP, POSTURE_CLOSER_FRACTION, POSTURE_MAX_PITCH_SPREAD,
+    POSTURE_MIN_DISTANCE_CM, POSTURE_MIN_SAMPLES, POSTURE_PITCH_DROP_DEGREES, POSTURE_ROLL_DEGREES,
+    POSTURE_SLUMP_GROWTH, POSTURE_SUSTAIN_SECONDS,
 )
 
-from .models import PostureBaseline, PostureMinute, PostureReading, PostureStatus
+from .models import PostureBaseline, PostureReading, PostureStatus
 
 # MediaPipe iris landmarks (only in the 478-point model): the two horizontal edge points of each iris.
 # Horizontal, because the eyelids often cover the top and bottom of the iris.
@@ -284,63 +281,3 @@ class TiltWatcher:
             return False
         self.set_reference(angle)
         return True
-
-
-# ------------------------------------------------------------------ score over time
-class PostureScore:
-    """Posture over time: the share of tracked time within all limits, per minute and for the session.
-
-    Time-weighted like the rest of OcuSense: the time between two consecutive judged frames
-    (at most MAX_FRAME_GAP apart) counts for the state of the first one, so a changing frame
-    rate doesn't change the score. A frame without a face, a longer gap or a pause ends the
-    run. "Within all limits" is judged per moment (not after 30 s), so a glance away lowers
-    the score a little while it lasts but never marks posture as poor.
-    """
-
-    def __init__(self, start: float, min_seconds: float = MIN_VALID_SECONDS_FOR_RATE):
-        self.start = start
-        self.min_seconds = min_seconds  # judged time needed before a session score is given
-        self._minutes: dict[int, list[float]] = {}  # minute → [judged seconds, good seconds]
-        self._last: tuple[float, bool] | None = None  # (time, within all limits) of the previous judged frame
-
-    def add(self, t: float, status: PostureStatus | None) -> None:
-        if status is None or not status.tracked:
-            self._last = None  # no face or no baseline: not judged
-            return
-        good = not status.outside
-        if self._last is not None and 0 < t - self._last[0] <= MAX_FRAME_GAP:
-            self._add_time(self._last[0], t, self._last[1])
-        self._last = (t, good)
-
-    def _add_time(self, a: float, b: float, good: bool) -> None:
-        """Split the interval at minute edges."""
-        while a < b:
-            index = int((a - self.start) // 60)
-            end = min(b, self.start + (index + 1) * 60)
-            minute = self._minutes.setdefault(index, [0.0, 0.0])
-            minute[0] += end - a
-            if good:
-                minute[1] += end - a
-            a = end
-
-    def interrupt(self) -> None:
-        """Pause: no time is counted across it."""
-        self._last = None
-
-    def minutes(self) -> list[PostureMinute]:
-        """Every minute from the first judged one to the last, in order (gaps included, with 0 s)."""
-        if not self._minutes:
-            return []
-        first, last = min(self._minutes), max(self._minutes)
-        return [PostureMinute(i, *self._minutes.get(i, (0.0, 0.0))) for i in range(first, last + 1)]
-
-    @property
-    def judged_seconds(self) -> float:
-        return sum(m[0] for m in self._minutes.values())
-
-    def score(self) -> float | None:
-        """Share of judged time within all limits for the whole session, 0–1; None with too little time."""
-        judged = self.judged_seconds
-        if judged < self.min_seconds:
-            return None
-        return sum(m[1] for m in self._minutes.values()) / judged
