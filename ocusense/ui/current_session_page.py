@@ -12,7 +12,9 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QWidget
 
 from ocusense.core.baseline_drift import NOT_ENOUGH_DATA, TESTED, LiveDrift
+from ocusense.config import POSTURE_CALIBRATION_SECONDS, POSTURE_SUSTAIN_SECONDS
 from ocusense.core.models import SessionSummary
+from ocusense.core.posture import PostureCalibration
 from ocusense.reference import MIN_REFERENCE_INTERVALS
 from ocusense.core.stats import METRICS, format_duration, format_metric
 
@@ -22,6 +24,7 @@ from .widgets.artwork import Composition
 from .widgets.common import label, rule, vline
 from .widgets.openness_graph import OpennessGraph
 from .widgets.page import Page, paragraph
+from .widgets.status_indicator import StatusIndicator
 
 UNAVAILABLE = "—"
 
@@ -54,6 +57,7 @@ def value_row(cells) -> tuple[QWidget, dict]:
 
 class CurrentSessionPage(Page):
     go_to_study = Signal()
+    calibrate_posture = Signal()
 
     def __init__(self, parent=None):
         super().__init__("Statistics", "Current session",
@@ -104,6 +108,28 @@ class CurrentSessionPage(Page):
         self.graph = OpennessGraph()
         body.addWidget(self.graph)
         body.addWidget(label("Relative to your calibrated open and closed positions — not a fatigue score.",
+                             "secondary", theme.ui_font(13), wrap=True))
+
+        self.section("Posture", body)
+        posture_row = QHBoxLayout()
+        posture_row.setSpacing(16)
+        self.posture_indicator = StatusIndicator()
+        self.posture_indicator.set("ready", "Not calibrated")
+        posture_row.addWidget(self.posture_indicator, 1)
+        self.posture_button = QPushButton("Calibrate posture")
+        self.posture_button.setProperty("kind", "secondary")
+        self.posture_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.posture_button.clicked.connect(self.calibrate_posture.emit)
+        posture_row.addWidget(self.posture_button, 0, Qt.AlignmentFlag.AlignTop)
+        body.addLayout(posture_row)
+        self.posture_detail = label("Sit up straight, facing the screen, and press Calibrate posture: OcuSense "
+                                    "records your head angle, distance and position for "
+                                    f"{POSTURE_CALIBRATION_SECONDS:.0f} seconds and compares with them from then on.", "secondary", theme.ui_font(14), wrap=True)
+        body.addWidget(self.posture_detail)
+        body.addWidget(label("Head angle, distance (estimated from your iris, so approximate) and how low your face "
+                             "sits in the picture. A limit must be exceeded for "
+                             f"{POSTURE_SUSTAIN_SECONDS:.0f} seconds in a row to count, so "
+                             "glancing away doesn't. Shown live only — never saved. Not a health assessment.",
                              "secondary", theme.ui_font(13), wrap=True))
 
         self.section("Blink distributions", body)
@@ -216,6 +242,39 @@ class CurrentSessionPage(Page):
                                   f"{skipped} with not enough data. A single window below the line happens by "
                                   f"chance now and then, so only {drift.confirm_windows} in a row count as "
                                   "different.")
+
+    def show_posture(self, update) -> None:
+        """update: the window's MonitorUpdate. Only shows what core/posture.py worked out."""
+        if update.posture_cal_status == PostureCalibration.RUNNING:
+            self.posture_indicator.set("calibrating", "Calibrating posture…")
+            self.posture_detail.setText(f"Sit up straight and look at the screen · {update.posture_cal_seconds_left:.0f} s")
+            return
+        if update.posture_cal_status == PostureCalibration.FAILED and update.posture_status is None:
+            self.posture_indicator.set("paused", "Posture calibration failed")
+            self.posture_detail.setText(update.posture_cal_error)
+            return
+        status = update.posture_status
+        if status is None:
+            return  # not calibrated yet: keep the instructions
+        if not status.tracked:
+            self.posture_indicator.set("paused", "Face not tracked")
+            self.posture_detail.setText("Posture is checked again when your face is back in the picture.")
+            return
+        if status.poor:
+            self.posture_indicator.set("warning", "Poor posture: " + ", ".join(status.problems))
+        elif status.outside:
+            self.posture_indicator.set("monitoring", f"Good · {', '.join(status.outside)} for "
+                                                     f"{status.longest_outside:.0f} s")
+        else:
+            self.posture_indicator.set("monitoring", "Good posture")
+        parts = [f"head {abs(status.pitch_change):.0f}° {'lower' if status.pitch_change > 0 else 'higher'}"]
+        if status.roll_change is not None:
+            parts.append(f"tilted {abs(status.roll_change):.0f}°")
+        if status.distance_cm is not None:
+            parts.append(f"about {status.distance_cm:.0f} cm away (calibrated {status.baseline_distance_cm:.0f} cm)")
+        parts.append(f"face {abs(status.centre_drop) * 100:.0f} % of the picture "
+                     f"{'lower' if status.centre_drop > 0 else 'higher'}")
+        self.posture_detail.setText("Compared with your calibration: " + " · ".join(parts) + ".")
 
     def show_distributions(self, data, thresholds, context: dict) -> None:
         self.distributions.show_data(data, "Distributions appear once tracking has started.", thresholds, context,

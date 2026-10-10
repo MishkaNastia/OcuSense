@@ -164,6 +164,7 @@ class MainWindow(QMainWindow):
         self.stats_page.go_to_study.connect(self.show_study)
         self.current_page.go_to_study.connect(self.show_study)
         self.settings_page.recalibrate_requested.connect(self._recalibrate_from_settings)
+        self.current_page.calibrate_posture.connect(self.calibrate_posture)
         self.settings_page.clear_history_requested.connect(self.clear_history)
         self.settings_page.new_reference_requested.connect(self.make_new_reference)
         self.settings_page.record.toggled.connect(self._set_recording)
@@ -335,6 +336,15 @@ class MainWindow(QMainWindow):
         self.study.graph.set_data(update.samples, update.now)
         if self.view == "current":  # only paint the second graph while it is visible
             self.current_page.set_graph(update.samples, update.now, caption=self.study.graph_caption.text())
+            self.current_page.show_posture(update)
+
+    def calibrate_posture(self) -> None:
+        """The "sit up straight" step runs on the camera thread while monitoring; the eye calibration is kept."""
+        if self.state != "monitoring" or self.thread is None:
+            self.current_page.posture_detail.setText("Start a session first: posture is calibrated while the "
+                                                     "camera is on.")
+            return
+        self.thread.request_posture_calibration()
 
     def _on_calibration_update(self, update: MonitorUpdate) -> None:
         if CLOSED_STEP_FINISHED in update.events:

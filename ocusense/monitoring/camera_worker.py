@@ -15,6 +15,7 @@ from PySide6.QtGui import QImage
 
 from ocusense.config import CAMERA_INDEX, PREVIEW_WIDTH
 from ocusense.core.calibration import STEPS
+from ocusense.core.posture import PostureCalibration
 from ocusense.monitoring.pipeline import EyeMonitor, FrameResult
 
 
@@ -41,6 +42,11 @@ class MonitorUpdate:
     observation: object = None  # core.models.FrameObservation for the measurements
     calibration_info: object = None  # core.models.CalibrationInfo in use for this frame, or None
     closeness: float = None  # face size now ÷ at calibration, for the distance reminder
+    posture: object = None  # core.models.PostureReading on this frame, or None
+    posture_status: object = None  # core.models.PostureStatus, or None before posture calibration
+    posture_cal_status: str = PostureCalibration.IDLE
+    posture_cal_seconds_left: float = 0.0
+    posture_cal_error: str = ""
 
 
 def open_camera(index: int = CAMERA_INDEX) -> cv2.VideoCapture | None:
@@ -83,6 +89,11 @@ def snapshot(monitor: EyeMonitor, result: FrameResult, now: float) -> MonitorUpd
         observation=result.observation,
         calibration_info=monitor.calibration_info,
         closeness=result.closeness,
+        posture=result.posture,
+        posture_status=result.posture_status,
+        posture_cal_status=monitor.posture_calibrator.status,
+        posture_cal_seconds_left=monitor.posture_calibrator.seconds_left(now),
+        posture_cal_error=monitor.posture_calibrator.error,
     )
 
 
@@ -101,10 +112,15 @@ class CameraWorker(QThread):
         self.camera = camera
         self._lock = threading.Lock()
         self._calibration_requested = False
+        self._posture_calibration_requested = False
 
     def request_calibration(self) -> None:
         with self._lock:
             self._calibration_requested = True
+
+    def request_posture_calibration(self) -> None:
+        with self._lock:
+            self._posture_calibration_requested = True
 
     def run(self) -> None:
         while not self.isInterruptionRequested():
@@ -115,8 +131,11 @@ class CameraWorker(QThread):
             now = time.monotonic()
             with self._lock:
                 calibrate, self._calibration_requested = self._calibration_requested, False
+                posture, self._posture_calibration_requested = self._posture_calibration_requested, False
             if calibrate:
                 self.monitor.start_calibration(now)
+            if posture:
+                self.monitor.start_posture_calibration(now)
             result = self.monitor.process(frame, now)
             update = snapshot(self.monitor, result, now)
             update.source = self

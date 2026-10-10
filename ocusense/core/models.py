@@ -112,3 +112,40 @@ class SessionSummary:
         if name == "rate":
             return self.blinks / (self.tracked_seconds / 60)
         return self.closed_seconds / self.tracked_seconds * 100
+
+
+@dataclass(frozen=True)
+class PostureReading:
+    """Posture measured on one frame (core/posture.py). None = couldn't be measured on this frame."""
+    pitch: float | None  # degrees; positive = chin down (head dropped)
+    yaw: float | None  # degrees; head turned sideways (shown only, not judged)
+    roll: float | None  # degrees; head tilted towards a shoulder
+    distance_cm: float | None  # estimated eye-to-camera distance, from the iris width
+    centre_y: float  # face centre height in the picture: 0 = top, 1 = bottom
+    size: float  # face width ÷ frame width
+
+
+@dataclass(frozen=True)
+class PostureBaseline:
+    """The "sit up straight" reference: median values from the posture calibration step."""
+    pitch: float
+    roll: float
+    distance_cm: float
+    centre_y: float
+    size: float
+
+
+@dataclass(frozen=True)
+class PostureStatus:
+    """Posture on one frame, compared with the baseline. Numbers are for display only."""
+    tracked: bool  # False: no face (or no head angle) on this frame; nothing is judged
+    poor: bool = False  # at least one limit has been exceeded for the sustained time
+    problems: tuple = ()  # names of the limits exceeded for the sustained time, e.g. ("head dropped",)
+    outside: tuple = ()  # names of the limits exceeded right now (not yet for long enough)
+    longest_outside: float = 0.0  # seconds the longest current excess has lasted
+    pitch_change: float | None = None  # degrees, + = chin lower than at calibration
+    roll_change: float | None = None  # degrees, either way
+    distance_cm: float | None = None
+    baseline_distance_cm: float | None = None
+    centre_drop: float | None = None  # fraction of the frame height, + = lower than at calibration
+    size_ratio: float | None = None  # face size now ÷ at calibration (> 1 = bigger: closer or slid forward)

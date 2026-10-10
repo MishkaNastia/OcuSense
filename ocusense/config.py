@@ -59,6 +59,23 @@ PROXIMITY_COOLDOWN_SECONDS = 300.0  # default: at most one reminder every 5 minu
 # …adjustable in Settings › Reminders to one of these (seconds), from 5 s to 10 minutes
 PROXIMITY_COOLDOWN_CHOICES = (5, 10, 15, 30, 60, 120, 180, 300, 600)
 
+# --- Posture (ocusense/core/posture.py) ---
+# Distance in cm uses the iris as a ruler: the visible iris is about the same width in all
+# adults, so distance ≈ focal length (px) × iris width (mm) ÷ iris width in the picture (px).
+IRIS_DIAMETER_MM = 11.7  # average adult iris diameter
+# ENGINEERING CHOICE: the webcam's focal length in pixels, as a multiple of the frame width.
+# 1.0 ≈ a 53° horizontal field of view, typical for laptop webcams (a 60° camera would be 0.87).
+# Not measured per camera, so the cm values are approximate; tune this if they are off.
+FOCAL_LENGTH_PER_FRAME_WIDTH = 1.0
+POSTURE_CALIBRATION_SECONDS = 3.0  # the "sit up straight" step
+POSTURE_MIN_SAMPLES = 15  # frames with a measured face needed in that step (~0.5 s at 30 frames/s)
+POSTURE_SUSTAIN_SECONDS = 30.0  # a limit must be exceeded this long, without a break, to count
+POSTURE_PITCH_DROP_DEGREES = 15.0  # head dropped: chin this much lower than at calibration
+POSTURE_ROLL_DEGREES = 10.0  # head tilted sideways this much from calibration, either way
+POSTURE_MIN_DISTANCE_CM = 50.0  # closer than this to the screen…
+POSTURE_CLOSER_FRACTION = 0.20  # …or this much closer than at calibration (0.20 = 20 %)
+POSTURE_CENTRE_DROP = 0.08  # face centre this much lower in the picture (fraction of the frame height)
+
 # --- Raw EAR recording (ocusense/recording.py) ---
 RECORDING_CHUNK_SECONDS = 600.0  # a new CSV file every 10 minutes (and on pause, stop and quit)
 

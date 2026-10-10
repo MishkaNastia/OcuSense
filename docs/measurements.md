@@ -20,8 +20,9 @@ Contents
 11. [Blink distributions (histograms)](#11-blink-distributions-histograms)
 12. [Saved recordings](#12-saved-recordings)
 13. [Distance reminder](#13-distance-reminder)
-14. [Precision and limitations](#14-precision-and-limitations)
-15. [Where it lives in the code](#15-where-it-lives-in-the-code)
+14. [Posture](#14-posture)
+15. [Precision and limitations](#15-precision-and-limitations)
+16. [Where it lives in the code](#16-where-it-lives-in-the-code)
 
 ---
 
@@ -78,6 +79,16 @@ calibration values are measured, not set.
 | `MIN_VALID_SECONDS_FOR_RATE` | 30 s | valid observation needed before a rate or closed time is shown (rolling window and 60 s distribution windows) |
 | `PROCESSING_RATE_WINDOW` | 5 s | period used to measure the actual frames per second |
 | `RECORDING_CHUNK_SECONDS` | 600 s | a new recording file every 10 minutes |
+| `IRIS_DIAMETER_MM` | 11.7 mm | assumed iris width, the ruler for the posture distance |
+| `FOCAL_LENGTH_PER_FRAME_WIDTH` | 1.0 | webcam focal length ÷ frame width (≈ 53° view); tune if the cm are off |
+| `POSTURE_CALIBRATION_SECONDS` | 3 s | length of the "sit up straight" step |
+| `POSTURE_MIN_SAMPLES` | 15 frames | measured frames needed in that step |
+| `POSTURE_SUSTAIN_SECONDS` | 30 s | a posture limit must be exceeded this long in a row to count |
+| `POSTURE_PITCH_DROP_DEGREES` | 15° | head dropped: chin this much lower than at calibration |
+| `POSTURE_ROLL_DEGREES` | 10° | head tilted this much either way |
+| `POSTURE_MIN_DISTANCE_CM` | 50 cm | closer than this counts as too close… |
+| `POSTURE_CLOSER_FRACTION` | 0.20 | …as does being 20 % closer than at calibration |
+| `POSTURE_CENTRE_DROP` | 0.08 | slumped: face centre 8 % of the frame height lower |
 | `PROXIMITY_WARN_RATIO` | 1.6 | distance reminder when the face looks 1.6× as big as at calibration… |
 | `PROXIMITY_SUSTAIN_SECONDS` | 3 s | …for this long |
 | `PROXIMITY_CLEAR_RATIO` | 1.3 | below this the person counts as moved back |
@@ -311,6 +322,7 @@ files rotate every **10 minutes**.
 | Study time, tracking coverage, blinks counted | for the whole session so far (section 7, 8.1) |
 | Eye measurements · whole session so far | blink rate, median closure duration and time classified as closed over **all** valid observation of the session (not just the last 60 s) |
 | Personal eye openness graph | the same 10 s live graph as on the Study page |
+| Posture | good / poor (with the limits exceeded), the current changes from your posture calibration, and a **Calibrate posture** button — see [14](#14-posture) |
 | Blink distributions | five histograms, updated every 2 s — see [11](#11-blink-distributions-histograms) |
 | Compared with your reference | the saved reference (or, without one, this session's first 10 minutes), the latest 5-minute window's test result and a count of windows so far — see [11.7](#117-compared-with-your-reference) |
 
@@ -568,7 +580,62 @@ very close makes it less useful. Leaning or turning the head changes the apparen
 little; the thresholds leave room for that. It never affects blink detection — EAR is a ratio
 and barely changes with distance.
 
-## 14. Precision and limitations
+## 14. Posture
+
+Statistics › Current session shows whether you are sitting the way you did when you calibrated
+your posture. It uses the same Face Landmarker as the eyes; no extra model, nothing saved.
+
+**What is measured** on every frame with a face:
+
+| Value | How | Unit |
+| --- | --- | --- |
+| Head angle | MediaPipe's facial transformation matrix (4×4), read as R = Rz(roll)·Ry(yaw)·Rx(pitch) | degrees |
+| • pitch | nodding; **+ = chin down** | ° |
+| • roll | tilting towards a shoulder | ° |
+| • yaw | turning sideways (shown, not judged) | ° |
+| Distance | `focal length (px) × 11.7 mm ÷ iris width (px)`; iris width = mean horizontal width of both irises (landmarks 469–471, 474–476); focal length = 1.0 × frame width (≈ 53° field of view) | cm (approximate) |
+| Face centre | middle of the face's landmarks, top to bottom: 0 = top of the picture, 1 = bottom | fraction of frame height |
+| Face size | width of the face's landmarks ÷ frame width | fraction |
+
+The iris is a useful ruler because its visible width is about 11.7 mm in almost every adult.
+The focal length is **not measured** for your camera: if the centimetres look off, tune
+`FOCAL_LENGTH_PER_FRAME_WIDTH` (0.87 for a 60° camera). The limits compare with your own
+calibration, so a constant error in centimetres mostly cancels out, except for the fixed 50 cm limit.
+
+**Posture calibration** ("Calibrate posture", while a session is running): sit up straight
+and look at the screen for **3 seconds**. The **median** pitch, roll, distance, face centre and
+face size of those frames become the baseline. At least **15** frames with everything measured
+are needed, otherwise it fails and asks you to try again. It is separate from the eye
+calibration: blink counting carries on, and recalibrating the eyes keeps the posture baseline.
+
+**Limits.** Posture is marked **poor** when one of these has been exceeded for **30 seconds
+in a row**:
+
+| Name | Rule (compared with the baseline) |
+| --- | --- |
+| head dropped | pitch more than **15°** lower (chin down) |
+| head tilted | roll more than **10°** either way |
+| too close | closer than **50 cm**, or more than **20 %** closer than at calibration |
+| slumped | face centre more than **8 %** of the frame height lower |
+
+Each limit has its own timer. Back within a limit for a single frame → that timer starts
+again, so glancing down at your phone or stretching for a few seconds never counts. A frame
+without a face (or without a head angle) is handled like lost tracking in the blink counter:
+all timers start again, and nothing is judged until the face is back. Pausing does the same.
+While a limit is exceeded but not yet for 30 s, the page shows it with its time so far
+("Good · head dropped for 12 s").
+
+**Not the distance reminder.** The distance reminder (section 13) compares apparent face size
+with the eye calibration and reacts after 3 s; the posture "too close" limit uses the
+estimated centimetres and the 30 s rule. They can disagree a little.
+
+**Limits of the method.** The head angle and iris points come from a single 2D camera, so
+expect a few degrees and several centimetres of noise. Glasses can hide the iris edges. A
+camera above or below the screen changes the angles you look at it from, which is why
+everything is compared with your own baseline. Posture data is shown live only and never
+written to disk. It describes position, not health.
+
+## 15. Precision and limitations
 
 - **Frame timing**: durations are accurate to about one frame interval (±33 ms at 30 fps;
   coarser in dim light, when cameras slow down).
@@ -589,7 +656,7 @@ and barely changes with distance.
 
 ---
 
-## 15. Where it lives in the code
+## 16. Where it lives in the code
 
 | Topic | File |
 | --- | --- |
@@ -607,4 +674,5 @@ and barely changes with distance.
 | Exports | `ocusense/exports.py` |
 | Distance reminder rules | `ocusense/core/proximity.py` (face size in `core/eye_metrics.py`) |
 | Reminder card and macOS notifications | `ocusense/ui/widgets/alert_banner.py`, `ocusense/ui/notifications.py` |
+| Posture: head angle, distance, slump, calibration and limits | `ocusense/core/posture.py` (values in `core/models.py`) |
 | Frame processing per camera frame | `ocusense/monitoring/pipeline.py` |
