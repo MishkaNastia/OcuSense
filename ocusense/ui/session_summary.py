@@ -26,6 +26,7 @@ class SessionExtras:
     distance_reminders: int = 0
     eye_rests: int = 0
     break_reminders: int = 0
+    lighting_reminders: int = 0
     focus_rounds: int = 0
     notes: list = field(default_factory=list)
 
@@ -99,7 +100,8 @@ class SessionSummaryCard(QDialog):
         reminders = []
         for count, one, many in ((extras.distance_reminders, "distance reminder", "distance reminders"),
                                  (extras.eye_rests, "eye-rest reminder", "eye-rest reminders"),
-                                 (extras.break_reminders, "break reminder", "break reminders")):
+                                 (extras.break_reminders, "break reminder", "break reminders"),
+                                 (extras.lighting_reminders, "lighting tip", "lighting tips")):
             if count:
                 reminders.append(f"{count} {one if count == 1 else many}")
         self.values["reminders"] = ", ".join(reminders) if reminders else "No reminders this session."

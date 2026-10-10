@@ -41,6 +41,7 @@ class MonitorUpdate:
     observation: object = None  # core.models.FrameObservation for the measurements
     calibration_info: object = None  # core.models.CalibrationInfo in use for this frame, or None
     closeness: float = None  # face size now ÷ at calibration, for the distance reminder
+    brightness: float = None  # average picture brightness 0–255, for the lighting check (never saved)
 
 
 def open_camera(index: int = CAMERA_INDEX) -> cv2.VideoCapture | None:
@@ -50,6 +51,12 @@ def open_camera(index: int = CAMERA_INDEX) -> cv2.VideoCapture | None:
         camera.release()
         return None
     return camera
+
+
+def picture_brightness(frame_bgr: np.ndarray) -> float:
+    """Average brightness 0–255 from a tiny copy of the frame (cheap; the number is all that is kept)."""
+    small = cv2.resize(frame_bgr, (32, 24), interpolation=cv2.INTER_AREA)
+    return float(cv2.cvtColor(small, cv2.COLOR_BGR2GRAY).mean())
 
 
 def to_qimage(frame_bgr: np.ndarray, width: int = PREVIEW_WIDTH) -> QImage:
@@ -83,6 +90,7 @@ def snapshot(monitor: EyeMonitor, result: FrameResult, now: float) -> MonitorUpd
         observation=result.observation,
         calibration_info=monitor.calibration_info,
         closeness=result.closeness,
+        brightness=picture_brightness(result.frame),
     )
 
 

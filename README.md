@@ -79,6 +79,11 @@ asks after 20 minutes of monitored screen time to look about 6 m (20 ft) away fo
 20 seconds, with a countdown; a pause of 20 s or more (e.g. a Pomodoro break)
 starts the count again.
 
+**Lighting check (off by default).** Switched on in Settings › Reminders, it
+suggests a lamp when the room stays dark for a minute while you study (a bright
+screen in a dark room is hard on the eyes). It uses only the picture's average
+brightness, never saved; webcams adjust exposure, so it is a rough guide.
+
 **Session summary.** After Stop, a card recaps the session: study time, blinks,
 blink rate, median closure, closed time, tracking coverage, Pomodoro focus rounds
 and the reminders that came up.

@@ -63,6 +63,7 @@ class SettingsPage(Page):
     recalibrate_requested = Signal()
     distance_interval_changed = Signal(float)  # seconds between distance reminders
     eye_rest_changed = Signal(bool)  # 20-20-20 eye rest switched on or off
+    lighting_changed = Signal(bool)  # lighting check switched on or off
     clear_history_requested = Signal()
     new_reference_requested = Signal()
 
@@ -129,6 +130,15 @@ class SettingsPage(Page):
             "about 6 metres (20 feet) away for 20 seconds, with a countdown. A pause of 20 s or more (like a "
             "Pomodoro break) starts the count again.", self.eye_rest))
         self.eye_rest.toggled.connect(self.eye_rest_changed.emit)
+        self.lighting = QCheckBox("On")
+        self.lighting.setAccessibleName("Lighting check")
+        self.body.addWidget(setting_row(
+            "Lighting check",
+            "Off unless you switch it on. Then, if your room stays dark for a minute while you study, a card "
+            "suggests a lamp — a bright screen in a dark room is hard on the eyes. Uses only the picture’s "
+            "average brightness (never saved); webcams adjust their exposure, so it is a rough guide.",
+            self.lighting))
+        self.lighting.toggled.connect(self.lighting_changed.emit)
         self.body.addWidget(setting_row("Check-ins",
                                         "Not in the Mac app yet. The planned gentle prompts can be tried in the "
                                         "sample session on the OcuSense website.", tag="Not available yet"))
@@ -179,6 +189,12 @@ class SettingsPage(Page):
         self.history_detail = label("", "secondary", theme.ui_font(14), wrap=True)
         self.body.addWidget(setting_row("Session history", "", self.clear_button, extra=(self.history_detail,)))
         self.finish()
+
+    def show_lighting(self, on: bool) -> None:
+        """Show the remembered choice without announcing it as a change."""
+        self.lighting.blockSignals(True)
+        self.lighting.setChecked(on)
+        self.lighting.blockSignals(False)
 
     def show_eye_rest(self, on: bool) -> None:
         """Show the remembered choice without announcing it as a change."""

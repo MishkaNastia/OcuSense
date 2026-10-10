@@ -38,6 +38,7 @@ from ocusense.config import CLOSE_BELOW, MIN_SESSION_SECONDS, MODEL_PATH, REOPEN
 from ocusense.core.baseline_drift import BreakReminder, LiveDrift
 from ocusense.core.calibration import GuidedCalibration
 from ocusense.core.eye_rest import EyeRestTimer
+from ocusense.core.lighting import LightingMonitor
 from ocusense.core.proximity import ProximityMonitor
 from ocusense.core.session import SessionRecorder
 from ocusense.demo_data import demo_sessions
@@ -57,6 +58,7 @@ from .settings_page import SettingsPage
 from .sidebar import STATISTICS_PAGES, Sidebar
 from .eye_rest_card import BODY as EYE_REST_BODY, TITLE as EYE_REST_TITLE, EyeRestCard
 from .games_page import GamesPage
+from .lighting_card import BODY as LIGHTING_BODY, TITLE as LIGHTING_TITLE, LightingCard
 from .menu_bar import MenuBarIcon
 from .pomodoro_page import PomodoroPage
 from .session_summary import SessionExtras, SessionSummaryCard
@@ -122,6 +124,8 @@ class MainWindow(QMainWindow):
         self.distance_reminder = self.preferences.distance_reminder  # Settings › Reminders
         self.eye_rest = EyeRestTimer()  # 20-20-20 (off unless switched on in Settings)
         self._eye_rest_waiting = False  # due while another reminder was on screen
+        self.lighting = LightingMonitor()  # off unless switched on in Settings
+        self._lighting_waiting = False
         self.session_extras = SessionExtras()  # reminders and focus rounds in the running session
         self.summary_card: SessionSummaryCard | None = None
         self._ticks = 0
@@ -176,6 +180,9 @@ class MainWindow(QMainWindow):
         self.eye_rest_card = EyeRestCard()  # the 20-20-20 reminder, below the distance reminder
         self.eye_rest_card.finished.connect(lambda _how: self.eye_rest.rested())
         column.addWidget(self.eye_rest_card)
+        self.lighting_card = LightingCard()  # the lighting check, below the other reminders
+        self.lighting_card.finished.connect(self._lighting_card_closed)
+        column.addWidget(self.lighting_card)
         column.addWidget(self.pages, 1)
         outer.addWidget(content, 1)
 
@@ -201,6 +208,8 @@ class MainWindow(QMainWindow):
         self.pomodoro_page.state_changed.connect(self._pomodoro_state_changed)
         self.settings_page.show_eye_rest(self.preferences.eye_rest)
         self.settings_page.eye_rest_changed.connect(self._set_eye_rest)
+        self.settings_page.show_lighting(self.preferences.lighting_check)
+        self.settings_page.lighting_changed.connect(self._set_lighting)
         self.settings_page.details.toggled.connect(self.study.details_button.setChecked)
         self.study.details_button.toggled.connect(self.settings_page.details.setChecked)
 
@@ -384,6 +393,7 @@ class MainWindow(QMainWindow):
         if self.recorder:
             self.recorder.add_observation(update.observation)
         self._check_distance(update.now, update.closeness)
+        self._check_lighting(update.now, update.brightness)
         self.study.set_live_openness(update.observation)
         self.study.set_blinks(update.blinks)
         if not update.face_found:
@@ -639,6 +649,37 @@ class MainWindow(QMainWindow):
     def _clear_distance_reminder(self) -> None:
         self.proximity.reset()
         self.banner_holder.setVisible(False)
+        self.lighting.reset()  # pause/stop/recalibrate: the dark stretch starts over
+        self._lighting_waiting = False
+
+    # ------------------------------------------------------- lighting check
+    def _check_lighting(self, now: float, brightness: float | None) -> None:
+        if not self.preferences.lighting_check:
+            return
+        if self.lighting.update(now, brightness):
+            self._lighting_waiting = True
+        elif not self.lighting.dark and not self.lighting_card.isHidden():
+            self.lighting_card.setVisible(False)  # the room is lit again
+        if (self._lighting_waiting and self.banner_holder.isHidden() and self.eye_rest_card.isHidden()
+                and self.lighting_card.isHidden()):
+            self._lighting_waiting = False  # never on top of another reminder
+            self.session_extras.lighting_reminders += 1
+            self.lighting_card.setVisible(True)
+            app = QApplication.instance()
+            if app.applicationState() != Qt.ApplicationState.ApplicationActive or not self.isActiveWindow():
+                self.notify(LIGHTING_BODY, LIGHTING_TITLE)
+
+    def _lighting_card_closed(self, how: str) -> None:
+        if how == "turn off":
+            self.settings_page.lighting.setChecked(False)  # saves the choice through _set_lighting
+
+    def _set_lighting(self, on: bool) -> None:
+        self.preferences.lighting_check = on
+        self.preferences.save()
+        self.lighting.reset()
+        if not on:
+            self._lighting_waiting = False
+            self.lighting_card.setVisible(False)
 
     def _banner_action(self, name: str) -> None:
         self.banner_holder.setVisible(False)

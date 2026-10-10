@@ -38,6 +38,7 @@ class Preferences:
     pomodoro_monitoring: bool = True  # eye monitoring runs in focus rounds and pauses in breaks
     # 20-20-20 eye rest
     eye_rest: bool = False  # off unless switched on in Settings › Reminders
+    lighting_check: bool = False  # off unless switched on in Settings › Reminders
     # Games
     morse_dash_ms: int = 450  # Blink Code: closures at least this long are dashes
     morse_high_score: int = 0
@@ -68,7 +69,7 @@ class Preferences:
             if isinstance(value, int) and not isinstance(value, bool) and low <= value <= high:
                 setattr(prefs, name, value)
         for name in ("auto_start_breaks", "auto_start_focus", "pomodoro_notify", "pomodoro_sound", "animations",
-                     "pomodoro_monitoring", "eye_rest"):
+                     "pomodoro_monitoring", "eye_rest", "lighting_check"):
             if isinstance(values.get(name), bool):
                 setattr(prefs, name, values[name])
         dash = values.get("morse_dash_ms")
