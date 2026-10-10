@@ -57,6 +57,7 @@ from .settings_page import SettingsPage
 from .sidebar import STATISTICS_PAGES, Sidebar
 from .eye_rest_card import BODY as EYE_REST_BODY, TITLE as EYE_REST_TITLE, EyeRestCard
 from .pomodoro_page import PomodoroPage
+from .session_summary import SessionExtras, SessionSummaryCard
 from .study_page import StudyPage
 from .widgets.alert_banner import AlertBanner, TooCloseMark
 from .widgets.common import vline
@@ -118,6 +119,8 @@ class MainWindow(QMainWindow):
         self.distance_reminder = self.preferences.distance_reminder  # Settings › Reminders
         self.eye_rest = EyeRestTimer(self.preferences.eye_rest_minutes)  # 20-20-20
         self._eye_rest_waiting = False  # due while another reminder was on screen
+        self.session_extras = SessionExtras()  # reminders and focus rounds in the running session
+        self.summary_card: SessionSummaryCard | None = None
         self._ticks = 0
 
         root = QWidget()
@@ -268,6 +271,16 @@ class MainWindow(QMainWindow):
         self.monitor.reset_session()
         self.elapsed = 0.0
         self._set_state("ready", "Session ended — see it under Statistics." if saved else "")
+        if saved:
+            self._show_session_summary()
+
+    def _show_session_summary(self) -> None:
+        """The recap card after Stop (doesn't block the window)."""
+        if self.summary_card is not None:
+            self.summary_card.close()
+        self.summary_card = SessionSummaryCard(self.last_summary, self.session_extras, self)
+        self.summary_card.see_statistics.connect(lambda: self.show_page("all_time"))
+        self.summary_card.open()
 
     def recalibrate(self) -> None:
         self._stop_clock()
@@ -310,6 +323,7 @@ class MainWindow(QMainWindow):
         self.running_since = now
         if self.recorder is None:
             self.recorder = SessionRecorder(now, calibration=self.monitor.calibration_info)
+            self.session_extras = SessionExtras()
             self.study.clear_measurements()
         else:
             self.recorder.resume(now)
@@ -324,6 +338,7 @@ class MainWindow(QMainWindow):
         self._drift = None
         if summary.study_seconds >= MIN_SESSION_SECONDS:
             self.store.add(summary)
+            self.last_summary = summary
             return True
         return False
 
@@ -474,6 +489,7 @@ class MainWindow(QMainWindow):
             self._eye_rest_waiting = True
         if self._eye_rest_waiting and self.banner_holder.isHidden() and self.eye_rest_card.isHidden():
             self._eye_rest_waiting = False  # never on top of the distance reminder
+            self.session_extras.eye_rests += 1
             self.eye_rest_card.show_card()
             app = QApplication.instance()
             if app.applicationState() != Qt.ApplicationState.ApplicationActive or not self.isActiveWindow():
@@ -505,6 +521,8 @@ class MainWindow(QMainWindow):
     def _pomodoro_phase_ended(self, ended) -> None:
         """A Pomodoro phase finished: a Mac notification if OcuSense isn't in view, and an optional sound."""
         prefs = self.preferences
+        if ended.phase == "focus" and ended.completed and self.recorder is not None:
+            self.session_extras.focus_rounds += 1
         if prefs.pomodoro_sound:
             QApplication.beep()
         if not prefs.pomodoro_notify:
@@ -521,6 +539,7 @@ class MainWindow(QMainWindow):
 
     def _remind(self) -> None:
         """Blinking less often than in the reference, confirmed: suggest a break (notification + Study page)."""
+        self.session_extras.break_reminders += 1
         self.notify(BREAK_MESSAGE, "Time for a break")
         self.study.show_reminder(f"{BREAK_MESSAGE} ({datetime.now():%H:%M})")
 
@@ -598,6 +617,7 @@ class MainWindow(QMainWindow):
         if not self.distance_reminder:
             return
         if self.proximity.update(now, closeness):
+            self.session_extras.distance_reminders += 1
             self.banner_holder.setVisible(True)
             self.distance_banner.setVisible(True)
             app = QApplication.instance()
