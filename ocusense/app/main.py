@@ -11,6 +11,15 @@ from . import theme
 from .window import MainWindow
 
 
+def self_test(window):
+    """Check a packaged build without a camera: model loads and a frame can be analysed."""
+    import numpy as np
+
+    result = window.monitor.process(np.zeros((480, 640, 3), np.uint8), now=1.0)
+    print(f"OcuSense self-test OK · model: {MODEL_PATH} · face found: {result.landmarks is not None}")
+    return 0
+
+
 def run():
     if not MODEL_PATH.exists():
         print(f"Model file not found: {MODEL_PATH}\nRun this first:  python download_model.py")
@@ -22,5 +31,9 @@ def run():
     # Let Tab reach every button on macOS, not only text fields.
     app.styleHints().setTabFocusBehavior(Qt.TabFocusBehavior.TabFocusAllControls)
     window = MainWindow()
+    if "--self-test" in sys.argv:
+        code = self_test(window)
+        window.close()
+        return code
     window.show()
     return app.exec()

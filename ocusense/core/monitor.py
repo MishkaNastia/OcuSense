@@ -5,6 +5,7 @@ EyeMonitor.process() for every frame, and decides how to show the result.
 Frames are analysed in memory and never stored.
 """
 
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -18,7 +19,13 @@ from .calibration import GuidedCalibration
 from .eye_metrics import measure_eyes
 from .history import ScoreHistory
 
-MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "face_landmarker.task"
+def _resource_root():
+    """The project folder, or the app's bundled resources when running as OcuSense.app."""
+    bundle = getattr(sys, "_MEIPASS", None)  # set by PyInstaller inside the packaged app
+    return Path(bundle) if bundle else Path(__file__).resolve().parents[2]
+
+
+MODEL_PATH = _resource_root() / "models" / "face_landmarker.task"
 
 # Events that process() can report, so the interface can react to them.
 CLOSED_STEP_FINISHED = "closed_step_finished"  # eyes may open again

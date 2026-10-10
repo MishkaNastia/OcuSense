@@ -27,6 +27,18 @@ that you see the timer, Pause / Stop / Recalibrate and the live eye-openness
 graph. Pause turns the camera off; Stop ends the session (calibration is kept).
 ⌘. also stops. Tab moves between buttons.
 
+## Build OcuSense.app (macOS)
+
+```
+.venv/bin/pip install pyinstaller
+./packaging/build_mac.sh
+```
+
+The app appears in `dist/OcuSense.app` (about 380 MB). It is signed only for
+your own Mac (ad-hoc). Sharing it with others needs an Apple Developer ID and
+notarisation. The first time it opens the camera, macOS asks for permission
+for OcuSense itself.
+
 ## Run the OpenCV prototype
 
 ```
