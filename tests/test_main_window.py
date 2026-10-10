@@ -199,7 +199,8 @@ class WindowTest(unittest.TestCase):
         w.show_stats()
         self.assertIs(w.pages.currentWidget(), w.stats_page)
         self.assertEqual(w.stats_page.summary_values["sessions"].text(), "1")
-        self.assertTrue(w.nav_stats.isChecked())
+        self.assertTrue(w.sidebar.items["all_time"].selected)
+        self.assertTrue(w.sidebar.items["statistics"].ancestor)
 
     def test_very_short_session_is_not_kept(self):
         w = self.window
@@ -219,11 +220,14 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(w.stats_page.summary_values["sessions"].text(), "0")  # completed only
         self.assertTrue(w.stats_page.body.isVisible() or not w.isVisible())
 
-    def test_statistics_unavailable_during_calibration(self):
+    def test_other_pages_unavailable_during_calibration(self):
         w = self.window
         w.start()
-        self.assertFalse(w.nav_stats.isEnabled())
+        for key in ("statistics", "current", "all_time", "patterns", "settings", "account"):
+            self.assertFalse(w.sidebar.items[key].isEnabled(), key)
+        self.assertTrue(w.sidebar.items["study"].isEnabled())
         w.show_stats()
+        w.show_page("settings")
         self.assertIs(w.pages.currentWidget(), w.calibration)
 
     def test_statistics_page_draws_every_view(self):
@@ -251,6 +255,152 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(w.study.blink_label.text(), "0 blinks this session")
         w._on_update(update(blinks=4, source=self.thread))
         self.assertEqual(w.study.blink_label.text(), "4 blinks this session")
+
+
+
+
+@unittest.skipUnless(MODEL_PATH.exists(), "model file missing - run download_model.py")
+class SidebarNavigationTest(unittest.TestCase):
+    """The sidebar pages: switching never touches monitoring; pages show only real data."""
+
+    def setUp(self):
+        from ocusense.ui.main_window import MainWindow
+        self.window = MainWindow()
+        self.thread = FakeThread()
+        self.window._start_camera = self._fake_start
+
+    def tearDown(self):
+        self.window.close()
+
+    def _fake_start(self):
+        self.window.thread = self.thread
+        return True
+
+    def _monitor(self, seconds=20):
+        w = self.window
+        w.monitor.calibration = object()
+        w.start()
+        t0 = time.monotonic() - seconds
+        w.recorder = SessionRecorder(t0)
+        observe = Observer()
+        for i in range(int(seconds * 30)):
+            t = t0 + i / 30
+            value = 0.05 if 1.0 <= t % 4 < 1.2 else 0.9
+            obs = observe(t, value)
+            w._on_update(update(now=t, openness=(value, value, value), blinked=obs.blink_completed, observation=obs))
+
+    def test_switching_pages_keeps_monitoring_running(self):
+        w = self.window
+        self._monitor()
+        recorder = w.recorder
+        for key in ("current", "all_time", "patterns", "settings", "account", "study", "current"):
+            w.show_page(key)
+            self.assertIs(w.pages.currentWidget(), w.page_for[key])
+            self.assertEqual(w.state, "monitoring")
+            self.assertIs(w.thread, self.thread)  # same camera worker: none stopped or added
+            self.assertFalse(self.thread.stopped)
+            self.assertIs(w.recorder, recorder)
+            self.assertTrue(w.sidebar.items[key].selected)
+
+    def test_statistics_expands_to_its_three_pages(self):
+        bar = self.window.sidebar
+        self.assertTrue(bar.items["current"].isHidden())
+        bar.items["statistics"].click()
+        self.assertFalse(bar.items["current"].isHidden())
+        self.assertIs(self.window.pages.currentWidget(), self.window.current_page)
+        bar.items["statistics"].click()  # collapse; the group stays highlighted
+        self.assertTrue(bar.items["patterns"].isHidden())
+        self.assertTrue(bar.items["statistics"].ancestor)
+
+    def test_sidebar_keyboard_navigation(self):
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+        w = self.window
+        w.show()
+        w.activateWindow()
+        self.assertTrue(QTest.qWaitForWindowActive(w))  # keyboard focus needs an active window
+        bar = w.sidebar
+        bar.items["study"].setFocus()
+        QTest.keyClick(bar.items["study"], Qt.Key.Key_Down)
+        self.assertTrue(bar.items["statistics"].hasFocus())
+        QTest.keyClick(bar.items["statistics"], Qt.Key.Key_Right)
+        self.assertFalse(bar.items["current"].isHidden())
+        QTest.keyClick(bar.items["statistics"], Qt.Key.Key_Down)
+        QTest.keyClick(bar.items["current"], Qt.Key.Key_Down)
+        QTest.keyClick(bar.items["all_time"], Qt.Key.Key_Return)
+        self.assertIs(w.pages.currentWidget(), w.stats_page)
+
+    def test_current_session_empty_then_live(self):
+        w = self.window
+        w.show_page("current")
+        self.assertFalse(w.current_page.empty.isHidden())
+        self.assertTrue(w.current_page.content.isHidden())
+        self._monitor(40)
+        w.show_page("current")
+        self.assertTrue(w.current_page.empty.isHidden())
+        self.assertIn("blinks/min", w.current_page.metric_values["rate"].text())
+        self.assertNotEqual(w.current_page.time_values["blinks"].text(), "0")
+        w.pause()
+        self.assertEqual(w.current_page.tag.text(), "Paused")
+        w.stop()
+        self.assertFalse(w.current_page.empty.isHidden())
+
+    def test_all_time_totals_and_memory_note(self):
+        w = self.window
+        self._monitor(30)
+        w.stop()
+        w.show_page("all_time")
+        page = w.stats_page
+        self.assertEqual(page.summary_values["sessions"].text(), "1")
+        self.assertEqual(page.summary_values["breaks"].text(), "—")  # breaks aren't recorded yet
+        self.assertIn("memory only", page.memory_note.text())
+
+    def test_patterns_page_never_invents_findings(self):
+        from ocusense.ui.patterns_page import PLACEHOLDER
+        w = self.window
+        self._monitor(30)
+        w.stop()
+        w.show_page("patterns")
+        self.assertEqual(w.patterns_page.observations.text(), PLACEHOLDER)
+        self.assertIn("1 session", w.patterns_page.observations_detail.text())
+
+    def test_settings_controls_are_connected(self):
+        w = self.window
+        w.show_page("settings")
+        page = w.settings_page
+        self.assertFalse(page.recalibrate_button.isEnabled())  # not calibrated yet
+        self.assertFalse(page.clear_button.isEnabled())  # nothing to clear
+        page.details.setChecked(True)
+        self.assertTrue(w.study.details_button.isChecked())
+
+    def test_clear_history_asks_first(self):
+        w = self.window
+        self._monitor(30)
+        w.stop()
+        w._confirm = lambda box: None  # Cancel
+        w.clear_history()
+        self.assertEqual(len(w.store.all()), 1)
+        w._confirm = lambda box: next(b for b in box.buttons() if b.text() == "Clear History")
+        w.clear_history()
+        self.assertEqual(w.store.all(), [])
+
+    def test_recalibrate_from_settings_opens_calibration(self):
+        w = self.window
+        self._monitor()
+        w.stop()
+        w.show_page("settings")
+        self.assertTrue(w.settings_page.recalibrate_button.isEnabled())
+        w.settings_page.recalibrate_button.click()
+        self.assertEqual(w.state, "calibrating")
+        self.assertIs(w.pages.currentWidget(), w.calibration)
+
+    def test_account_is_honestly_unavailable(self):
+        w = self.window
+        w.show_page("account")
+        self.assertEqual(w.sidebar.items["account"].text(), "Log in")
+        self.assertFalse(w.account_page.login_button.isEnabled())
+        self.assertFalse(w.account_page.create_button.isEnabled())
+        self.assertEqual(w.account_page.tag.text(), "Not available yet")
 
 
 if __name__ == "__main__":

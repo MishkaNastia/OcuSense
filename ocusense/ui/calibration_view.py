@@ -4,7 +4,7 @@ import math
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QPixmap
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
 from ocusense.core.calibration import STEPS
 
@@ -22,10 +22,22 @@ STEP_TEXT = [
 assert len(STEP_TEXT) == len(STEPS)
 
 
-class CalibrationView(QWidget):
+PREVIEW_MAX_WIDTH = 480
+PREVIEW_MIN_WIDTH = 280
+TEXT_MIN_WIDTH = 360
+
+
+class CalibrationView(QScrollArea):
+    """Scrolls on short windows; the camera preview shrinks so the instructions keep their width."""
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        layout = QHBoxLayout(self)
+        self.setWidgetResizable(True)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        content = QWidget()
+        content.setObjectName("Root")
+        self.setWidget(content)
+        layout = QHBoxLayout(content)
         layout.setContentsMargins(56, 40, 56, 40)
         layout.setSpacing(48)
 
@@ -61,10 +73,13 @@ class CalibrationView(QWidget):
         left.addLayout(actions)
         left.addWidget(label("Measured against your own eyes, not a fixed average. Nothing is recorded.",
                              "secondary", theme.ui_font(13), wrap=True))
-        layout.addLayout(left, 1)
+        left_widget = QWidget()
+        left_widget.setLayout(left)
+        left_widget.setMinimumWidth(TEXT_MIN_WIDTH)
+        layout.addWidget(left_widget, 1)
 
         self.preview = QLabel()
-        self.preview.setFixedSize(480, 360)
+        self.preview.setFixedSize(PREVIEW_MAX_WIDTH, PREVIEW_MAX_WIDTH * 3 // 4)
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.preview.setStyleSheet(f"border: 2px solid {theme.INK}; border-radius: 12px; background: {theme.PAPER_DEEP};")
         self.preview.setAccessibleName("Camera preview")
@@ -105,6 +120,12 @@ class CalibrationView(QWidget):
         self.countdown.setText("")
         self.phase.setText("")
         self.try_again_button.setVisible(True)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        margins = 56 * 2 + 48  # page margins and the gap between text and preview
+        width = max(PREVIEW_MIN_WIDTH, min(PREVIEW_MAX_WIDTH, self.viewport().width() - margins - TEXT_MIN_WIDTH))
+        self.preview.setFixedSize(width, width * 3 // 4)
 
     def set_preview(self, pixmap: QPixmap) -> None:
         self.preview.setPixmap(scaled_preview(pixmap, self.preview))

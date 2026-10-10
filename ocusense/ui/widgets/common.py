@@ -17,7 +17,7 @@ def label(text: str = "", role: str | None = None, font: QFont | None = None, wr
 
 
 def button(text: str, kind: str) -> QPushButton:
-    """kind = "primary", "secondary", "quiet", "nav", "segment" or "row" (see theme.py)."""
+    """kind = "primary", "secondary", "quiet", "segment" or "row" (see theme.py)."""
     widget = QPushButton(text)
     widget.setProperty("kind", kind)
     widget.setFocusPolicy(Qt.FocusPolicy.StrongFocus)

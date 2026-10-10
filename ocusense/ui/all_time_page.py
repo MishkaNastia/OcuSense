@@ -1,7 +1,8 @@
-"""The Statistics page ("Your patterns"), built from session summaries.
+"""Statistics › All time: every session kept in this run of the app, built from session summaries.
 
 A personal record, not a medical dashboard: exact numbers with units,
-gaps for untracked time (never zero), no scores.
+gaps for untracked time (never zero), no scores. History lives in memory
+only (see storage.py) and the page says so.
 """
 
 from datetime import date
@@ -72,7 +73,7 @@ class SessionRow(QWidget):
         layout.addWidget(_rule(1, "hairline"))
 
 
-class StatisticsPage(QScrollArea):
+class AllTimePage(QScrollArea):
     go_to_study = Signal()
 
     def __init__(self, parent=None):
@@ -87,7 +88,7 @@ class StatisticsPage(QScrollArea):
         content.setObjectName("Root")
         self.setWidget(content)
         outer = QVBoxLayout(content)
-        outer.setContentsMargins(56, 40, 56, 72)
+        outer.setContentsMargins(48, 36, 48, 72)
         outer.setSpacing(28)
 
         # Title
@@ -95,18 +96,15 @@ class StatisticsPage(QScrollArea):
         title_col = QVBoxLayout()
         title_col.setSpacing(12)
         heading = QHBoxLayout()
-        heading.addWidget(_label("Your patterns", font=theme.ui_font(44, QFont.Weight.Bold)))
+        title_col.addWidget(_label("STATISTICS", "eyebrow", theme.ui_font(13, QFont.Weight.Bold)))
+        heading.addWidget(_label("All time", font=theme.ui_font(40, QFont.Weight.Bold)))
         self.tag = _label("", font=theme.ui_font(12, QFont.Weight.Bold))
         self.tag.setStyleSheet(f"color: {theme.GRAPHITE}; border: 1px dashed {theme.GRAPHITE}; border-radius: 6px; padding: 2px 8px;")
         heading.addWidget(self.tag, 0, Qt.AlignmentFlag.AlignVCenter)
         heading.addStretch(1)
         title_col.addLayout(heading)
-        title_col.addWidget(_label("A personal record of your study time and what the camera measured. "
-                                   "Not a medical assessment.", "secondary", theme.ui_font(16), wrap=True))
-        self.period_switch = Segmented([("today", "Today"), ("week", "This week"), ("month", "This month")],
-                                       self.period, "Period")
-        self.period_switch.changed.connect(self._set_period)
-        title_col.addWidget(self.period_switch, 0, Qt.AlignmentFlag.AlignLeft)
+        self.memory_note = _label("", "secondary", theme.ui_font(16), wrap=True)
+        title_col.addWidget(self.memory_note)
         title_row.addLayout(title_col, 1)
         outer.addLayout(title_row)
 
@@ -117,7 +115,7 @@ class StatisticsPage(QScrollArea):
         empty_row.setSpacing(40)
         empty_row.addWidget(Composition(), 0, Qt.AlignmentFlag.AlignTop)
         empty_text = QVBoxLayout()
-        empty_text.addWidget(_label("Your patterns will appear as you complete sessions.",
+        empty_text.addWidget(_label("No sessions yet.",
                                     font=theme.ui_font(28, QFont.Weight.Bold), wrap=True))
         self.empty_detail = _label("", "secondary", theme.ui_font(16), wrap=True)
         empty_text.addWidget(self.empty_detail)
@@ -142,22 +140,40 @@ class StatisticsPage(QScrollArea):
         summary_row.setContentsMargins(0, 0, 0, 0)
         summary_row.setSpacing(0)
         self.summary_values = {}
-        for i, (key, text) in enumerate((("study", "Study time"), ("sessions", "Sessions completed"),
-                                         ("coverage", "Tracking coverage"))):
+        for i, (key, text, note) in enumerate((("study", "Total study time", "includes a session in progress"),
+                                               ("sessions", "Completed sessions", ""),
+                                               ("breaks", "Recorded breaks", "not recorded by the Mac app yet"))):
             cell = QWidget()
             col = QVBoxLayout(cell)
             col.setContentsMargins(0 if i == 0 else 24, 18, 24, 18)
             col.addWidget(_label(text, "secondary", theme.ui_font(14)))
             value = _label("—", font=theme.number_font(36))
+            value.setAccessibleName(text)
             self.summary_values[key] = value
             col.addWidget(value)
+            if note:
+                col.addWidget(_label(note, "secondary", theme.ui_font(12)))
             if i:
                 summary_row.addWidget(_vline())
             summary_row.addWidget(cell, 1)
         body.addWidget(_rule())
         body.addWidget(summary)
         body.addWidget(_rule(1, "hairline"))
-        body.addSpacing(30)
+        body.addSpacing(26)
+
+        # Date filter: drives the chart and the session list below
+        filter_row = QHBoxLayout()
+        filter_row.addWidget(_label("By date", font=theme.ui_font(28, QFont.Weight.Bold)))
+        filter_row.addSpacing(18)
+        self.period_switch = Segmented([("today", "Today"), ("week", "This week"), ("month", "This month")],
+                                       self.period, "Date filter")
+        self.period_switch.changed.connect(self._set_period)
+        filter_row.addWidget(self.period_switch)
+        filter_row.addStretch(1)
+        body.addLayout(filter_row)
+        self.period_summary = _label("", "secondary", theme.ui_font(15), wrap=True)
+        body.addWidget(self.period_summary)
+        body.addSpacing(14)
 
         # Study and eye activity
         header = QHBoxLayout()
@@ -184,16 +200,8 @@ class StatisticsPage(QScrollArea):
                               "not a tiredness or health score.", "secondary", theme.ui_font(13), wrap=True))
         body.addSpacing(30)
 
-        # Self-reports: honest placeholder until break check-ins exist in the app
-        body.addWidget(_label("How you felt · What seems helpful", font=theme.ui_font(28, QFont.Weight.Bold)))
-        body.addWidget(_rule())
-        body.addWidget(_label("These sections appear once break check-ins are added to the app. "
-                              "They will show your own before-and-after ratings — never a score.",
-                              "secondary", theme.ui_font(15), wrap=True))
-        body.addSpacing(30)
-
-        # Recent sessions
-        body.addWidget(_label("Recent sessions", font=theme.ui_font(28, QFont.Weight.Bold)))
+        # Sessions in the selected period, each expandable to its summary
+        body.addWidget(_label("Sessions", font=theme.ui_font(28, QFont.Weight.Bold)))
         body.addWidget(_rule())
         self.session_box = QVBoxLayout()
         self.session_box.setSpacing(0)
@@ -237,19 +245,29 @@ class StatisticsPage(QScrollArea):
         self.metric_switch.set_current(self.metric_key)
         self.tag.setText("Demo data" if self.demo else "Kept until you quit")
         self.tag.setToolTip("" if self.demo else "Sessions are kept in memory only and forgotten when OcuSense quits.")
+        self.memory_note.setText(
+            "Clearly labelled demo sessions, plus any you record now. Nothing is saved to disk." if self.demo else
+            "Sessions from this run of OcuSense. They are kept in memory only — when you quit, they are gone, "
+            "and earlier runs are not saved.")
         has_any = bool(everything)
         self.empty.setVisible(not has_any)
         self.body.setVisible(has_any)
-        self.empty_detail.setText("Press Start on the Study page. For now, sessions are kept only until "
-                                  "you quit OcuSense — nothing is saved to disk.")
+        self.empty_detail.setText("Press Start on the Study page. Sessions are kept only until you quit "
+                                  "OcuSense — earlier runs are not saved, and nothing is written to disk.")
         if not has_any:
             return
 
+        total = sum(s.study_seconds for s in everything)
+        self.summary_values["study"].setText(format_duration(total) if total else "—")
+        self.summary_values["sessions"].setText(str(sum(1 for s in everything if not s.in_progress)))
+        self.summary_values["breaks"].setText("—")
+
         stats = period_stats(everything, self.period, today)
         completed = [s for s in stats.sessions if not s.in_progress]
-        self.summary_values["study"].setText(format_duration(stats.study_seconds) if stats.study_seconds else "—")
-        self.summary_values["sessions"].setText(str(len(completed)))
-        self.summary_values["coverage"].setText(f"{stats.coverage * 100:.0f}%" if stats.coverage is not None else "—")
+        coverage = f"{stats.coverage * 100:.0f}%" if stats.coverage is not None else "—"
+        self.period_summary.setText(
+            f"{format_duration(stats.study_seconds) if stats.study_seconds else 'No'} study · "
+            f"{len(completed)} completed session{'s' if len(completed) != 1 else ''} · tracking coverage {coverage}")
 
         m = METRICS[self.metric_key]
         self.metric_title.setText(f"{m['name']}  ·  {m['unit']}")

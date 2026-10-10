@@ -25,12 +25,23 @@ python -m ocusense
 Press **Start**. The first session begins with a 30-second calibration; after
 that you see the timer, Pause / Stop / Recalibrate and the live eye-openness
 graph. Pause turns the camera off; Stop ends the session (calibration is kept).
-**Statistics** (header tab) shows today / this week / this month: study time,
-sessions, tracking coverage, a timeline with blink rate, median closure duration
-or time classified as closed, and recent sessions. For now sessions are kept in
-memory only and forgotten when the app quits. To preview the page with clearly
-labelled demo sessions: `python -m ocusense --demo-history`.
-⌘. also stops. Tab moves between buttons.
+The sidebar on the left switches pages without interrupting monitoring:
+
+- **Study** — timer, controls, calibration and the live graph.
+- **Statistics** (expands) — **Current session** (the running session's time,
+  coverage and measurements), **All time** (totals, a date filter, a timeline
+  with blink rate, median closure duration or time classified as closed, and
+  each session's summary) and **Understanding your patterns** (what each
+  measurement means; no personal findings until check-ins exist).
+- **Settings** — recalibration, measurement details, and data & privacy
+  (including clearing the session history).
+- **Log in** — accounts aren't available in the app yet; it says so.
+
+For now sessions are kept in memory only and forgotten when the app quits. To
+preview Statistics with clearly labelled demo sessions:
+`python -m ocusense --demo-history`.
+⌘. also stops. Tab reaches the sidebar; ↑/↓ move between its items and →/←
+open or close Statistics.
 
 ## Build OcuSense.app (macOS)
 
@@ -148,12 +159,17 @@ ocusense/
   demo_data.py         labelled demo sessions for --demo-history
   ui/                  PySide6 interface — displays results, relays actions
     app.py             start-up, error dialogs, --self-test
-    main_window.py     header, navigation, session life cycle
+    main_window.py     session life cycle; connects the sidebar and pages
+    sidebar.py         vertical navigation and the monitoring status
     study_page.py      study screen
     calibration_view.py guided calibration screen
-    statistics_page.py "Your patterns"
+    current_session_page.py  Statistics › Current session
+    all_time_page.py   Statistics › All time
+    patterns_page.py   Statistics › Understanding your patterns
+    settings_page.py   Settings
+    account_page.py    Log in (not available yet)
     theme.py           colours, fonts, style sheet
-    widgets/           drawing-only pieces (graph, chart, artwork, status)
+    widgets/           drawing-only pieces (graph, chart, artwork, status, icons, page)
 prototype/             original OpenCV window (python -m prototype)
 packaging/             Mac build script, PyInstaller recipe, icon generator
 tests/                 one test file per area, plus structure guards

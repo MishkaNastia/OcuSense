@@ -1,9 +1,15 @@
-"""The OcuSense main window: header, navigation, and the session life cycle.
+"""The OcuSense main window: sidebar navigation and the session life cycle.
 
 It connects the pieces and holds no layouts of its own pages:
-  StudyPage / CalibrationView / StatisticsPage  — what is shown
-  CameraWorker (monitoring/camera_worker.py)    — frames in, structured results out
-  SessionRecorder + SessionStore                — numbers kept for Statistics
+  Sidebar                                        — navigation and the monitoring status
+  StudyPage / CalibrationView                    — Study
+  CurrentSessionPage / AllTimePage / PatternsPage — Statistics
+  SettingsPage / AccountPage                     — at the bottom of the sidebar
+  CameraWorker (monitoring/camera_worker.py)     — frames in, structured results out
+  SessionRecorder + SessionStore                 — numbers kept for Statistics
+
+Navigation only swaps the visible page: it never starts, stops or restarts the
+camera worker, so monitoring carries on while you look at other pages.
 
 States:
   ready        nothing running, camera off
@@ -16,8 +22,8 @@ States:
 import time
 
 from PySide6.QtCore import QTimer
-from PySide6.QtGui import QFont, QKeySequence, QPixmap, QShortcut
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QStackedWidget, QVBoxLayout, QWidget
+from PySide6.QtGui import QKeySequence, QPixmap, QShortcut
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QMessageBox, QStackedWidget, QWidget
 
 from ocusense.config import MIN_SESSION_SECONDS, MODEL_PATH
 from ocusense.core.calibration import GuidedCalibration
@@ -27,13 +33,15 @@ from ocusense.monitoring.camera_worker import CameraWorker, MonitorUpdate, open_
 from ocusense.monitoring.pipeline import CALIBRATION_DONE, CALIBRATION_FAILED, CLOSED_STEP_FINISHED, EyeMonitor
 from ocusense.storage import SessionStore
 
-from . import theme
+from .account_page import AccountPage
+from .all_time_page import AllTimePage
 from .calibration_view import CalibrationView
-from .statistics_page import StatisticsPage
+from .current_session_page import CurrentSessionPage
+from .patterns_page import PatternsPage
+from .settings_page import SettingsPage
+from .sidebar import STATISTICS_PAGES, Sidebar
 from .study_page import StudyPage
-from .widgets.artwork import LogoMark
-from .widgets.common import button, label, rule
-from .widgets.status_indicator import StatusIndicator
+from .widgets.common import vline
 
 CAMERA_HELP = ("Could not open the camera. On a Mac: System Settings › Privacy & Security › Camera, "
                "allow this app (or Terminal / VS Code when running from there), then reopen it.")
@@ -51,8 +59,8 @@ class MainWindow(QMainWindow):
     def __init__(self, demo_history: bool = False):
         super().__init__()
         self.setWindowTitle("OcuSense")
-        self.resize(1120, 900)
-        self.setMinimumSize(920, 820)
+        self.resize(1280, 900)
+        self.setMinimumSize(1080, 640)  # pages scroll when the window is shorter than their content
 
         self.monitor = EyeMonitor(MODEL_PATH)  # may raise; ui/app.py shows the error
         self.camera = None
@@ -61,7 +69,7 @@ class MainWindow(QMainWindow):
         self.elapsed = 0.0  # seconds of monitoring in this session (excluding pauses)
         self.running_since: float | None = None
         self.last_update: MonitorUpdate | None = None
-        self.view = "study"  # which tab is shown: "study" or "stats"
+        self.view = "study"  # the sidebar page shown: study, current, all_time, patterns, settings or account
         self.demo_history = demo_history
         self.store = SessionStore(demo_sessions() if demo_history else None)  # in memory for now
         self.recorder: SessionRecorder | None = None
@@ -70,17 +78,31 @@ class MainWindow(QMainWindow):
         root = QWidget()
         root.setObjectName("Root")
         self.setCentralWidget(root)
-        outer = QVBoxLayout(root)
+        outer = QHBoxLayout(root)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
-        outer.addWidget(self._build_header())
-        outer.addWidget(rule())
+        self.sidebar = Sidebar()
+        self.sidebar.navigate.connect(self.show_page)
+        self.sidebar.set_account_label(AccountPage.sidebar_label())
+        self.status = self.sidebar.status
+        outer.addWidget(self.sidebar)
+        divider = vline()
+        divider.setProperty("role", "rule")
+        divider.setFixedWidth(2)
+        outer.addWidget(divider)
 
         self.study = StudyPage()
         self.calibration = CalibrationView()
-        self.stats_page = StatisticsPage()
+        self.current_page = CurrentSessionPage()
+        self.stats_page = AllTimePage()
+        self.patterns_page = PatternsPage()
+        self.settings_page = SettingsPage()
+        self.account_page = AccountPage()
+        self.page_for = {"study": self.study, "current": self.current_page, "all_time": self.stats_page,
+                         "patterns": self.patterns_page, "settings": self.settings_page, "account": self.account_page}
         self.pages = QStackedWidget()
-        for page in (self.study, self.calibration, self.stats_page):
+        for page in (self.study, self.calibration, self.current_page, self.stats_page, self.patterns_page,
+                     self.settings_page, self.account_page):
             self.pages.addWidget(page)
         outer.addWidget(self.pages, 1)
 
@@ -92,33 +114,17 @@ class MainWindow(QMainWindow):
         self.calibration.try_again_button.clicked.connect(self.retry_calibration)
         self.calibration.cancel_button.clicked.connect(self.cancel_calibration)
         self.stats_page.go_to_study.connect(self.show_study)
+        self.current_page.go_to_study.connect(self.show_study)
+        self.settings_page.recalibrate_requested.connect(self._recalibrate_from_settings)
+        self.settings_page.clear_history_requested.connect(self.clear_history)
+        self.settings_page.details.toggled.connect(self.study.details_button.setChecked)
+        self.study.details_button.toggled.connect(self.settings_page.details.setChecked)
 
         self.clock = QTimer(self)
         self.clock.timeout.connect(self._tick)
         self.clock.start(250)
         QShortcut(QKeySequence("Ctrl+."), self, activated=self.stop)  # ⌘. on macOS
         self._set_state("ready")
-
-    def _build_header(self) -> QWidget:
-        header = QWidget()
-        layout = QHBoxLayout(header)
-        layout.setContentsMargins(40, 16, 40, 16)
-        layout.addWidget(LogoMark(38))
-        layout.addSpacing(8)
-        wordmark = label("OcuSense", font=theme.ui_font(25, QFont.Weight.Bold))
-        wordmark.setStyleSheet("letter-spacing: -0.5px;")
-        layout.addWidget(wordmark)
-        layout.addSpacing(36)
-        self.nav_study = button("Study", "nav")
-        self.nav_stats = button("Statistics", "nav")
-        for widget, handler in ((self.nav_study, self.show_study), (self.nav_stats, self.show_stats)):
-            widget.setCheckable(True)
-            widget.clicked.connect(handler)
-            layout.addWidget(widget)
-        layout.addStretch(1)
-        self.status = StatusIndicator()
-        layout.addWidget(self.status)
-        return header
 
     # ------------------------------------------------------------- camera life
     def _start_camera(self) -> bool:
@@ -259,6 +265,8 @@ class MainWindow(QMainWindow):
             self.status.set("monitoring", "Monitoring")
             self.study.graph_caption.setText("Last 10 seconds · relative to your own calibration")
         self.study.graph.set_data(update.samples, update.now)
+        if self.view == "current":  # only paint the second graph while it is visible
+            self.current_page.set_graph(update.samples, update.now, caption=self.study.graph_caption.text())
 
     def _on_calibration_update(self, update: MonitorUpdate) -> None:
         if CLOSED_STEP_FINISHED in update.events:
@@ -281,7 +289,7 @@ class MainWindow(QMainWindow):
         self._ticks += 1
         if self.state == "monitoring" and self.recorder and self._ticks % 2 == 0:
             self._refresh_measurements()  # twice per second
-        if self.view == "stats" and self.state == "monitoring" and self._ticks % 8 == 0:
+        if self.view in STATISTICS_PAGES and self.state == "monitoring" and self._ticks % 8 == 0:
             self._refresh_stats()  # every 2 seconds while a session is running
 
     def _refresh_measurements(self) -> None:
@@ -291,32 +299,79 @@ class MainWindow(QMainWindow):
             self.study.set_details(self.recorder.latest, snapshot, self.recorder.calibration)
 
     # ------------------------------------------------------------- navigation
-    def show_study(self) -> None:
-        self.view = "study"
+    def show_page(self, key: str) -> None:
+        """Show a sidebar page. Never touches the camera or the session."""
+        if self.state == "calibrating" and key != "study":
+            return  # calibration needs the person's attention; other pages open again afterwards
+        self.view = key
+        if key in STATISTICS_PAGES:
+            self._refresh_stats()
+        elif key == "settings":
+            self._refresh_settings()
         self._show_page()
 
+    def show_study(self) -> None:
+        self.show_page("study")
+
     def show_stats(self) -> None:
-        if self.state == "calibrating":
-            return
-        self.view = "stats"
-        self._refresh_stats()
-        self._show_page()
+        self.show_page("all_time")
 
     def _refresh_stats(self) -> None:
         current = self.recorder.summary(time.monotonic()) if self.recorder else None
         if current is not None and current.study_seconds < 1:
             current = None
-        self.stats_page.refresh(self.store.all(), current, self.demo_history)
+        sessions = self.store.all()
+        if self.view == "current":
+            self.current_page.show_session(current, paused=self.state == "paused")
+            if current is not None and self.last_update is not None and self.state != "monitoring":
+                self.current_page.set_graph(self.last_update.samples, self.last_update.now, dimmed=True,
+                                            caption="Paused — the camera is off")
+        elif self.view == "all_time":
+            self.stats_page.refresh(sessions, current, self.demo_history)
+        elif self.view == "patterns":
+            self.patterns_page.refresh(sessions)
+
+    def _refresh_settings(self) -> None:
+        calibration = self.monitor.calibration_info if self.monitor.calibration else None
+        if calibration is not None:
+            text = f"Calibrated at {calibration.calibrated_at:%H:%M}. Recalibrate if lighting, glasses or your position change."
+        elif self.monitor.calibration:
+            text = "Calibrated. Recalibrate if lighting, glasses or your position change."
+        else:
+            text = "Not calibrated yet — your first session starts with a 30-second calibration."
+        can = bool(self.monitor.calibration) and self.state in ("ready", "monitoring")
+        if not can and self.monitor.calibration and self.state == "paused":
+            text += " Resume or stop the session to recalibrate."
+        completed = sum(1 for s in self.store.all() if not s.in_progress)
+        self.settings_page.show_state(text, can, completed)
+
+    def _recalibrate_from_settings(self) -> None:
+        self.recalibrate()  # switches to the Study page, where calibration is shown
+
+    def clear_history(self) -> None:
+        box = QMessageBox(QMessageBox.Icon.Warning, "Clear session history?",
+                          "This removes all completed sessions from Statistics and can’t be undone. "
+                          "A session that is running now is not affected.", parent=self)
+        clear = box.addButton("Clear History", QMessageBox.ButtonRole.DestructiveRole)
+        box.setDefaultButton(box.addButton(QMessageBox.StandardButton.Cancel))
+        if self._confirm(box) is clear:
+            self.store.clear()
+            self._refresh_settings()
+
+    def _confirm(self, box: QMessageBox):
+        """Show a confirmation and return the clicked button (replaced in tests)."""
+        box.exec()
+        return box.clickedButton()
 
     def _show_page(self) -> None:
         if self.state == "calibrating":
+            self.view = "study"
             page = self.calibration
         else:
-            page = self.stats_page if self.view == "stats" else self.study
+            page = self.page_for.get(self.view, self.study)
         self.pages.setCurrentWidget(page)
-        self.nav_study.setChecked(page is not self.stats_page)
-        self.nav_stats.setChecked(page is self.stats_page)
-        self.nav_stats.setEnabled(self.state != "calibrating")
+        self.sidebar.set_current(self.view)
+        self.sidebar.set_only_enabled({"study"} if self.state == "calibrating" else None)
 
     # ------------------------------------------------------------------ state
     def _set_state(self, state: str, message: str = "") -> None:
@@ -325,9 +380,11 @@ class MainWindow(QMainWindow):
         if state == "ready" and self.monitor.calibration:
             names.add("recalibrate")
         self.study.show_buttons(names, "Try again" if state == "error" else "Start")
-        if state == "calibrating":
-            self.view = "study"
         self._show_page()
+        if self.view in STATISTICS_PAGES:
+            self._refresh_stats()
+        elif self.view == "settings":
+            self._refresh_settings()
         self.study.message_label.setText(message)
 
         if state == "ready":

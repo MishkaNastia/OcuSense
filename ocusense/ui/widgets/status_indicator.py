@@ -1,4 +1,4 @@
-"""The status shown in the header: a shape plus words, so it never relies on colour alone."""
+"""The monitoring status (in the sidebar): a shape plus words, so it never relies on colour alone."""
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QBrush, QFont, QPainter, QPainterPath, QPen
@@ -50,15 +50,17 @@ class StatusGlyph(QWidget):
 
 
 class StatusIndicator(QWidget):
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, parent: QWidget | None = None, compact: bool = False):
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
         self.glyph = StatusGlyph()
-        self.text = label("Ready", font=theme.ui_font(15, QFont.Weight.Medium))
+        self.text = label("Ready", "secondary" if compact else None,
+                          theme.ui_font(13 if compact else 15, QFont.Weight.Medium))
         layout.addWidget(self.glyph)
         layout.addWidget(self.text)
+        layout.addStretch(1)
 
     def set(self, kind: str, text: str) -> None:
         self.glyph.set_kind(kind)

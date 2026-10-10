@@ -77,13 +77,14 @@ QPushButton[kind="row"] {{
 }}
 QPushButton[kind="row"]:hover {{ background: #EFE7D4; }}
 QPushButton[kind="row"]:focus {{ border-color: {COBALT}; }}
-QPushButton[kind="nav"] {{
-    min-height: 34px; padding: 0 6px; border: 2px solid transparent; border-radius: 0;
-    background: transparent; color: {INK}; font-size: 15px; font-weight: 500;
-}}
-QPushButton[kind="nav"]:checked {{ border-bottom: 2px solid {INK}; font-weight: 700; }}
-QPushButton[kind="nav"]:focus {{ border: 2px solid {COBALT}; border-radius: 6px; }}
-QPushButton[kind="nav"]:disabled {{ color: {GRAPHITE}; }}
+
+QWidget#Sidebar {{ background: {PAPER_DEEP}; }}
+QCheckBox {{ color: {INK}; font-size: 15px; spacing: 8px; }}
+QCheckBox::indicator {{ width: 18px; height: 18px; border: 2px solid {INK}; border-radius: 5px; background: {PAPER}; }}
+QCheckBox::indicator:checked {{ background: {COBALT}; border-color: {COBALT}; image: none; }}
+QCheckBox:focus {{ outline: none; }}
+QCheckBox::indicator:focus {{ border-color: {COBALT}; }}
+QPushButton:disabled {{ color: {GRAPHITE}; background: transparent; border: 2px dashed {RULE}; }}
 
 QToolTip {{ background: {PAPER}; color: {INK}; border: 1px solid {INK}; padding: 4px; }}
 """

@@ -16,11 +16,11 @@ METRICS = {
                  explain="Complete blinks counted per minute of tracked study time."),
     "closure": dict(name="Median closure duration", unit="milliseconds", short="ms", decimals=0, scale_max=300,
                     display_factor=1000,  # stored in seconds, shown in milliseconds
-                    explain="The typical time your eyes stayed below the closing threshold during a blink. "
-                            "The median keeps a few long blinks from dominating."),
+                    explain="The typical time from when the blink detector marks your eyes closed until it marks "
+                            "them open again. The median keeps a few long closures from dominating."),
     "closed": dict(name="Time classified as closed", unit="% of tracked time", short="%", decimals=1, scale_max=6,
                    display_factor=1,
-                   explain="Share of tracked time when your personal eye openness was below the closing threshold."),
+                   explain="Share of tracked time the blink detector classified your eyes as closed."),
 }
 
 
