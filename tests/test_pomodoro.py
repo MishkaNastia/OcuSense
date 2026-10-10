@@ -119,6 +119,8 @@ class PomodoroPageTest(unittest.TestCase):
         self.page.now = lambda: self.clock[0]  # a controllable clock
         self.sent = []
         self.window.notify = lambda message, title: self.sent.append((title, message))
+        self.thread = FakeThread()  # Start also starts eye monitoring: never the real camera in tests
+        self.window._start_camera = lambda: (setattr(self.window, "thread", self.thread), True)[1]
 
     def tearDown(self):
         self.window.close()
@@ -176,6 +178,31 @@ class PomodoroPageTest(unittest.TestCase):
         self.assertEqual(w.state, "monitoring")
         self.assertEqual(self.page.timer.state, RUNNING)  # keeps running on other pages
         self.assertFalse(thread.stopped)
+
+    def test_focus_runs_monitoring_and_breaks_pause_it(self):
+        w = self.window
+        thread = FakeThread()
+        w._start_camera = lambda: (setattr(w, "thread", thread), True)[1]
+        w.monitor.calibration = object()  # already calibrated
+        self.page.spins["focus_minutes"].setValue(1)
+        self.page.main_button.click()  # Start the focus round
+        self.assertEqual(w.state, "monitoring")
+        self.advance(61)  # → short break (auto-starts)
+        self.assertEqual(w.state, "paused")
+        self.assertIn("break", w.study.message_label.text())
+        self.page._skip()  # → focus waits for Start (auto_start_focus is off)
+        self.page.main_button.click()
+        self.assertEqual(w.state, "monitoring")
+        self.page.main_button.click()  # Pause the Pomodoro
+        self.assertEqual(w.state, "paused")
+
+    def test_link_can_be_switched_off(self):
+        w = self.window
+        w._start_camera = lambda: (setattr(w, "thread", FakeThread()), True)[1]
+        w.monitor.calibration = object()
+        self.page.checks["pomodoro_monitoring"].setChecked(False)
+        self.page.main_button.click()
+        self.assertEqual(w.state, "ready")
 
 
 if __name__ == "__main__":

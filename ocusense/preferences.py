@@ -35,6 +35,7 @@ class Preferences:
     pomodoro_notify: bool = True  # a Mac notification when a phase ends (while OcuSense isn't in view)
     pomodoro_sound: bool = False
     animations: bool = True  # also off when macOS "Reduce motion" is on
+    pomodoro_monitoring: bool = True  # eye monitoring runs in focus rounds and pauses in breaks
 
     def pomodoro(self) -> PomodoroSettings:
         return PomodoroSettings(self.focus_minutes, self.short_break_minutes, self.long_break_minutes,
@@ -61,7 +62,8 @@ class Preferences:
             value = values.get(name)
             if isinstance(value, int) and not isinstance(value, bool) and low <= value <= high:
                 setattr(prefs, name, value)
-        for name in ("auto_start_breaks", "auto_start_focus", "pomodoro_notify", "pomodoro_sound", "animations"):
+        for name in ("auto_start_breaks", "auto_start_focus", "pomodoro_notify", "pomodoro_sound", "animations",
+                     "pomodoro_monitoring"):
             if isinstance(values.get(name), bool):
                 setattr(prefs, name, values[name])
         return prefs

@@ -184,6 +184,7 @@ class MainWindow(QMainWindow):
         self.settings_page.distance_interval_changed.connect(self._set_distance_interval)
         self.pomodoro_page.status_text.connect(self.sidebar.set_pomodoro_status)
         self.pomodoro_page.phase_ended.connect(self._pomodoro_phase_ended)
+        self.pomodoro_page.state_changed.connect(self._pomodoro_state_changed)
         self.settings_page.details.toggled.connect(self.study.details_button.setChecked)
         self.study.details_button.toggled.connect(self.settings_page.details.setChecked)
 
@@ -454,6 +455,21 @@ class MainWindow(QMainWindow):
             self._reminder = BreakReminder()
             self.study.hide_reminder()
         return self._drift[1]
+
+    def _pomodoro_state_changed(self, phase: str, state: str) -> None:
+        """Focus round running → monitor; break or Pomodoro paused → pause monitoring (camera off, eyes rest)."""
+        if not self.preferences.pomodoro_monitoring or self.state == "calibrating":
+            return
+        if phase == "focus" and state == "running":
+            if self.state in ("ready", "error"):
+                self.start()  # the very first time this calibrates first
+            elif self.state == "paused":
+                self.resume()
+        elif state == "running" or state == "paused":  # a break running, or the Pomodoro paused
+            if self.state == "monitoring":
+                self.pause()
+                self.study.message_label.setText("Paused for your break — the camera is off." if phase != "focus"
+                                                 else "Paused with the Pomodoro.")
 
     def _pomodoro_phase_ended(self, ended) -> None:
         """A Pomodoro phase finished: a Mac notification if OcuSense isn't in view, and an optional sound."""

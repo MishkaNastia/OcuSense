@@ -50,6 +50,7 @@ def _button(text: str, kind: str) -> QPushButton:
 class PomodoroPage(Page):
     phase_ended = Signal(object)  # core.pomodoro.PhaseEnded
     status_text = Signal(str)  # short text for the sidebar, e.g. "18:42" or "paused" ("" when idle)
+    state_changed = Signal(str, str)  # (phase, state) whenever either changes — the window links monitoring to it
 
     def __init__(self, preferences, parent=None):
         super().__init__("Focus", "Pomodoro",
@@ -125,7 +126,8 @@ class PomodoroPage(Page):
 
         self.section("While it runs")
         self.checks: dict[str, QCheckBox] = {}
-        for name, text in (("auto_start_breaks", "Start breaks automatically"),
+        for name, text in (("pomodoro_monitoring", "Run eye monitoring in focus rounds and pause it in breaks"),
+                           ("auto_start_breaks", "Start breaks automatically"),
                            ("auto_start_focus", "Start the next focus round automatically"),
                            ("pomodoro_notify", "Mac notification when a phase ends (when OcuSense isn’t in view)"),
                            ("pomodoro_sound", "A short sound when a phase ends"),
@@ -138,11 +140,13 @@ class PomodoroPage(Page):
         self.motion_note = paragraph("", 13, secondary=True)
         self.body.addWidget(self.motion_note)
         self.body.addWidget(paragraph(
-            "The timer keeps running while you look at other pages, and it is separate from eye monitoring — "
-            "start both if you want both.", 13, secondary=True))
+            "The timer keeps running while you look at other pages. With the first option on, starting a focus "
+            "round starts eye monitoring, and breaks turn the camera off so your eyes can rest.", 13,
+            secondary=True))
         self.finish()
 
         self._last_second = None
+        self._last_state = (self.timer.phase, self.timer.state)
         self.ticker = QTimer(self)  # drives the timer even while another page is shown
         self.ticker.timeout.connect(self.tick)
         self.ticker.start(250)
@@ -247,3 +251,6 @@ class PomodoroPage(Page):
             f"Since OcuSense opened: {rounds} focus round{'s' if rounds != 1 else ''} completed · "
             f"{format_duration(spent) if spent >= 1 else '0 s'} of focus")
         self.status_text.emit("" if t.state == IDLE else "paused" if t.state == PAUSED else clock(remaining))
+        if (t.phase, t.state) != self._last_state:
+            self._last_state = (t.phase, t.state)
+            self.state_changed.emit(t.phase, t.state)
