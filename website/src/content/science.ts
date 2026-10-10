@@ -27,6 +27,28 @@ export const REFERENCES: Reference[] = [
   { id: "lim2010", authors: "Lim, J. & Dinges, D. F.", year: 2010, title: "A meta-analysis of the impact of short-term sleep deprivation on cognitive variables", journal: "Psychological Bulletin, 136(3), 375–389", doi: "10.1037/a0018883" },
 ];
 
+/** Why OcuSense focuses on study habits, eye activity and personal feedback (science page). */
+export const SCIENCE_WHY = [
+  {
+    title: "Study habits are personal",
+    text:
+      "Long study sessions look different for everyone. Generic advice like “take a break every hour” " +
+      "ignores how your own focus and comfort change.",
+  },
+  {
+    title: "Eyes carry useful signals",
+    text:
+      "Blinking and eye closure change during screen work. A webcam can measure some of this without " +
+      "special hardware — if the measurement is careful and honest about its limits.",
+  },
+  {
+    title: "Feedback beats guesswork",
+    text:
+      "Instead of telling you what you feel, OcuSense asks. Your own check-ins, next to what the camera " +
+      "measured, are a better starting point for finding breaks that help you.",
+  },
+];
+
 /** Three short points for the home page. */
 export const SCIENCE_HIGHLIGHTS = [
   {

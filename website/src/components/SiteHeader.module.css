@@ -37,13 +37,15 @@
   font-weight: 500;
   padding: 6px 0;
   border-bottom: 2px solid transparent;
+  white-space: nowrap;
 }
 .link:hover { color: var(--ink); border-bottom-color: var(--rule); }
 .link[aria-current="page"] { font-weight: 700; border-bottom-color: var(--ink); }
 .account { display: flex; gap: 8px; }
+.account > * { white-space: nowrap; }
 .bar .menuButton { display: none; } /* more specific than the global .btn rule */
 
-@media (max-width: 900px) {
+@media (max-width: 1060px) { /* the full bar needs about 1040px */
   .bar .menuButton { display: inline-flex; }
   .nav {
     display: none;

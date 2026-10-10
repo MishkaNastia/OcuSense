@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { QuietArt } from "@/components/art/Art";
-import { REFERENCES, SCIENCE_SECTIONS } from "@/content/science";
+import { REFERENCES, SCIENCE_SECTIONS, SCIENCE_WHY } from "@/content/science";
 
 export const metadata: Metadata = { title: "The science" };
 
@@ -22,6 +22,18 @@ export default function SciencePage() {
         </div>
         <QuietArt />
       </header>
+
+      <section className="section-rule" aria-labelledby="why">
+        <h2 id="why">Why study habits, eye activity and personal feedback</h2>
+        <div className="three-col">
+          {SCIENCE_WHY.map((item) => (
+            <div key={item.title}>
+              <h3>{item.title}</h3>
+              <p>{item.text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {SCIENCE_SECTIONS.map((section) => (
         <section key={section.id} className="section-rule" aria-labelledby={section.id}>

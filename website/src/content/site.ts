@@ -17,13 +17,13 @@ export const site = {
 
 export const mainNav = [
   { href: "/how-it-works", label: "How it works" },
+  { href: "/science", label: "The science" },
   { href: "/demo", label: "Demo" },
   { href: "/about", label: "About us" },
   { href: "/download", label: "Download" },
 ];
 
 export const footerNav = [
-  { href: "/science", label: "The science" },
   { href: "/privacy", label: "Privacy" },
   { href: "/accessibility", label: "Accessibility" },
   { href: "/credits", label: "Credits & licences" },

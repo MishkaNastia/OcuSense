@@ -18,26 +18,6 @@ export const team = {
   intro:
     "We are a team of computer science engineering, life sciences engineering and data science students building OcuSense for a hackathon " +
     "on student and campus life.",
-  why: [
-    {
-      title: "Study habits are personal",
-      text:
-        "Long study sessions look different for everyone. Generic advice like “take a break every hour” " +
-        "ignores how your own focus and comfort change.",
-    },
-    {
-      title: "Eyes carry useful signals",
-      text:
-        "Blinking and eye closure change during screen work. A webcam can measure some of this without " +
-        "special hardware — if the measurement is careful and honest about its limits.",
-    },
-    {
-      title: "Feedback beats guesswork",
-      text:
-        "Instead of telling you what you feel, OcuSense asks. Your own check-ins, next to what the camera " +
-        "measured, are a better starting point for finding breaks that help you.",
-    },
-  ],
   approach: [
     { title: "Understandable measurements", text: "Every number has a plain definition, a unit, and a note on its precision." },
     { title: "Personal calibration", text: "Measurements are relative to your own open and closed eyes, not a population average." },

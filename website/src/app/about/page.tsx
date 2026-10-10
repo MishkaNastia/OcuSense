@@ -18,18 +18,6 @@ export default function AboutPage() {
         <QuietArt />
       </header>
 
-      <section className="section-rule" aria-labelledby="why">
-        <h2 id="why">Why study habits, eye activity and personal feedback</h2>
-        <div className="three-col">
-          {team.why.map((item) => (
-            <div key={item.title}>
-              <h3>{item.title}</h3>
-              <p>{item.text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       <section className="section-rule" aria-labelledby="approach">
         <h2 id="approach">Our approach</h2>
         <div className="three-col">
