@@ -253,7 +253,8 @@ class MainWindow(QMainWindow):
         self.last_update = update
         obs = update.observation
         if obs is not None:
-            self.ear_log.add(update.now, obs.left_ear, obs.right_ear, update.reliable)
+            self.ear_log.add(update.now, obs.left_ear, obs.right_ear, update.reliable,
+                             obs.left_raw, obs.right_raw, update.calibration_info)
         pixmap = QPixmap.fromImage(update.preview)
         if self.state == "calibrating":
             self.calibration.set_preview(pixmap)

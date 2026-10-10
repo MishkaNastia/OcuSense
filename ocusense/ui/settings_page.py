@@ -109,8 +109,8 @@ class SettingsPage(Page):
         self.body.addWidget(setting_row(
             "Raw EAR recording",
             f"While the camera is on, the left and right Eye Aspect Ratio of every frame is saved with its time "
-            f"as a CSV file every {RECORDING_CHUNK_SECONDS / 60:.0f} minutes, and when you pause, stop or quit. "
-            "Numbers only — no images.", controls, extra=(self.recording_detail,)))
+            "and your calibrated openness, as a CSV file (plus the calibration used) every "
+            f"{RECORDING_CHUNK_SECONDS / 60:.0f} minutes and when you pause, stop or quit. Numbers only — no images.", controls, extra=(self.recording_detail,)))
         self.folder = None
         self.clear_button = _button("Clear session history…", "secondary")
         self.clear_button.clicked.connect(self.clear_history_requested.emit)

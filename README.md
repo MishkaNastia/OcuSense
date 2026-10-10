@@ -41,11 +41,21 @@ The sidebar on the left switches pages without interrupting monitoring:
 **Raw EAR recording.** While the camera is on, the app saves the left and right
 Eye Aspect Ratio of every frame to CSV files in
 `~/Library/Application Support/OcuSense/recordings/` — a new file every 10
-minutes and whenever you pause, stop or quit. Columns: `unix_time` (seconds,
-millisecond precision), `left_ear`, `right_ear` (empty when no face was found)
-and `reliable` (0 when the head was turned or the face too small — filter these
-out). Numbers only, no images. Settings › Data & privacy can switch it off and
-open the folder. About 0.7 MB per 10 minutes at 30 frames per second.
+minutes and whenever you pause, stop, quit or recalibrate. Columns:
+
+- `unix_time` — seconds, millisecond precision
+- `left_ear`, `right_ear` — raw EAR (empty when no face was found)
+- `reliable` — 0 when the head was turned or the face too small; filter these out
+- `left_openness`, `right_openness` — personal openness from the calibration in
+  use, `(EAR − closed EAR) / (open EAR − closed EAR)`, not clipped; empty while
+  not calibrated
+
+Each `ear_….csv` has an `ear_….calibration.json` next to it with the calibration
+those openness values used (open and closed EAR per eye, thresholds, time), so
+every file can be re-analysed from the raw EAR. One calibration per file: a
+recalibration starts a new one. Numbers only, no images. Settings › Data &
+privacy can switch it off and open the folder. About 1 MB per 10 minutes at 30
+frames per second.
 
 Statistics sessions are kept in memory only and forgotten when the app quits. To
 preview Statistics with clearly labelled demo sessions:

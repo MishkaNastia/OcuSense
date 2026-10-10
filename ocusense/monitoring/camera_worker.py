@@ -39,6 +39,7 @@ class MonitorUpdate:
     preview: QImage = None
     source: object = None  # the CameraWorker (camera run) that produced it
     observation: object = None  # core.models.FrameObservation for the measurements
+    calibration_info: object = None  # core.models.CalibrationInfo in use for this frame, or None
 
 
 def open_camera(index: int = CAMERA_INDEX) -> cv2.VideoCapture | None:
@@ -79,6 +80,7 @@ def snapshot(monitor: EyeMonitor, result: FrameResult, now: float) -> MonitorUpd
         samples=list(monitor.history.samples),
         preview=to_qimage(result.frame),
         observation=result.observation,
+        calibration_info=monitor.calibration_info,
     )
 
 

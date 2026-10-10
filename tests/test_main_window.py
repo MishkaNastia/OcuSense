@@ -442,9 +442,26 @@ class EarRecordingWindowTest(unittest.TestCase):
         files = self.files()
         self.assertEqual(len(files), 1)
         rows = files[0].read_text().splitlines()
-        self.assertEqual(rows[0], "unix_time,left_ear,right_ear,reliable")
+        self.assertEqual(rows[0], "unix_time,left_ear,right_ear,reliable,left_openness,right_openness")
         self.assertEqual(len(rows), 1 + 11)  # 5 + the calibration-done frame + 5
-        self.assertTrue(rows[1].endswith(",0.2800,0.3000,1"))
+        self.assertTrue(rows[1].endswith(",0.2800,0.3000,1,,"))
+
+    def test_calibrated_frames_carry_openness_and_their_calibration(self):
+        import json
+        from datetime import datetime
+        from ocusense.core.models import CalibrationInfo
+        w = self.window
+        info = CalibrationInfo(datetime(2026, 10, 10, 9, 0), 0.30, 0.10, 0.31, 0.11, 0.35, 0.65, "ear-personal-v2")
+        w.monitor.calibration = object()
+        w.start()
+        obs = FrameObservation(t=time.monotonic(), valid=True, left_ear=0.29, right_ear=0.30,
+                               left_raw=0.95, right_raw=0.95)
+        w._on_update(update(now=obs.t, observation=obs, calibration_info=info))
+        w.stop()
+        csv_file = self.files()[0]
+        self.assertTrue(csv_file.read_text().splitlines()[1].endswith(",0.2900,0.3000,1,0.9500,0.9500"))
+        record = json.loads(csv_file.with_name(csv_file.stem + ".calibration.json").read_text())
+        self.assertEqual(record["calibration"]["left_open_ear"], 0.30)
 
     def test_saves_every_chunk_and_on_quit(self):
         w = self.window

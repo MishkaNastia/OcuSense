@@ -1,12 +1,21 @@
 """The raw EAR recording: one CSV row per frame, a new file per chunk, nothing lost or overwritten."""
 
 import csv
+import json
 import tempfile
 import time
 import unittest
+from datetime import datetime
 from pathlib import Path
 
+from ocusense.core.models import CalibrationInfo
 from ocusense.recording import HEADER, EarRecording
+
+
+def calibration(open_ear=0.30):
+    return CalibrationInfo(calibrated_at=datetime(2026, 10, 10, 14, 3, 12), left_open_ear=open_ear,
+                           left_closed_ear=0.10, right_open_ear=0.31, right_closed_ear=0.11,
+                           close_below=0.35, reopen_above=0.65, measurement_version="ear-personal-v2")
 
 
 def read(path: Path) -> list[list[str]]:
@@ -29,8 +38,8 @@ class EarRecordingTest(unittest.TestCase):
         path = self.log.flush()
         rows = read(path)
         self.assertEqual(tuple(rows[0]), HEADER)
-        self.assertEqual(rows[1][1:], ["0.2871", "0.2903", "1"])
-        self.assertEqual(rows[2][1:], ["", "", "0"])
+        self.assertEqual(rows[1][1:], ["0.2871", "0.2903", "1", "", ""])  # not calibrated: no openness
+        self.assertEqual(rows[2][1:], ["", "", "0", "", ""])
         self.assertAlmostEqual(float(rows[1][0]), time.time() - 1 / 30, delta=0.5)
         self.assertAlmostEqual(float(rows[2][0]) - float(rows[1][0]), 1 / 30, delta=0.002)
 
@@ -69,6 +78,36 @@ class EarRecordingTest(unittest.TestCase):
         self.log.enabled = False
         self.log.add(time.monotonic(), 0.3, 0.3, True)
         self.assertEqual(self.log.rows, [])
+
+    def test_openness_columns_and_calibration_file(self):
+        info = calibration()
+        self.log.add(time.monotonic(), 0.29, 0.30, True, 0.95, 0.9512, calibration=info)
+        path = self.log.flush()
+        self.assertEqual(read(path)[1][1:], ["0.2900", "0.3000", "1", "0.9500", "0.9512"])
+        record = json.loads(path.with_suffix("").with_suffix(".calibration.json").read_text())
+        self.assertEqual(record["calibration"]["left_open_ear"], 0.30)
+        self.assertEqual(record["calibration"]["right_closed_ear"], 0.11)
+        self.assertEqual(record["calibration"]["calibrated_at"], "2026-10-10T14:03:12")
+        self.assertIn("openness_formula", record)
+
+    def test_without_calibration_the_file_says_so(self):
+        self.log.add(time.monotonic(), 0.29, 0.30, True)
+        path = self.log.flush()
+        record = json.loads((path.parent / (path.stem + ".calibration.json")).read_text())
+        self.assertIsNone(record["calibration"])
+
+    def test_a_new_calibration_starts_a_new_file(self):
+        t = time.monotonic()
+        self.log.add(t, 0.2, 0.2, True)  # calibrating: no calibration yet
+        self.log.add(t + 0.03, 0.2, 0.2, True)
+        self.log.add(t + 0.06, 0.3, 0.3, True, 0.9, 0.9, calibration=calibration())  # calibration done
+        self.assertEqual(self.log.files_written, 1)  # the calibration frames were written on their own
+        self.log.add(t + 0.09, 0.3, 0.3, True, 0.9, 0.9, calibration=calibration())  # equal: same file
+        self.log.add(t + 0.12, 0.3, 0.3, True, 0.8, 0.8, calibration=calibration(0.32))  # recalibrated
+        self.assertEqual(self.log.files_written, 2)
+        self.log.flush()
+        files = sorted(Path(self.folder.name, "recordings").glob("*.csv"))
+        self.assertEqual([len(read(f)) - 1 for f in files], [2, 2, 1])
 
 
 if __name__ == "__main__":
