@@ -42,6 +42,9 @@ class FakeThread:
     def request_posture_calibration(self):
         self.posture_calibration_requests += 1
 
+    def request_posture_enabled(self, enabled):
+        self.posture_enabled_requests = getattr(self, "posture_enabled_requests", []) + [enabled]
+
     def requestInterruption(self):
         self.stopped = True
 

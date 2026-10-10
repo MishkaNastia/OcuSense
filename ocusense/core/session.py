@@ -17,7 +17,8 @@ from ocusense.config import UNTRACKED_MIN
 
 from .distributions import DistributionBuilder
 from .measurements import MeasurementTracker, RollingWindow
-from .models import CalibrationInfo, FrameObservation, MinuteBin, RollingSnapshot, SessionSummary
+from .models import CalibrationInfo, FrameObservation, MinuteBin, PostureStatus, RollingSnapshot, SessionSummary
+from .posture import PostureScore
 
 
 class SessionRecorder:
@@ -42,6 +43,7 @@ class SessionRecorder:
         self.window = RollingWindow(now)
         self.distributions = DistributionBuilder(now)  # blink distributions for Statistics › Current session
         self.latest: FrameObservation | None = None  # last frame, for the live openness display
+        self.posture = PostureScore(now)  # posture score over time (only fed while posture monitoring is on)
 
     @property
     def started_at(self) -> datetime:
@@ -87,6 +89,11 @@ class SessionRecorder:
             minute.closures.append(step.closure)
         self._last_valid_t = obs.t
 
+    def add_posture(self, t: float, status: PostureStatus | None) -> None:
+        """One frame's posture result (None = posture monitoring off or no baseline yet)."""
+        if self.running:
+            self.posture.add(t, status)
+
     def _close_untracked(self, t: float) -> None:
         if self._untracked_since is not None:
             if t - self._untracked_since >= UNTRACKED_MIN:
@@ -102,6 +109,7 @@ class SessionRecorder:
         self._tracker.interrupt()  # an unfinished closure is discarded
         self.window.pause(t)
         self.distributions.interrupt(t)  # no blink, interval or closure across the pause
+        self.posture.interrupt()
         self._last_valid_t = None
 
     def resume(self, t: float) -> None:

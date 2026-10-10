@@ -3,9 +3,10 @@
 import math
 import unittest
 
-from ocusense.core.models import PostureBaseline, PostureReading
+from ocusense.core.models import PostureBaseline, PostureReading, PostureStatus
 from ocusense.core.posture import (
-    HEAD_DROPPED, HEAD_TILTED, IRIS_EDGES, SLUMPED, TOO_CLOSE, PostureCalibration, PostureMonitor, TiltWatcher,
+    HEAD_DROPPED, HEAD_TILTED, IRIS_EDGES, SLUMPED, TOO_CLOSE, PostureCalibration, PostureMonitor, PostureScore,
+    TiltWatcher,
     angle_difference, corrected_for_tilt, distance_cm, head_pose, iris_width_px, read_posture,
 )
 
@@ -286,6 +287,59 @@ class TiltWatcherTest(unittest.TestCase):
         self.assertEqual(self.feed(w, [140] * 10), [])
         w.set_reference(118.0)
         self.assertEqual(self.feed(w, [None] * 10), [])
+
+
+
+class PostureScoreTest(unittest.TestCase):
+    GOOD = PostureStatus(tracked=True)
+    OUT = PostureStatus(tracked=True, outside=(SLUMPED,))
+    LOST = PostureStatus(tracked=False)
+
+    def feed(self, score, seconds, status, start, fps=30):
+        for i in range(int(round(seconds * fps))):
+            score.add(start + i / fps, status)
+
+    def test_time_weighted_per_minute(self):
+        score = PostureScore(0.0)
+        self.feed(score, 45, self.GOOD, 0.0)
+        self.feed(score, 15, self.OUT, 45.0)  # the last 15 s of minute 0 outside a limit
+        self.feed(score, 60, self.GOOD, 60.0)
+        minutes = score.minutes()
+        self.assertEqual([m.index for m in minutes], [0, 1])
+        self.assertAlmostEqual(minutes[0].judged_seconds, 60.0, delta=0.05)
+        self.assertAlmostEqual(minutes[0].score, 0.75, places=2)
+        self.assertAlmostEqual(minutes[1].score, 1.0, places=3)
+        self.assertAlmostEqual(score.score(), 105 / 120, places=2)
+
+    def test_frame_rate_doesnt_change_the_score(self):
+        fast, slow = PostureScore(0.0), PostureScore(0.0)
+        for score, fps in ((fast, 30), (slow, 10)):
+            self.feed(score, 40, self.GOOD, 0.0, fps)
+            self.feed(score, 20, self.OUT, 40.0, fps)
+        self.assertAlmostEqual(fast.minutes()[0].score, slow.minutes()[0].score, places=2)
+
+    def test_lost_face_gaps_and_pauses_arent_judged(self):
+        score = PostureScore(0.0)
+        self.feed(score, 30, self.GOOD, 0.0)
+        self.feed(score, 20, self.LOST, 30.0)  # face gone: not judged
+        self.feed(score, 10, self.OUT, 50.0)
+        self.assertAlmostEqual(score.minutes()[0].judged_seconds, 40.0, delta=0.1)
+        score.interrupt()  # pause
+        score.add(70.0, self.GOOD)  # first frame after the pause: nothing counted across it
+        self.assertEqual(len(score.minutes()), 1)
+
+    def test_too_little_time_has_no_score(self):
+        score = PostureScore(0.0)
+        self.feed(score, 15, self.GOOD, 0.0)
+        self.assertIsNone(score.minutes()[0].score)  # under 20 s in that minute
+        self.assertIsNone(score.score())  # under 30 s overall
+        self.assertEqual(PostureScore(0.0).minutes(), [])
+
+    def test_minutes_without_data_stay_in_the_timeline(self):
+        score = PostureScore(0.0)
+        self.feed(score, 30, self.GOOD, 0.0)
+        self.feed(score, 30, self.GOOD, 180.0)  # nothing in minutes 1 and 2
+        self.assertEqual([(m.index, m.judged_seconds) for m in score.minutes()][1:3], [(1, 0.0), (2, 0.0)])
 
 
 if __name__ == "__main__":

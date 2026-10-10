@@ -24,6 +24,7 @@ from .widgets.artwork import Composition
 from .widgets.common import label, rule, vline
 from .widgets.openness_graph import OpennessGraph
 from .widgets.page import Page, paragraph
+from .widgets.posture_chart import PostureChart
 from .widgets.status_indicator import StatusIndicator
 
 UNAVAILABLE = "—"
@@ -114,7 +115,7 @@ class CurrentSessionPage(Page):
         posture_row = QHBoxLayout()
         posture_row.setSpacing(16)
         self.posture_indicator = StatusIndicator()
-        self.posture_indicator.set("ready", "Not calibrated")
+        self.posture_indicator.set("paused", "Posture monitoring is off")
         posture_row.addWidget(self.posture_indicator, 1)
         self.posture_button = QPushButton("Recalibrate posture")
         self.posture_button.setProperty("kind", "secondary")
@@ -123,11 +124,21 @@ class CurrentSessionPage(Page):
         posture_row.addWidget(self.posture_button, 0, Qt.AlignmentFlag.AlignTop)
         body.addLayout(posture_row)
         minutes = POSTURE_CALIBRATION_SECONDS / 60
-        self.posture_detail = label(f"After each eye calibration, the first {minutes:.0f} minutes of work become your "
+        self.posture_off_text = "Turn it on in Settings › Monitoring › Posture monitoring."
+        self.posture_on_text = (f"After each eye calibration, the first {minutes:.0f} minutes of work become your "
                                     "posture baseline: sit the way you want to, at a good distance from the screen. "
-                                    "Moved your chair or desk? Press Recalibrate posture.",
-                                    "secondary", theme.ui_font(14), wrap=True)
+                                "Moved your chair or desk? Press Recalibrate posture.")
+        self.posture_detail = label(self.posture_off_text, "secondary", theme.ui_font(14), wrap=True)
         body.addWidget(self.posture_detail)
+        self.posture_score = label("", font=theme.ui_font(15, QFont.Weight.DemiBold), wrap=True)
+        body.addWidget(self.posture_score)
+        self.posture_chart = PostureChart()
+        body.addWidget(self.posture_chart)
+        self.posture_chart_caption = label("Posture score per minute: the share of tracked time within all your "
+                                           "limits. Minutes with less than 20 s tracked have no bar.",
+                                           "secondary", theme.ui_font(13), wrap=True)
+        body.addWidget(self.posture_chart_caption)
+        self.set_posture_enabled(False)
         body.addWidget(label("Head angle, distance (estimated from your iris, so approximate) and how low your face "
                              "sits in the picture. A limit must be exceeded for "
                              f"{POSTURE_SUSTAIN_SECONDS:.0f} seconds in a row to count, so "
@@ -247,8 +258,32 @@ class CurrentSessionPage(Page):
                                   f"chance now and then, so only {drift.confirm_windows} in a row count as "
                                   "different.")
 
+    def set_posture_enabled(self, enabled: bool) -> None:
+        """Ticked or not in Settings: the section explains itself when off; the score stays visible once there is one."""
+        self.posture_button.setEnabled(enabled)
+        if not enabled:
+            self.posture_indicator.set("paused", "Posture monitoring is off")
+            self.posture_detail.setText(self.posture_off_text)
+        elif self.posture_indicator.text.text() == "Posture monitoring is off":
+            self.posture_indicator.set("ready", "Waiting for a posture baseline")
+            self.posture_detail.setText(self.posture_on_text)
+
+    def show_posture_score(self, minutes, score) -> None:
+        """minutes: [PostureMinute] and the session score (0–1 or None), both from core/posture.PostureScore."""
+        has = bool(minutes)
+        self.posture_chart.setVisible(has)
+        self.posture_chart_caption.setVisible(has)
+        self.posture_score.setVisible(has)
+        if not has:
+            return
+        self.posture_chart.set_data(minutes)
+        self.posture_score.setText(f"Posture score this session: {score * 100:.0f} % of tracked time within your limits"
+                                   if score is not None else "Posture score this session: not enough tracked time yet")
+
     def show_posture(self, update) -> None:
         """update: the window's MonitorUpdate. Only shows what core/posture.py worked out."""
+        if not update.posture_enabled:
+            return
         if update.posture_cal_status == PostureCalibration.RUNNING:
             minutes, seconds = divmod(int(round(update.posture_cal_seconds_left)), 60)
             self.posture_indicator.set("calibrating", f"Recording your posture: {minutes}:{seconds:02d} left")
@@ -283,7 +318,7 @@ class CurrentSessionPage(Page):
         if status.lid_change:
             parts.append(f"screen tilted {abs(status.lid_change):.0f}° {'back' if status.lid_change > 0 else 'forward'}"
                          " (corrected)")
-        self.posture_detail.setText("Compared with your calibration: " + " · ".join(parts) + ".")
+        self.posture_detail.setText("Compared with your posture baseline: " + " · ".join(parts) + ".")
 
     def show_distributions(self, data, thresholds, context: dict) -> None:
         self.distributions.show_data(data, "Distributions appear once tracking has started.", thresholds, context,

@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
 from ocusense.preferences import Preferences
 from ocusense.config import CLOSE_BELOW, MIN_SESSION_SECONDS, MODEL_PATH, REOPEN_ABOVE
 from ocusense.core.baseline_drift import BreakReminder, LiveDrift
+from ocusense.core.posture import PostureCalibration
 from ocusense.core.calibration import GuidedCalibration
 from ocusense.core.proximity import ProximityMonitor
 from ocusense.core.session import SessionRecorder
@@ -108,6 +109,7 @@ class MainWindow(QMainWindow):
         self.preferences = Preferences.load()  # remembered Settings choices
         self.proximity = ProximityMonitor(cooldown_seconds=self.preferences.distance_reminder_interval)
         self.distance_reminder = self.preferences.distance_reminder  # Settings › Reminders
+        self.monitor.posture_enabled = self.preferences.posture_monitoring  # Settings › Monitoring (camera not running yet)
         self._ticks = 0
 
         root = QWidget()
@@ -168,6 +170,9 @@ class MainWindow(QMainWindow):
         self.current_page.go_to_study.connect(self.show_study)
         self.settings_page.recalibrate_requested.connect(self._recalibrate_from_settings)
         self.current_page.calibrate_posture.connect(self.calibrate_posture)
+        self.settings_page.posture.setChecked(self.preferences.posture_monitoring)
+        self.current_page.set_posture_enabled(self.preferences.posture_monitoring)
+        self.settings_page.posture.toggled.connect(self._set_posture_monitoring)
         self.settings_page.clear_history_requested.connect(self.clear_history)
         self.settings_page.new_reference_requested.connect(self.make_new_reference)
         self.settings_page.record.toggled.connect(self._set_recording)
@@ -278,6 +283,10 @@ class MainWindow(QMainWindow):
         else:
             self.recorder.resume(now)
         self._set_state("monitoring")
+        m = self.monitor
+        if (m.posture_enabled and m.calibration is not None and m.posture_monitor is None
+                and m.posture_calibrator.status != PostureCalibration.RUNNING and self.thread is not None):
+            self.thread.request_posture_calibration()  # ticked while the camera was off, or after a pause
 
     def _finish_session(self) -> bool:
         """End the recorded session; keep it for Statistics if it was long enough."""
@@ -324,6 +333,7 @@ class MainWindow(QMainWindow):
             return
         if self.recorder:
             self.recorder.add_observation(update.observation)
+            self.recorder.add_posture(update.now, update.posture_status if update.posture_enabled else None)
         if SCREEN_TILTED in update.events:
             self.notify(TILT_MESSAGE, "OcuSense")  # the posture baseline is recorded again (2 min)
             self.study.message_label.setText(f"{TILT_MESSAGE} ({datetime.now():%H:%M}).")
@@ -344,8 +354,23 @@ class MainWindow(QMainWindow):
             self.current_page.set_graph(update.samples, update.now, caption=self.study.graph_caption.text())
             self.current_page.show_posture(update)
 
+    def _set_posture_monitoring(self, on: bool) -> None:
+        """The Settings tick. With the camera on, it is switched on the camera thread before the next frame."""
+        self.preferences.posture_monitoring = on
+        self.preferences.save()
+        self.current_page.set_posture_enabled(on)
+        if self.thread is not None:
+            self.thread.request_posture_enabled(on)
+        elif on:
+            self.monitor.posture_enabled = True  # the baseline starts when monitoring does
+        else:
+            self.monitor.set_posture_enabled(False, time.monotonic())
+
     def calibrate_posture(self) -> None:
-        """The "sit up straight" step runs on the camera thread while monitoring; the eye calibration is kept."""
+        """A new 2-minute posture baseline, recorded on the camera thread while monitoring; the eye calibration is kept."""
+        if not self.settings_page.posture.isChecked():
+            self.current_page.posture_detail.setText(self.current_page.posture_off_text)
+            return
         if self.state != "monitoring" or self.thread is None:
             self.current_page.posture_detail.setText("Start a session first: posture is calibrated while the "
                                                      "camera is on.")
@@ -418,6 +443,7 @@ class MainWindow(QMainWindow):
             self.current_page.show_session(current, paused=self.state == "paused")
             if self.recorder is not None:
                 self._show_live_distributions()
+                self.current_page.show_posture_score(self.recorder.posture.minutes(), self.recorder.posture.score())
                 self.current_page.show_drift(self._drift_for(self.recorder), self.recorder.distributions.intervals,
                                              time.monotonic(), self.reference, self.reference_error)
             if current is not None and self.last_update is not None and self.state != "monitoring":

@@ -48,6 +48,7 @@ class EyeMonitorTest(unittest.TestCase):
 
 
     def test_no_face_means_no_posture(self):
+        self.monitor.posture_enabled = True
         self.monitor.posture_monitor = PostureMonitor(PostureBaseline(0.0, 0.0, 60.0, 0.5, 0.3))
         result = self.monitor.process(np.zeros((480, 640, 3), np.uint8), now=1.0)
         self.assertIsNone(result.posture)
@@ -56,6 +57,7 @@ class EyeMonitorTest(unittest.TestCase):
     def test_posture_calibration_is_separate_from_the_eye_calibration(self):
         calibration = object()
         self.monitor.calibration = calibration
+        self.monitor.posture_enabled = True
         self.monitor.start_posture_calibration(now=1.0)
         self.assertEqual(self.monitor.posture_calibrator.status, PostureCalibration.RUNNING)
         self.assertIs(self.monitor.calibration, calibration)  # eye calibration untouched
@@ -76,11 +78,32 @@ class EyeMonitorTest(unittest.TestCase):
                 self.result = SimpleNamespace(left=eye, right=eye, face_scale=0.2)
 
         self.monitor.calibrator = Calibrator()
+        self.monitor.posture_enabled = True
         result = self.monitor.process(np.zeros((480, 640, 3), np.uint8), now=1.0)
         self.assertIn(CALIBRATION_DONE, result.events)
         self.assertEqual(self.monitor.posture_calibrator.status, PostureCalibration.RUNNING)
 
+    def test_posture_is_off_by_default(self):
+        result = self.monitor.process(np.zeros((480, 640, 3), np.uint8), now=1.0, lid_angle=118.0)
+        self.assertFalse(self.monitor.posture_enabled)
+        self.assertIsNone(result.posture)
+        self.assertIsNone(result.posture_status)
+        self.assertIsNone(self.monitor.tilt.reference)
+
+    def test_switching_posture_on_and_off(self):
+        self.monitor.set_posture_enabled(True, now=1.0)  # eyes not calibrated: waits for the eye calibration
+        self.assertEqual(self.monitor.posture_calibrator.status, PostureCalibration.IDLE)
+        self.monitor.set_posture_enabled(False, now=2.0)
+        self.monitor.calibration = object()
+        self.monitor.set_posture_enabled(True, now=3.0)  # calibrated: the 2-min baseline starts now
+        self.assertEqual(self.monitor.posture_calibrator.status, PostureCalibration.RUNNING)
+        self.monitor.posture_monitor = PostureMonitor(PostureBaseline(0.0, 0.0, 60.0, 0.5, 0.3))
+        self.monitor.set_posture_enabled(False, now=4.0)  # off: everything forgotten
+        self.assertIsNone(self.monitor.posture_monitor)
+        self.assertEqual(self.monitor.posture_calibrator.status, PostureCalibration.IDLE)
+
     def test_settled_screen_tilt_records_a_new_baseline(self):
+        self.monitor.posture_enabled = True
         self.monitor.posture_monitor = PostureMonitor(PostureBaseline(0.0, 0.0, 60.0, 0.5, 0.3, lid_angle=118.0))
         frame = np.zeros((480, 640, 3), np.uint8)
         events = []

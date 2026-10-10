@@ -153,3 +153,18 @@ class PostureStatus:
     centre_drop: float | None = None  # fraction of the frame height, + = lower than at calibration
     size_ratio: float | None = None  # face size now ÷ at calibration (> 1 = bigger: closer or slid forward)
     lid_change: float | None = None  # screen tilted since calibration, degrees (+ = opened further); corrected for
+
+
+@dataclass(frozen=True)
+class PostureMinute:
+    """One minute of posture monitoring (core/posture.PostureScore). Times in seconds."""
+    index: int  # minutes since the session started (0 = the first minute)
+    judged_seconds: float  # time with a face and a posture baseline
+    good_seconds: float  # …of which within all posture limits
+
+    @property
+    def score(self) -> float | None:
+        """Share of judged time within all limits, 0–1; None with less than MIN_TRACKED_PER_MINUTE judged."""
+        if self.judged_seconds < MIN_TRACKED_PER_MINUTE:
+            return None
+        return self.good_seconds / self.judged_seconds

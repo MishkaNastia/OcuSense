@@ -2,7 +2,7 @@
 
     ~/Library/Application Support/OcuSense/preferences.json
 
-Only reminder choices for now. Unknown or invalid values fall back to the
+Reminder choices and whether posture monitoring is on. Unknown or invalid values fall back to the
 defaults, so a damaged file never stops the app.
 """
 
@@ -24,6 +24,7 @@ def default_path() -> Path:
 class Preferences:
     distance_reminder: bool = True
     distance_reminder_interval: float = PROXIMITY_COOLDOWN_SECONDS  # seconds, one of PROXIMITY_COOLDOWN_CHOICES
+    posture_monitoring: bool = False  # off until ticked in Settings › Monitoring
 
     @classmethod
     def load(cls, path: Path | None = None) -> "Preferences":
@@ -34,6 +35,8 @@ class Preferences:
             return prefs  # no file yet, or unreadable: defaults
         if isinstance(values.get("distance_reminder"), bool):
             prefs.distance_reminder = values["distance_reminder"]
+        if isinstance(values.get("posture_monitoring"), bool):
+            prefs.posture_monitoring = values["posture_monitoring"]
         if values.get("distance_reminder_interval") in PROXIMITY_COOLDOWN_CHOICES:
             prefs.distance_reminder_interval = float(values["distance_reminder_interval"])
         return prefs

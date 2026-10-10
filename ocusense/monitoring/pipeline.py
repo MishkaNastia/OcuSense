@@ -68,6 +68,7 @@ class EyeMonitor:
         self.calibration_info: CalibrationInfo | None = None  # what produced the current calibration
         self.history = ScoreHistory()  # last few seconds of openness, for the graph
         self.landmarker = create_landmarker(model_path)
+        self.posture_enabled = False  # Settings › Monitoring › Posture monitoring
         self.posture_calibrator = PostureCalibration()  # separate from the eye calibration
         self.posture_monitor: PostureMonitor | None = None  # once posture is calibrated
         self.tilt = TiltWatcher()  # screen tilt since the posture baseline (MacBook lid sensor)
@@ -91,6 +92,17 @@ class EyeMonitor:
             counter.update(None)
         if self.posture_monitor is not None:
             self.posture_monitor.reset()
+
+    def set_posture_enabled(self, enabled: bool, now: float) -> None:
+        """Turn posture monitoring on (a new baseline starts if the eyes are calibrated) or off (all forgotten)."""
+        if enabled == self.posture_enabled:
+            return
+        self.posture_enabled = enabled
+        self.posture_calibrator = PostureCalibration()
+        self.posture_monitor = None
+        self.tilt.set_reference(None)
+        if enabled and self.calibration is not None:
+            self.start_posture_calibration(now)
 
     def start_posture_calibration(self, now: float) -> None:
         """Record a new posture baseline; the eye calibration and blink counting carry on unchanged."""
@@ -126,7 +138,8 @@ class EyeMonitor:
         measurement = measure_eyes(landmarks, width, height) if landmarks else None
         reliable_ears = measurement.ears if measurement and measurement.reliable else None
         result = FrameResult(frame, landmarks, measurement)
-        self._posture(detection, landmarks, width, height, now, lid_angle, result)
+        if self.posture_enabled:
+            self._posture(detection, landmarks, width, height, now, lid_angle, result)
 
         # --- calibration or counting ---
         calibrator = self.calibrator
@@ -148,7 +161,8 @@ class EyeMonitor:
                     reference_face_scale=self.calibration.face_scale,
                 )
                 result.events.append(CALIBRATION_DONE)
-                self.start_posture_calibration(now)  # the next 2 min of work become the posture baseline
+                if self.posture_enabled:
+                    self.start_posture_calibration(now)  # the next 2 min of work become the posture baseline
             elif calibrator.status == GuidedCalibration.FAILED:
                 result.events.append(CALIBRATION_FAILED)
         raw = None

@@ -5,7 +5,7 @@ import unittest
 
 from tests.test_main_window import FakeThread, update  # sets offscreen Qt and a temporary recordings folder
 
-from ocusense.core.models import PostureStatus
+from ocusense.core.models import PostureMinute, PostureStatus
 from ocusense.core.posture import HEAD_DROPPED, SLUMPED, PostureCalibration
 from ocusense.monitoring.pipeline import MODEL_PATH, SCREEN_TILTED
 
@@ -22,8 +22,10 @@ class PostureUiTest(unittest.TestCase):
         self.notifications = []
         self.window.notify = lambda message, title: self.notifications.append((title, message))
         self.page = self.window.current_page
+        self.window.settings_page.posture.setChecked(True)  # off by default; these tests are about it being on
 
     def tearDown(self):
+        self.window.settings_page.posture.setChecked(False)  # the test preferences file is shared: leave it off
         self.window.close()
 
     def monitoring(self):
@@ -32,7 +34,37 @@ class PostureUiTest(unittest.TestCase):
         self.window.show_page("current")
 
     def send(self, **changes):
+        changes.setdefault("posture_enabled", True)
         self.window._on_update(update(**changes))
+
+    def test_off_until_ticked(self):
+        self.window.settings_page.posture.setChecked(False)
+        self.assertEqual(self.page.posture_indicator.text.text(), "Posture monitoring is off")
+        self.assertFalse(self.page.posture_button.isEnabled())
+        self.assertFalse(self.window.monitor.posture_enabled)
+        self.window.settings_page.posture.setChecked(True)
+        self.assertTrue(self.window.monitor.posture_enabled)  # camera off: applied directly
+        self.assertTrue(self.page.posture_button.isEnabled())
+        from ocusense.preferences import Preferences
+        self.assertTrue(Preferences.load().posture_monitoring)  # remembered
+
+    def test_tick_while_monitoring_goes_to_the_camera_thread(self):
+        self.monitoring()
+        self.window.settings_page.posture.setChecked(False)
+        self.assertEqual(self.thread.posture_enabled_requests, [False])
+        self.send(posture_enabled=False, posture_cal_status=PostureCalibration.RUNNING)  # frames while off
+        self.assertEqual(self.page.posture_indicator.text.text(), "Posture monitoring is off")
+
+    def test_posture_score_over_time(self):
+        self.monitoring()
+        self.assertTrue(self.page.posture_chart.isHidden())  # nothing yet
+        self.page.show_posture_score([PostureMinute(0, 60.0, 45.0), PostureMinute(1, 10.0, 10.0)], 0.786)
+        self.assertFalse(self.page.posture_chart.isHidden())
+        self.assertEqual(self.page.posture_score.text(),
+                         "Posture score this session: 79 % of tracked time within your limits")
+        self.assertIn("minute 1: 75 %", self.page.posture_chart.accessibleDescription())
+        self.assertNotIn("minute 2", self.page.posture_chart.accessibleDescription())  # under 20 s: no bar
+        self.assertFalse(self.page.posture_chart.grab().isNull())
 
     def test_button_needs_a_running_session(self):
         self.page.posture_button.click()
@@ -41,8 +73,9 @@ class PostureUiTest(unittest.TestCase):
 
     def test_button_asks_the_camera_thread(self):
         self.monitoring()
+        self.assertEqual(self.thread.posture_calibration_requests, 1)  # monitoring started without a baseline
         self.page.posture_button.click()
-        self.assertEqual(self.thread.posture_calibration_requests, 1)
+        self.assertEqual(self.thread.posture_calibration_requests, 2)
         self.assertEqual(self.thread.calibration_requests, 0)  # the eye calibration isn't touched
         self.assertEqual(self.window.state, "monitoring")
 
