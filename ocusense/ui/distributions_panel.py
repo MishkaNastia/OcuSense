@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QPushButton, QVBoxLayout
 
 from ocusense.config import MIN_VALID_SECONDS_FOR_RATE
 from ocusense.core.distributions import (
-    CLOSURE_BINS, INTERVAL_BINS, OPENNESS_BINS, RATE_BINS, WINDOW_SECONDS, Distributions, histogram, quartiles,
+    CLOSURE_BINS, INSTANT_BINS, INTERVAL_BINS, OPENNESS_BINS, RATE_BINS, WINDOW_SECONDS, Distributions, histogram, quartiles,
 )
 from ocusense.exports import export_analysis
 
@@ -26,7 +26,8 @@ SMALL_SAMPLE = 10  # fewer events than this: the histogram is shown, with a smal
 MIN_WINDOWS = 3  # fewer eligible windows than this: no rate histogram, a message instead
 
 METRICS = (("closure", "Closure duration"), ("interval", "Time between blinks"),
-           ("rate", "Blink rate per minute"), ("openness", "Personal eye openness"))
+           ("rate", "Blink rate per minute"), ("instant", "Frequency per blink"),
+           ("openness", "Personal eye openness"))
 EYES = (("left", "Left eye"), ("right", "Right eye"), ("both", "Both eyes"))
 
 EXPLAIN = {
@@ -38,6 +39,9 @@ EXPLAIN = {
     "rate": f"Completed blinks per minute of valid tracking, in separate {WINDOW_SECONDS:.0f}-second windows. "
             f"A window counts only if it is finished and has at least {MIN_VALID_SECONDS_FOR_RATE:.0f} s of valid "
             "tracking.",
+    "instant": "60 ÷ the time between two consecutive blinks, in blinks per minute — one value per pair of "
+               "blinks, so it appears after a short recording. Much noisier than the per-minute rate: a single "
+               "long pause gives one very low value, a quick double blink a very high one.",
     "openness": "Relative to your calibrated eye positions. Not a fatigue score or literal percentage of "
                 "anatomical eye opening. Bars show the share of valid observed time, weighted by time between "
                 "frames, so a varying frame rate doesn’t distort them.",
@@ -67,7 +71,7 @@ class DistributionsPanel(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
-        self.metric_switch = Segmented(METRICS, self.metric, "Distribution")
+        self.metric_switch = Segmented(METRICS, self.metric, "Distribution", columns=3)
         self.metric_switch.changed.connect(self._set_metric)
         layout.addWidget(self.metric_switch, 0, Qt.AlignmentFlag.AlignLeft)
         self.eye_switch = Segmented(EYES, self.eye, "Eye")
@@ -138,6 +142,12 @@ class DistributionsPanel(QWidget):
                      f"From {len(d.events)} completed blinks in {d.segments} uninterrupted "
                      f"tracking segment{'s' if d.segments != 1 else ''}. Intervals of 30 s or longer are "
                      "kept in the last bar.")
+
+    def _render_instant(self, d: Distributions) -> None:
+        values = d.frequency_per_blink()
+        self._events(values, INSTANT_BINS, "values", "values", 1,
+                     f"From {len(values)} intervals between consecutive blinks (the same as Time between blinks). "
+                     "Values of 60 per minute or more (blinks 1 s apart or closer) are kept in the last bar.")
 
     def _events(self, values, binning, noun, short, decimals, note) -> None:
         unit = binning.unit

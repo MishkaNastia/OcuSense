@@ -61,8 +61,8 @@ privacy can switch it off and open the folder. About 1 MB per 10 minutes at 30
 frames per second.
 
 **Blink distributions.** Statistics › Current session shows live histograms
-(closure duration by default; also time between blinks, blink rate per minute
-and personal eye openness). Statistics › All time › *Import recording…* analyses
+(closure duration by default; also time between blinks, blink rate per minute,
+frequency per blink and personal eye openness). Statistics › All time › *Import recording…* analyses
 saved `ear_….csv` files with their own `.calibration.json` (read-only), with an
 *Inspect detection* timeline to check the detector and *Export results…* for
 derived CSV/JSON/PNG files. Definitions, bins and exclusions are documented in

@@ -518,12 +518,14 @@ class DistributionsUiTest(unittest.TestCase):
         panel = w.current_page.distributions
         self.assertIn("completed events", panel.summary.text())
         self.assertEqual(panel.metric, "closure")  # the default
-        for metric in ("closure", "interval", "rate", "openness"):
+        for metric in ("closure", "interval", "rate", "instant", "openness"):
             panel._set_metric(metric)
             self.assertFalse(panel.chart.grab().isNull())
             if metric == "rate":
                 self.assertIn("eligible windows", panel.note.text())
                 self.assertIn("windows ·", panel.summary.text())  # 3 complete minutes → a histogram
+            if metric == "instant":
+                self.assertIn("values · median 15.0 blinks/min", panel.summary.text())  # a blink every 4 s
         panel._set_eye("both")
         self.assertIn("Both eyes", panel.summary.text())
         self.assertEqual(w.state, "monitoring")  # looking at Statistics never touched monitoring

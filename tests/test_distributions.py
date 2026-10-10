@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ocusense.config import MIN_VALID_SECONDS_FOR_RATE
 from ocusense.core.distributions import (
-    CLOSURE_BINS, INTERVAL_BINS, OPENNESS_BINS, DistributionBuilder, histogram, quartiles,
+    CLOSURE_BINS, INSTANT_BINS, INTERVAL_BINS, OPENNESS_BINS, DistributionBuilder, histogram, quartiles,
 )
 from ocusense.core.measurements import MeasurementTracker
 from ocusense.core.models import FrameObservation
@@ -66,6 +66,19 @@ class EventTimingTest(unittest.TestCase):
             self.assertAlmostEqual(ms, 6 * 1000 / FPS, delta=0.5)  # closing frame → first reopened frame
         self.assertEqual([round(x, 3) for x in d.interval_seconds()], [3.0, 2.5])
         self.assertEqual(d.interrupted, 0)
+
+    def test_frequency_per_blink_is_sixty_over_each_interval(self):
+        d = replay(rows_from(blinks(12, [1.0, 4.0, 5.0, 5.5])), CAL).distributions  # intervals 3, 1 and 0.5 s
+        self.assertEqual([round(v, 3) for v in d.frequency_per_blink()], [20.0, 60.0, 120.0])
+        counts = histogram(d.frequency_per_blink(), INSTANT_BINS)
+        self.assertEqual(sum(counts), 3)  # every value counted
+        self.assertEqual(counts[-1], 2)  # 60 and 120 per minute: the "60 or more" bar
+        self.assertEqual(counts[INSTANT_BINS.index(20)], 1)
+
+    def test_frequency_per_blink_never_spans_a_gap(self):
+        before = rows_from(blinks(5, [1.0, 3.0]))
+        after = rows_from(blinks(5, [1.0]), start=before[-1].t + 2.0)
+        self.assertEqual([round(v, 3) for v in replay(before + after, CAL).distributions.frequency_per_blink()], [30.0])
 
     def test_prolonged_closure_stays_visible(self):
         d = replay(rows_from(blinks(10, [2.0], closed_frames=45)), CAL).distributions  # 1.5 s

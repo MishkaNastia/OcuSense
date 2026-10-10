@@ -15,6 +15,10 @@ Definitions (times in seconds; openness as fractions, 1 = calibrated open):
   was cut off by the end of its segment is "interrupted": excluded, but counted.
 * Time between blinks: onset-to-onset time between consecutive completed events
   inside the same valid segment. Never across gaps, pauses or recalibration.
+* Frequency per blink: 60 / (time between blinks) for every interval above, in
+  blinks per minute — one value per consecutive pair of blinks. Same exclusions
+  as the intervals; much noisier than the per-minute rate (one long pause gives
+  one very low value).
 * Blink rate windows: non-overlapping 60 s windows from the start of the data.
   Rate = completed blinks / valid minutes inside the window. A window is
   eligible only with at least MIN_VALID_SECONDS_FOR_RATE of valid observation
@@ -86,8 +90,9 @@ class Binning:
 CLOSURE_BINS = Binning("closure", 0, 1000, 50, "ms")  # last bin: ≥ 1000 ms (prolonged closures stay visible)
 INTERVAL_BINS = Binning("interval", 0, 30, 1, "s")  # last bin: ≥ 30 s
 RATE_BINS = Binning("rate", 0, 40, 2, "blinks/min")  # last bin: ≥ 40
+INSTANT_BINS = Binning("instant", 0, 60, 2, "blinks/min")  # last bin: ≥ 60 (intervals of 1 s or less)
 OPENNESS_BINS = Binning("openness", 0, 100, 5, "%", underflow=True, overflow=True)  # < 0 % and ≥ 100 %
-BINNINGS = {b.key: b for b in (CLOSURE_BINS, INTERVAL_BINS, RATE_BINS, OPENNESS_BINS)}
+BINNINGS = {b.key: b for b in (CLOSURE_BINS, INTERVAL_BINS, RATE_BINS, INSTANT_BINS, OPENNESS_BINS)}
 
 
 def histogram(values, binning: Binning, weights=None) -> list[float]:
@@ -174,6 +179,10 @@ class Distributions:
 
     def interval_seconds(self) -> list[float]:
         return [b - a for a, b in self.intervals]
+
+    def frequency_per_blink(self) -> list[float]:
+        """60 / interval for every onset-to-onset interval: one blinks-per-minute value per pair of blinks."""
+        return [60 / (b - a) for a, b in self.intervals if b > a]
 
     def eligible_rates(self) -> list[float]:
         return [w.rate for w in self.windows if w.eligible]

@@ -1,26 +1,27 @@
-"""A row of mutually exclusive choices (e.g. Today / This week / This month)."""
+"""A row of mutually exclusive choices (e.g. Today / This week / This month), optionally wrapped into rows."""
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QFontMetrics
-from PySide6.QtWidgets import QButtonGroup, QHBoxLayout, QPushButton, QWidget
+from PySide6.QtWidgets import QButtonGroup, QGridLayout, QPushButton, QWidget
 
 
 class Segmented(QWidget):
     """A row of mutually exclusive choices, e.g. Today / This week / This month."""
     changed = Signal(str)
 
-    def __init__(self, options, current, label, parent=None):
+    def __init__(self, options, current, label, parent=None, columns: int | None = None):
+        """columns: wrap into rows of this many choices (keeps long choice lists inside narrow windows)."""
         super().__init__(parent)
         self.setObjectName("Segmented")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)  # lets the style sheet draw the border
         self.setAccessibleName(label)
-        layout = QHBoxLayout(self)
+        layout = QGridLayout(self)
         layout.setContentsMargins(3, 3, 3, 3)
         layout.setSpacing(4)
         self.group = QButtonGroup(self)
         self.group.setExclusive(True)
         self.buttons = {}
-        for key, text in options:
+        for index, (key, text) in enumerate(options):
             button = QPushButton(text)
             button.setProperty("kind", "segment")
             button.setCheckable(True)
@@ -34,7 +35,8 @@ class Segmented(QWidget):
             button.clicked.connect(lambda _=False, k=key: self.changed.emit(k))
             self.group.addButton(button)
             self.buttons[key] = button
-            layout.addWidget(button)
+            row, column = divmod(index, columns) if columns else (0, index)
+            layout.addWidget(button, row, column)
 
     def set_current(self, key):
         self.buttons[key].setChecked(True)

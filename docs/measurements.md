@@ -291,7 +291,7 @@ files rotate every **10 minutes**.
 | Study time, tracking coverage, blinks counted | for the whole session so far (section 7, 8.1) |
 | Eye measurements · whole session so far | blink rate, median closure duration and time classified as closed over **all** valid observation of the session (not just the last 60 s) |
 | Personal eye openness graph | the same 10 s live graph as on the Study page |
-| Blink distributions | four histograms, updated every 2 s — see [11](#11-blink-distributions-histograms) |
+| Blink distributions | five histograms, updated every 2 s — see [11](#11-blink-distributions-histograms) |
 
 ### Statistics › All time
 | Element | What it shows |
@@ -318,7 +318,7 @@ as you complete sessions and check-ins" and draws no conclusions.
 ## 11. Blink distributions (histograms)
 
 Shown on **Current session** (live, refreshed every 2 s) and, for imported recordings, on
-**All time**. One histogram at a time, chosen with the tabs. Live and imported data use
+**All time**. Five histograms, one at a time, chosen with the tabs. Live and imported data use
 **exactly the same code and definitions**.
 
 A **valid segment** is a stretch of valid frames without a gap longer than 0.5 s. An
@@ -347,8 +347,22 @@ invalid frame, a longer gap, a pause, a recalibration or the end of the data end
   Eligible and excluded windows are both reported.
 - Fewer than **3** eligible windows → a message instead of a histogram.
 - **Axes**: blinks per minute × number of windows. **Bins**: 2 per minute, 0–40, plus "40 or more".
+- This is the **main blink-frequency measure**: one independent value per minute, comparable
+  between sessions.
 
-### 11.4 Personal eye openness
+### 11.4 Frequency per blink
+- **Each value**: `60 ÷ time between blinks` (section 11.2) — the blink frequency implied by
+  one interval, in blinks per minute. Example: 3 s between two blinks = 20 per minute.
+- One value per pair of consecutive blinks, with **exactly the same exclusions** as the time
+  between blinks (same valid segment; never across a gap, pause or recalibration).
+- Appears after a short recording (it needs no full minutes), but it is **much noisier** than
+  the per-minute rate: one long pause gives one very low value, a quick double blink a very
+  high one. Use it for a first impression; use 11.3 to compare sessions.
+- **Axes**: blinks per minute × number of values. **Shown**: count, median, interquartile range.
+- **Bins**: 2 per minute from 0 to 60, plus **"60 or more"** (blinks 1 s apart or closer), so
+  very short intervals stay visible.
+
+### 11.5 Personal eye openness
 - Left eye, right eye, or both (mean of the two **unclipped** values; only when both are valid).
 - **Time-weighted**: every valid interval adds its **duration** to the bin of the openness at
   its start frame. The bars are a **percentage of valid observed time**, not of frames, so a
@@ -358,7 +372,7 @@ invalid frame, a longer gap, a pause, a recalibration or the end of the data end
 - Dashed lines: the recorded detection thresholds (the detector applies them to the mean of
   both eyes, each clipped).
 
-### 11.5 Common rules
+### 11.6 Common rules
 - **Fixed bins**: the edges never change between refreshes or sessions, so histograms can be
   compared directly. Widths are never finer than the frame timing allows.
 - **Tooltips**: hover a bar for its range and its count or share of time.
