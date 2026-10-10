@@ -32,9 +32,11 @@ function Crescent({ cx, cy, r, color = "var(--golden)" }: { cx: number; cy: numb
 export function HeroArt({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 520 440" aria-hidden="true" focusable="false">
-      <path d="M40 250 C 120 120, 360 90, 470 220 C 380 330, 150 350, 70 280" fill="none" stroke={INK} strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="268" cy="228" r="58" fill="var(--cobalt)" />
-      <circle cx="290" cy="208" r="11" fill="var(--paper)" />
+      <g className="blink">
+        <path d="M40 250 C 120 120, 360 90, 470 220 C 380 330, 150 350, 70 280" fill="none" stroke={INK} strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <circle cx="268" cy="228" r="58" fill="var(--cobalt)" />
+        <circle cx="290" cy="208" r="11" fill="var(--paper)" />
+      </g>
       <path d="M96 150 C 150 70, 250 40, 330 70" fill="none" stroke={INK} strokeWidth={3} strokeLinecap="round" />
       <circle cx="420" cy="88" r="26" fill="var(--vermilion)" />
       <Crescent cx={110} cy={372} r={34} />

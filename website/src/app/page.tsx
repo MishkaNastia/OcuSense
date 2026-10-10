@@ -67,7 +67,7 @@ export default function Home() {
       </section>
 
       <section className={`container ${styles.split}`} aria-labelledby="local-title">
-        <LocalArt className={styles.localArt} blinking />
+        <LocalArt className={styles.localArt} />
         <div className={styles.splitText}>
           <p className="eyebrow">Calibration and privacy</p>
           <h2 id="local-title">Measured against your eyes, processed on your device.</h2>
