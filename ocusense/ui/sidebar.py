@@ -2,6 +2,7 @@
 
   Study
   Pomodoro (shows the time left while it runs)
+  Games
   Statistics ›  Current session / All time / Understanding your patterns
   ...
   Settings
@@ -164,6 +165,7 @@ class Sidebar(QWidget):
         self.items: dict[str, SidebarItem] = {}
         self._add(layout, SidebarItem("study", "Study", "study"))
         self._add(layout, SidebarItem("pomodoro", "Pomodoro", "pomodoro"))
+        self._add(layout, SidebarItem("games", "Games", "games"))
         self._add(layout, SidebarItem("statistics", "Statistics", "statistics", expandable=True))
         for key, text in (("current", "Current session"), ("all_time", "All time"),
                           ("patterns", "Understanding your patterns")):

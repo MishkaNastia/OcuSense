@@ -55,7 +55,22 @@ def _pomodoro(p):  # a tomato: round body, stem and leaf
     p.drawPath(leaf)
 
 
-ICONS = {"study": _study, "pomodoro": _pomodoro, "statistics": _statistics, "settings": _settings,
+def _games(p):  # a game pad: rounded body, a plus and two buttons
+    body = QPainterPath(QPointF(4, 8))
+    body.cubicTo(1.5, 8, 1, 15.5, 3.5, 16)
+    body.cubicTo(6, 16.5, 7, 13.5, 8.5, 13.5)
+    body.lineTo(11.5, 13.5)
+    body.cubicTo(13, 13.5, 14, 16.5, 16.5, 16)
+    body.cubicTo(19, 15.5, 18.5, 8, 16, 8)
+    body.closeSubpath()
+    p.drawPath(body)
+    p.drawLine(QPointF(6, 9.5), QPointF(6, 12.5))
+    p.drawLine(QPointF(4.5, 11), QPointF(7.5, 11))
+    p.drawEllipse(QPointF(13.5, 10), 0.9, 0.9)
+    p.drawEllipse(QPointF(15.5, 12), 0.9, 0.9)
+
+
+ICONS = {"study": _study, "pomodoro": _pomodoro, "games": _games, "statistics": _statistics, "settings": _settings,
          "account": _account}
 
 

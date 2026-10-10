@@ -104,11 +104,12 @@ class MenuBarIcon(QObject):
         state = w.state
         running = w.elapsed + (time.monotonic() - w.running_since if w.running_since is not None else 0.0)
         self.status.setText({"monitoring": f"Monitoring · {_clock(running)}", "paused": "Monitoring paused",
-                             "calibrating": "Calibrating…", "error": "Camera unavailable"}.get(state, "Ready"))
+                             "calibrating": "Calibrating…", "error": "Camera unavailable",
+                             "playing": "Playing Blink Code"}.get(state, "Ready"))
         self.monitor_action.setText({"monitoring": "Pause monitoring", "paused": "Resume monitoring"}
                                     .get(state, "Start monitoring"))
-        self.monitor_action.setEnabled(state != "calibrating")
-        self.stop_action.setEnabled(state in ("monitoring", "paused"))
+        self.monitor_action.setEnabled(state not in ("calibrating", "playing"))
+        self.stop_action.setEnabled(state in ("monitoring", "paused"))  # not while a game uses the camera
         page = w.pomodoro_page
         t = page.timer
         if t.state == "idle":

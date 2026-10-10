@@ -56,6 +56,7 @@ from .patterns_page import PatternsPage
 from .settings_page import SettingsPage
 from .sidebar import STATISTICS_PAGES, Sidebar
 from .eye_rest_card import BODY as EYE_REST_BODY, TITLE as EYE_REST_TITLE, EyeRestCard
+from .games_page import GamesPage
 from .menu_bar import MenuBarIcon
 from .pomodoro_page import PomodoroPage
 from .session_summary import SessionExtras, SessionSummaryCard
@@ -81,6 +82,7 @@ BUTTONS_FOR_STATE = {
     "monitoring": {"pause", "stop", "recalibrate"},
     "paused": {"resume", "stop"},
     "calibrating": set(),
+    "playing": set(),  # a game uses the camera; the study session (if any) waits, paused
 }
 
 
@@ -148,12 +150,13 @@ class MainWindow(QMainWindow):
         self.settings_page = SettingsPage()
         self.account_page = AccountPage()
         self.pomodoro_page = PomodoroPage(self.preferences)
+        self.games_page = GamesPage(self)
         self.page_for = {"study": self.study, "current": self.current_page, "all_time": self.stats_page,
                          "patterns": self.patterns_page, "settings": self.settings_page, "account": self.account_page,
-                         "pomodoro": self.pomodoro_page}
+                         "pomodoro": self.pomodoro_page, "games": self.games_page}
         self.pages = QStackedWidget()
         for page in (self.study, self.calibration, self.current_page, self.stats_page, self.patterns_page,
-                     self.settings_page, self.account_page, self.pomodoro_page):
+                     self.settings_page, self.account_page, self.pomodoro_page, self.games_page):
             self.pages.addWidget(page)
         content = QWidget()
         column = QVBoxLayout(content)
@@ -363,6 +366,9 @@ class MainWindow(QMainWindow):
         if self.thread is None or (update.source is not None and update.source is not self.thread):
             return  # a late frame from a camera run that has already been stopped
         self.last_update = update
+        if self.state == "playing":
+            self.games_page.feed(update)  # game blinks never reach the session, the recording or reminders
+            return
         obs = update.observation
         if obs is not None:
             self.ear_log.add(update.now, obs.left_ear, obs.right_ear, update.reliable,
@@ -509,7 +515,7 @@ class MainWindow(QMainWindow):
 
     def _pomodoro_state_changed(self, phase: str, state: str) -> None:
         """Focus round running → monitor; break or Pomodoro paused → pause monitoring (camera off, eyes rest)."""
-        if not self.preferences.pomodoro_monitoring or self.state == "calibrating":
+        if not self.preferences.pomodoro_monitoring or self.state in ("calibrating", "playing"):
             return
         if phase == "focus" and state == "running":
             if self.state in ("ready", "error"):
@@ -732,7 +738,35 @@ class MainWindow(QMainWindow):
         elif state == "monitoring":
             self.status.set("monitoring", "Monitoring")
             self.study.pause_button.setFocus()
+        elif state == "playing":
+            self.status.set("monitoring", "Playing Blink Code")
+            self.study.graph.clear("A game is using the camera. Your study session waits until you go back.")
         self._tick()
+
+    # ------------------------------------------------------------------ games
+    def start_game_camera(self) -> str:
+        """Let a game use the camera. Returns "" on success, otherwise why not (shown by the game)."""
+        if self.state == "calibrating":
+            return "Finish the calibration first."
+        if not self.monitor.calibration:
+            return "Calibrate once on the Study page first — the game needs to know your open and closed eyes."
+        if self.state == "playing":
+            return ""
+        if self.state == "monitoring":
+            self.pause()  # the study session waits, paused; nothing from the game is recorded in it
+        if not self._start_camera():
+            return "The camera couldn’t be opened."
+        self.monitor.interrupt()
+        self._set_state("playing", "A game is using the camera — your study session is paused.")
+        return ""
+
+    def stop_game_camera(self) -> None:
+        if self.state != "playing":
+            return
+        self._stop_camera()
+        self.monitor.interrupt()
+        self._set_state("paused" if self.recorder is not None else "ready",
+                        "Back from the game — press Resume to continue your session." if self.recorder else "")
 
     def closeEvent(self, event) -> None:
         self._finish_session()

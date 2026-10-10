@@ -38,6 +38,9 @@ class Preferences:
     pomodoro_monitoring: bool = True  # eye monitoring runs in focus rounds and pauses in breaks
     # 20-20-20 eye rest
     eye_rest: bool = False  # off unless switched on in Settings › Reminders
+    # Games
+    morse_dash_ms: int = 450  # Blink Code: closures at least this long are dashes
+    morse_high_score: int = 0
 
     def pomodoro(self) -> PomodoroSettings:
         return PomodoroSettings(self.focus_minutes, self.short_break_minutes, self.long_break_minutes,
@@ -68,6 +71,12 @@ class Preferences:
                      "pomodoro_monitoring", "eye_rest"):
             if isinstance(values.get(name), bool):
                 setattr(prefs, name, values[name])
+        dash = values.get("morse_dash_ms")
+        if isinstance(dash, int) and not isinstance(dash, bool) and 250 <= dash <= 900:
+            prefs.morse_dash_ms = dash
+        best = values.get("morse_high_score")
+        if isinstance(best, int) and not isinstance(best, bool) and best >= 0:
+            prefs.morse_high_score = best
         return prefs
 
     def save(self, path: Path | None = None) -> bool:

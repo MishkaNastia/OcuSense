@@ -41,6 +41,11 @@ The sidebar on the left switches pages without interrupting monitoring:
   auto-start, Mac notification and optional sound when a phase ends) with animated
   Miró pictures; the sidebar shows the time left. Animations follow macOS
   "Reduce motion". Focus rounds run eye monitoring and breaks pause it (switchable).
+- **Games** — **Blink Code**: learn Morse code with your eyes (short blink = dot,
+  long blink = dash; the space bar works too). Learn mode unlocks letters, the
+  90-second Challenge scores combos and keeps a high score, Free blink types what you
+  blink. Miró animations; game blinks are never recorded in your study statistics
+  or the EAR recording.
 - **Statistics** (expands) — **Current session** (the running session's time,
   coverage and measurements), **All time** (totals, a date filter, a timeline
   with blink rate, median closure duration or time classified as closed, and
@@ -234,6 +239,7 @@ ocusense/
     distributions_panel.py  the "Blink distributions" histograms (live and imported)
     recordings_section.py   All time: import, choose and inspect recordings (background loading)
     pomodoro_page.py   Pomodoro (timer logic in core/pomodoro.py)
+    games_page.py      Games: Blink Code (Morse logic in core/morse.py)
     settings_page.py   Settings
     account_page.py    Log in (not available yet)
     theme.py           colours, fonts, style sheet
