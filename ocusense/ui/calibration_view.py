@@ -71,7 +71,7 @@ class CalibrationView(QScrollArea):
         actions.addWidget(self.cancel_button)
         actions.addStretch(1)
         left.addLayout(actions)
-        left.addWidget(label("Measured against your own eyes, not a fixed average. Nothing is recorded.",
+        left.addWidget(label("Measured against your own eyes, not a fixed average. Images are never saved.",
                              "secondary", theme.ui_font(13), wrap=True))
         left_widget = QWidget()
         left_widget.setLayout(left)

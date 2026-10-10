@@ -246,14 +246,14 @@ class AllTimePage(QScrollArea):
         self.tag.setText("Demo data" if self.demo else "Kept until you quit")
         self.tag.setToolTip("" if self.demo else "Sessions are kept in memory only and forgotten when OcuSense quits.")
         self.memory_note.setText(
-            "Clearly labelled demo sessions, plus any you record now. Nothing is saved to disk." if self.demo else
+            "Clearly labelled demo sessions, plus any you record now. Statistics aren’t saved to disk." if self.demo else
             "Sessions from this run of OcuSense. They are kept in memory only — when you quit, they are gone, "
-            "and earlier runs are not saved.")
+            "and earlier runs are not shown. (The raw EAR recording is saved separately; see Settings.)")
         has_any = bool(everything)
         self.empty.setVisible(not has_any)
         self.body.setVisible(has_any)
         self.empty_detail.setText("Press Start on the Study page. Sessions are kept only until you quit "
-                                  "OcuSense — earlier runs are not saved, and nothing is written to disk.")
+                                  "OcuSense — earlier runs are not shown here.")
         if not has_any:
             return
 

@@ -48,6 +48,9 @@ PROCESSING_RATE_WINDOW = 5.0  # seconds used to measure the actual frames-per-se
 # closing/reopening transitions (v1 used time below the closing threshold).
 MEASUREMENT_VERSION = "ear-personal-v2"
 
+# --- Raw EAR recording (ocusense/recording.py) ---
+RECORDING_CHUNK_SECONDS = 600.0  # a new CSV file every 10 minutes (and on pause, stop and quit)
+
 # --- Camera ---
 CAMERA_INDEX = 0  # 0 = the built-in webcam
 PREVIEW_WIDTH = 480  # pixels; width of the preview image sent to the interface

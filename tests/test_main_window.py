@@ -8,6 +8,10 @@ import time
 import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+import tempfile  # noqa: E402
+
+RECORDINGS = tempfile.mkdtemp(prefix="ocusense-test-recordings-")
+os.environ["OCUSENSE_RECORDINGS_DIR"] = RECORDINGS  # never write into the real Library folder
 
 from PySide6.QtGui import QColor, QImage  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
@@ -401,6 +405,71 @@ class SidebarNavigationTest(unittest.TestCase):
         self.assertFalse(w.account_page.login_button.isEnabled())
         self.assertFalse(w.account_page.create_button.isEnabled())
         self.assertEqual(w.account_page.tag.text(), "Not available yet")
+
+
+@unittest.skipUnless(MODEL_PATH.exists(), "model file missing - run download_model.py")
+class EarRecordingWindowTest(unittest.TestCase):
+    def setUp(self):
+        from pathlib import Path
+        from ocusense.ui.main_window import MainWindow
+        self.folder = tempfile.TemporaryDirectory()
+        self.window = MainWindow()
+        self.window.ear_log.directory = Path(self.folder.name)
+        self.thread = FakeThread()
+        self.window._start_camera = lambda: (setattr(self.window, "thread", self.thread), True)[1]
+
+    def tearDown(self):
+        self.window.close()
+        self.folder.cleanup()
+
+    def frames(self, n):
+        for i in range(n):
+            obs = FrameObservation(t=time.monotonic(), valid=True, left_ear=0.28, right_ear=0.3)
+            self.window._on_update(update(now=obs.t, observation=obs))
+
+    def files(self):
+        return sorted(p for p in __import__("pathlib").Path(self.folder.name).glob("ear_*.csv"))
+
+    def test_records_calibration_and_monitoring_frames_and_saves_on_pause(self):
+        w = self.window
+        w.start()  # first start calibrates: those frames are recorded too
+        self.frames(5)
+        w.monitor.calibration = object()
+        w._on_update(update(events=[CALIBRATION_DONE]))
+        self.frames(5)
+        self.assertEqual(self.files(), [])  # not yet: written every 10 minutes or on pause/stop/quit
+        w.pause()
+        files = self.files()
+        self.assertEqual(len(files), 1)
+        rows = files[0].read_text().splitlines()
+        self.assertEqual(rows[0], "unix_time,left_ear,right_ear,reliable")
+        self.assertEqual(len(rows), 1 + 11)  # 5 + the calibration-done frame + 5
+        self.assertTrue(rows[1].endswith(",0.2800,0.3000,1"))
+
+    def test_saves_every_chunk_and_on_quit(self):
+        w = self.window
+        w.monitor.calibration = object()
+        w.start()
+        self.frames(3)
+        w.ear_log._chunk_started -= 601  # pretend 10 minutes passed
+        w._tick()
+        self.assertEqual(len(self.files()), 1)
+        self.frames(2)
+        w.close()  # quitting writes the rest
+        self.assertEqual(len(self.files()), 2)
+
+    def test_recording_can_be_switched_off_in_settings(self):
+        w = self.window
+        w.monitor.calibration = object()
+        w.start()
+        self.frames(3)
+        w.settings_page.record.setChecked(False)  # saves what was recorded so far
+        self.assertEqual(len(self.files()), 1)
+        self.frames(3)
+        w.stop()
+        self.assertEqual(len(self.files()), 1)
+        w.show_page("settings")
+        self.assertIn("Recording is off", w.settings_page.recording_detail.text())
 
 
 if __name__ == "__main__":

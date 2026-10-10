@@ -2,8 +2,9 @@
 
 Live webcam blink counter using OpenCV, Google MediaPipe Face Landmarker
 (to locate eyelid points) and the Eye Aspect Ratio (EAR) with personal
-calibration. All video is processed locally in memory: nothing is recorded
-or uploaded.
+calibration. All video is processed locally in memory: camera images are never
+saved or uploaded. The only thing written to disk is the raw EAR recording (see
+below).
 
 ## Setup (once)
 
@@ -37,7 +38,16 @@ The sidebar on the left switches pages without interrupting monitoring:
   (including clearing the session history).
 - **Log in** — accounts aren't available in the app yet; it says so.
 
-For now sessions are kept in memory only and forgotten when the app quits. To
+**Raw EAR recording.** While the camera is on, the app saves the left and right
+Eye Aspect Ratio of every frame to CSV files in
+`~/Library/Application Support/OcuSense/recordings/` — a new file every 10
+minutes and whenever you pause, stop or quit. Columns: `unix_time` (seconds,
+millisecond precision), `left_ear`, `right_ear` (empty when no face was found)
+and `reliable` (0 when the head was turned or the face too small — filter these
+out). Numbers only, no images. Settings › Data & privacy can switch it off and
+open the folder. About 0.7 MB per 10 minutes at 30 frames per second.
+
+Statistics sessions are kept in memory only and forgotten when the app quits. To
 preview Statistics with clearly labelled demo sessions:
 `python -m ocusense --demo-history`.
 ⌘. also stops. Tab reaches the sidebar; ↑/↓ move between its items and →/←

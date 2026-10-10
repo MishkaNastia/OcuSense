@@ -7,6 +7,7 @@ It connects the pieces and holds no layouts of its own pages:
   SettingsPage / AccountPage                     — at the bottom of the sidebar
   CameraWorker (monitoring/camera_worker.py)     — frames in, structured results out
   SessionRecorder + SessionStore                 — numbers kept for Statistics
+  EarRecording (recording.py)                    — raw EAR of every frame, saved as CSV files
 
 Navigation only swaps the visible page: it never starts, stops or restarts the
 camera worker, so monitoring carries on while you look at other pages.
@@ -31,6 +32,7 @@ from ocusense.core.session import SessionRecorder
 from ocusense.demo_data import demo_sessions
 from ocusense.monitoring.camera_worker import CameraWorker, MonitorUpdate, open_camera
 from ocusense.monitoring.pipeline import CALIBRATION_DONE, CALIBRATION_FAILED, CLOSED_STEP_FINISHED, EyeMonitor
+from ocusense.recording import EarRecording
 from ocusense.storage import SessionStore
 
 from .account_page import AccountPage
@@ -73,6 +75,7 @@ class MainWindow(QMainWindow):
         self.demo_history = demo_history
         self.store = SessionStore(demo_sessions() if demo_history else None)  # in memory for now
         self.recorder: SessionRecorder | None = None
+        self.ear_log = EarRecording()  # raw EAR per frame, written every 10 minutes
         self._ticks = 0
 
         root = QWidget()
@@ -117,6 +120,7 @@ class MainWindow(QMainWindow):
         self.current_page.go_to_study.connect(self.show_study)
         self.settings_page.recalibrate_requested.connect(self._recalibrate_from_settings)
         self.settings_page.clear_history_requested.connect(self.clear_history)
+        self.settings_page.record.toggled.connect(self._set_recording)
         self.settings_page.details.toggled.connect(self.study.details_button.setChecked)
         self.study.details_button.toggled.connect(self.settings_page.details.setChecked)
 
@@ -170,6 +174,7 @@ class MainWindow(QMainWindow):
         self._stop_clock()
         self._stop_camera()
         self.monitor.interrupt()  # after the worker stopped: no blink may span the pause
+        self._save_recording()
         self._set_state("paused")
 
     def resume(self) -> None:
@@ -182,6 +187,7 @@ class MainWindow(QMainWindow):
             return
         self._stop_clock()
         self._stop_camera()
+        self._save_recording()
         saved = self._finish_session()
         self.monitor.reset_session()
         self.elapsed = 0.0
@@ -199,6 +205,7 @@ class MainWindow(QMainWindow):
 
     def cancel_calibration(self) -> None:
         self._stop_camera()
+        self._save_recording()
         self._set_state("ready", "Calibration cancelled. Press Start to calibrate again.")
 
     def _begin_calibration(self) -> None:
@@ -237,12 +244,16 @@ class MainWindow(QMainWindow):
             self.recorder.pause(time.monotonic())
         self._stop_clock()
         self._stop_camera()
+        self._save_recording()
         self._set_state("error", message)
 
     def _on_update(self, update: MonitorUpdate) -> None:
         if self.thread is None or (update.source is not None and update.source is not self.thread):
             return  # a late frame from a camera run that has already been stopped
         self.last_update = update
+        obs = update.observation
+        if obs is not None:
+            self.ear_log.add(update.now, obs.left_ear, obs.right_ear, update.reliable)
         pixmap = QPixmap.fromImage(update.preview)
         if self.state == "calibrating":
             self.calibration.set_preview(pixmap)
@@ -284,6 +295,8 @@ class MainWindow(QMainWindow):
                                            update.face_found, update.reliable, update.reason)
 
     def _tick(self) -> None:
+        if self.ear_log.due(time.monotonic()):
+            self._save_recording()
         running = time.monotonic() - self.running_since if self.running_since is not None else 0.0
         self.study.set_time(self.elapsed + running)
         self._ticks += 1
@@ -344,6 +357,21 @@ class MainWindow(QMainWindow):
             text += " Resume or stop the session to recalibrate."
         completed = sum(1 for s in self.store.all() if not s.in_progress)
         self.settings_page.show_state(text, can, completed)
+        self.settings_page.show_recording(self.ear_log)
+
+    def _save_recording(self) -> None:
+        """Write buffered EAR rows to a CSV file; a failure is reported, and the rows are kept for the next try."""
+        self.ear_log.flush()
+        if self.ear_log.last_error:
+            self.study.message_label.setText(self.ear_log.last_error)
+        if self.view == "settings":
+            self._refresh_settings()
+
+    def _set_recording(self, on: bool) -> None:
+        if not on:
+            self._save_recording()  # keep what was recorded so far
+        self.ear_log.enabled = on
+        self._refresh_settings()
 
     def _recalibrate_from_settings(self) -> None:
         self.recalibrate()  # switches to the Study page, where calibration is shown
@@ -416,5 +444,6 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:
         self._finish_session()
         self._stop_camera()
+        self.ear_log.flush()  # the last minutes of EAR data
         self.monitor.close()
         super().closeEvent(event)

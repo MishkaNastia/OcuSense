@@ -29,7 +29,11 @@ export default function PrivacyPage() {
             and immediately discarded. No image, video or face landmark is uploaded, recorded or stored.
           </dd>
           <dt>Mac app</dt>
-          <dd>The same: frames are analysed in memory on your Mac and thrown away. Session numbers are currently kept only until you quit the app.</dd>
+          <dd>
+            Frames are analysed in memory on your Mac and thrown away; images are never saved or uploaded. The app
+            saves the raw Eye Aspect Ratio of each frame (numbers only, with a time stamp) to files on your Mac, which
+            you can switch off in its settings. Session statistics are kept only until you quit the app.
+          </dd>
         </dl>
       </section>
 
