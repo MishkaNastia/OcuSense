@@ -12,6 +12,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from ocusense.config import PROXIMITY_COOLDOWN_CHOICES, PROXIMITY_COOLDOWN_SECONDS
+from ocusense.core.eye_rest import INTERVAL_CHOICES as EYE_REST_CHOICES
 from ocusense.core.pomodoro import LIMITS, PomodoroSettings
 
 
@@ -36,6 +37,9 @@ class Preferences:
     pomodoro_sound: bool = False
     animations: bool = True  # also off when macOS "Reduce motion" is on
     pomodoro_monitoring: bool = True  # eye monitoring runs in focus rounds and pauses in breaks
+    # 20-20-20 eye rest
+    eye_rest: bool = True
+    eye_rest_minutes: int = 20  # one of EYE_REST_CHOICES
 
     def pomodoro(self) -> PomodoroSettings:
         return PomodoroSettings(self.focus_minutes, self.short_break_minutes, self.long_break_minutes,
@@ -63,9 +67,11 @@ class Preferences:
             if isinstance(value, int) and not isinstance(value, bool) and low <= value <= high:
                 setattr(prefs, name, value)
         for name in ("auto_start_breaks", "auto_start_focus", "pomodoro_notify", "pomodoro_sound", "animations",
-                     "pomodoro_monitoring"):
+                     "pomodoro_monitoring", "eye_rest"):
             if isinstance(values.get(name), bool):
                 setattr(prefs, name, values[name])
+        if values.get("eye_rest_minutes") in EYE_REST_CHOICES:
+            prefs.eye_rest_minutes = int(values["eye_rest_minutes"])
         return prefs
 
     def save(self, path: Path | None = None) -> bool:

@@ -37,6 +37,7 @@ from ocusense.preferences import Preferences
 from ocusense.config import CLOSE_BELOW, MIN_SESSION_SECONDS, MODEL_PATH, REOPEN_ABOVE
 from ocusense.core.baseline_drift import BreakReminder, LiveDrift
 from ocusense.core.calibration import GuidedCalibration
+from ocusense.core.eye_rest import EyeRestTimer
 from ocusense.core.proximity import ProximityMonitor
 from ocusense.core.session import SessionRecorder
 from ocusense.demo_data import demo_sessions
@@ -54,6 +55,7 @@ from .current_session_page import CurrentSessionPage
 from .patterns_page import PatternsPage
 from .settings_page import SettingsPage
 from .sidebar import STATISTICS_PAGES, Sidebar
+from .eye_rest_card import BODY as EYE_REST_BODY, TITLE as EYE_REST_TITLE, EyeRestCard
 from .pomodoro_page import PomodoroPage
 from .study_page import StudyPage
 from .widgets.alert_banner import AlertBanner, TooCloseMark
@@ -114,6 +116,8 @@ class MainWindow(QMainWindow):
         self.preferences = Preferences.load()  # remembered Settings choices
         self.proximity = ProximityMonitor(cooldown_seconds=self.preferences.distance_reminder_interval)
         self.distance_reminder = self.preferences.distance_reminder  # Settings › Reminders
+        self.eye_rest = EyeRestTimer(self.preferences.eye_rest_minutes)  # 20-20-20
+        self._eye_rest_waiting = False  # due while another reminder was on screen
         self._ticks = 0
 
         root = QWidget()
@@ -162,6 +166,9 @@ class MainWindow(QMainWindow):
         self.banner_holder = holder
         holder.setVisible(False)
         column.addWidget(holder)
+        self.eye_rest_card = EyeRestCard()  # the 20-20-20 reminder, below the distance reminder
+        self.eye_rest_card.finished.connect(lambda _how: self.eye_rest.rested())
+        column.addWidget(self.eye_rest_card)
         column.addWidget(self.pages, 1)
         outer.addWidget(content, 1)
 
@@ -185,6 +192,8 @@ class MainWindow(QMainWindow):
         self.pomodoro_page.status_text.connect(self.sidebar.set_pomodoro_status)
         self.pomodoro_page.phase_ended.connect(self._pomodoro_phase_ended)
         self.pomodoro_page.state_changed.connect(self._pomodoro_state_changed)
+        self.settings_page.show_eye_rest(self.preferences.eye_rest, self.preferences.eye_rest_minutes)
+        self.settings_page.eye_rest_changed.connect(self._set_eye_rest)
         self.settings_page.details.toggled.connect(self.study.details_button.setChecked)
         self.study.details_button.toggled.connect(self.settings_page.details.setChecked)
 
@@ -392,6 +401,7 @@ class MainWindow(QMainWindow):
         running = time.monotonic() - self.running_since if self.running_since is not None else 0.0
         self.study.set_time(self.elapsed + running)
         self._ticks += 1
+        self._check_eye_rest(time.monotonic())
         if self.state == "monitoring" and self.recorder and self._ticks % 2 == 0:
             self._refresh_measurements()  # twice per second
         if self.state == "monitoring" and self.recorder and self._ticks % 4 == 0:
@@ -455,6 +465,27 @@ class MainWindow(QMainWindow):
             self._reminder = BreakReminder()
             self.study.hide_reminder()
         return self._drift[1]
+
+    # ------------------------------------------------------- 20-20-20 eye rest
+    def _check_eye_rest(self, now: float) -> None:
+        if not self.preferences.eye_rest:
+            return
+        if self.eye_rest.update(now, self.state == "monitoring"):
+            self._eye_rest_waiting = True
+        if self._eye_rest_waiting and self.banner_holder.isHidden() and self.eye_rest_card.isHidden():
+            self._eye_rest_waiting = False  # never on top of the distance reminder
+            self.eye_rest_card.show_card()
+            app = QApplication.instance()
+            if app.applicationState() != Qt.ApplicationState.ApplicationActive or not self.isActiveWindow():
+                self.notify(EYE_REST_BODY, EYE_REST_TITLE)
+
+    def _set_eye_rest(self, on: bool, minutes: int) -> None:
+        self.preferences.eye_rest, self.preferences.eye_rest_minutes = on, minutes
+        self.preferences.save()
+        self.eye_rest.interval = minutes * 60.0
+        if not on:
+            self._eye_rest_waiting = False
+            self.eye_rest_card.setVisible(False)
 
     def _pomodoro_state_changed(self, phase: str, state: str) -> None:
         """Focus round running → monitor; break or Pomodoro paused → pause monitoring (camera off, eyes rest)."""
