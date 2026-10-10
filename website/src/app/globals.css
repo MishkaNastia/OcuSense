@@ -211,11 +211,11 @@ p { margin: 0; text-wrap: pretty; }
 .blink {
   transform-box: fill-box;
   transform-origin: center;
-  animation: blink 15s ease-in-out infinite;
+  animation: blink 8s ease-in-out infinite;
 }
-@keyframes blink { /* one quick blink (about 0.45 s) every 15 s */
-  0%, 97%, 100% { transform: scaleY(1); }
-  98.5% { transform: scaleY(0.08); }
+@keyframes blink { /* one quick blink (about 0.45 s) every 8 s */
+  0%, 94.5%, 100% { transform: scaleY(1); }
+  97.25% { transform: scaleY(0.08); }
 }
 @media (prefers-reduced-motion: reduce) {
   .blink { animation: none; }
