@@ -489,5 +489,82 @@ class EarRecordingWindowTest(unittest.TestCase):
         self.assertIn("Recording is off", w.settings_page.recording_detail.text())
 
 
+@unittest.skipUnless(MODEL_PATH.exists(), "model file missing - run download_model.py")
+class DistributionsUiTest(unittest.TestCase):
+    def setUp(self):
+        from ocusense.ui.main_window import MainWindow
+        self.window = MainWindow()
+        self.thread = FakeThread()
+        self.window._start_camera = lambda: (setattr(self.window, "thread", self.thread), True)[1]
+        self.folder = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.window.close()
+        self.folder.cleanup()
+
+    def test_live_distributions_while_monitoring(self):
+        w = self.window
+        w.monitor.calibration = object()
+        w.start()
+        t0 = time.monotonic() - 200
+        w.recorder = SessionRecorder(t0)
+        observe = Observer()
+        for i in range(200 * 30):
+            t = t0 + i / 30
+            value = 0.05 if 1.0 <= t % 4 < 1.2 else 0.9
+            obs = observe(t, value)
+            w._on_update(update(now=t, openness=(value, value, value), blinked=obs.blink_completed, observation=obs))
+        w.show_page("current")
+        panel = w.current_page.distributions
+        self.assertIn("completed events", panel.summary.text())
+        self.assertEqual(panel.metric, "closure")  # the default
+        for metric in ("closure", "interval", "rate", "openness"):
+            panel._set_metric(metric)
+            self.assertFalse(panel.chart.grab().isNull())
+            if metric == "rate":
+                self.assertIn("eligible windows", panel.note.text())
+                self.assertIn("windows ·", panel.summary.text())  # 3 complete minutes → a histogram
+        panel._set_eye("both")
+        self.assertIn("Both eyes", panel.summary.text())
+        self.assertEqual(w.state, "monitoring")  # looking at Statistics never touched monitoring
+        self.assertFalse(self.thread.stopped)
+
+    def test_current_session_without_session_shows_empty_state(self):
+        w = self.window
+        w.show_page("current")
+        self.assertFalse(w.current_page.empty.isHidden())
+
+    def test_import_inspect_and_export_a_recording(self):
+        import json
+        from pathlib import Path
+        folder = Path(self.folder.name)
+        lines = ["unix_time,left_ear,right_ear,reliable,left_openness,right_openness"]
+        for i in range(90 * 30):
+            t = 1_000_000 + i / 30
+            v = 0.05 if 1.0 <= (i / 30) % 3 < 1.2 else 0.9
+            e = 0.1 + v * 0.2
+            lines.append(f"{t:.3f},{e:.4f},{e:.4f},1,{v:.4f},{v:.4f}")
+        (folder / "ear_x.csv").write_text("\n".join(lines) + "\n")
+        calibration = {"calibrated_at": "2026-10-10T15:52:16", "left_open_ear": 0.3, "left_closed_ear": 0.1,
+                       "right_open_ear": 0.3, "right_closed_ear": 0.1, "close_below": 0.35, "reopen_above": 0.65,
+                       "measurement_version": "ear-personal-v2"}
+        (folder / "ear_x.calibration.json").write_text(json.dumps({"calibration": calibration}))
+        section = self.window.stats_page.recordings
+        self.assertIn("No recording imported", section.panel.chart.message)
+        section.import_files([folder / "ear_x.csv"])
+        section.worker.wait(10000)  # the analysis runs on a background thread
+        for _ in range(20):
+            app.processEvents()  # deliver its result to the interface thread
+        self.assertEqual(section.choice.count(), 1)
+        self.assertIn("completed events", section.panel.summary.text())
+        self.assertIn("closes below 35%", section.calibration_label.text())
+        section.inspect_button.setChecked(True)
+        self.assertFalse(section.inspect.isHidden())
+        self.assertFalse(section.timeline.grab().isNull())
+        target = section.panel.export_to(folder / "out")
+        self.assertTrue((target / "histogram.png").exists())
+        self.assertTrue((target / "blink_events.csv").exists())
+
+
 if __name__ == "__main__":
     unittest.main()

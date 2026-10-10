@@ -9,7 +9,7 @@ from datetime import date
 
 from PySide6.QtCore import QRectF, Qt, Signal
 from PySide6.QtGui import QBrush, QFont, QPainter, QPen
-from PySide6.QtWidgets import QButtonGroup, QFrame, QHBoxLayout, QPushButton, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
 from ocusense.core.models import SessionSummary
 from ocusense.core.stats import METRICS, combined_metric, format_duration, format_metric, period_stats
@@ -18,37 +18,8 @@ from . import theme
 from .widgets.activity_chart import DAY_LABEL_WIDTH, ActivityChart, day_name
 from .widgets.artwork import Composition
 from .widgets.common import label as _label, rule as _rule, vline as _vline
-
-
-class Segmented(QWidget):
-    """A row of mutually exclusive choices, e.g. Today / This week / This month."""
-    changed = Signal(str)
-
-    def __init__(self, options, current, label, parent=None):
-        super().__init__(parent)
-        self.setObjectName("Segmented")
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)  # lets the style sheet draw the border
-        self.setAccessibleName(label)
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(3, 3, 3, 3)
-        layout.setSpacing(4)
-        self.group = QButtonGroup(self)
-        self.group.setExclusive(True)
-        self.buttons = {}
-        for key, text in options:
-            button = QPushButton(text)
-            button.setProperty("kind", "segment")
-            button.setCheckable(True)
-            button.setChecked(key == current)
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-            button.clicked.connect(lambda _=False, k=key: self.changed.emit(k))
-            self.group.addButton(button)
-            self.buttons[key] = button
-            layout.addWidget(button)
-
-    def set_current(self, key):
-        self.buttons[key].setChecked(True)
+from .recordings_section import RecordingsSection
+from .widgets.segmented import Segmented
 
 
 class SessionRow(QWidget):
@@ -133,6 +104,9 @@ class AllTimePage(QScrollArea):
         body.setContentsMargins(0, 0, 0, 0)
         body.setSpacing(14)
         outer.addWidget(self.body)
+        outer.addSpacing(30)
+        self.recordings = RecordingsSection()  # works without any session in memory
+        outer.addWidget(self.recordings)
         outer.addStretch(1)
 
         summary = QWidget()

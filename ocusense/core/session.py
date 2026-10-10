@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 
 from ocusense.config import UNTRACKED_MIN
 
+from .distributions import DistributionBuilder
 from .measurements import MeasurementTracker, RollingWindow
 from .models import CalibrationInfo, FrameObservation, MinuteBin, RollingSnapshot, SessionSummary
 
@@ -39,7 +40,12 @@ class SessionRecorder:
         self._bins = {}
         self._tracker = MeasurementTracker()
         self.window = RollingWindow(now)
+        self.distributions = DistributionBuilder(now)  # blink distributions for Statistics › Current session
         self.latest: FrameObservation | None = None  # last frame, for the live openness display
+
+    @property
+    def started_at(self) -> datetime:
+        return self._wall0
 
     def wall(self, t: float) -> datetime:
         return self._wall0 + timedelta(seconds=t - self._mono0)
@@ -56,6 +62,7 @@ class SessionRecorder:
         self.latest = obs
         step = self._tracker.add(obs)
         self.window.add(step)
+        self.distributions.add(obs, step)
         if not obs.valid:
             if self._untracked_since is None:
                 self._untracked_since = obs.t
@@ -94,6 +101,7 @@ class SessionRecorder:
         self.running = False
         self._tracker.interrupt()  # an unfinished closure is discarded
         self.window.pause(t)
+        self.distributions.interrupt(t)  # no blink, interval or closure across the pause
         self._last_valid_t = None
 
     def resume(self, t: float) -> None:

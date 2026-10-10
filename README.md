@@ -57,6 +57,14 @@ recalibration starts a new one. Numbers only, no images. Settings › Data &
 privacy can switch it off and open the folder. About 1 MB per 10 minutes at 30
 frames per second.
 
+**Blink distributions.** Statistics › Current session shows live histograms
+(closure duration by default; also time between blinks, blink rate per minute
+and personal eye openness). Statistics › All time › *Import recording…* analyses
+saved `ear_….csv` files with their own `.calibration.json` (read-only), with an
+*Inspect detection* timeline to check the detector and *Export results…* for
+derived CSV/JSON/PNG files. Definitions, bins and exclusions are documented in
+`ocusense/core/distributions.py`; descriptive only, not a fatigue assessment.
+
 Statistics sessions are kept in memory only and forgotten when the app quits. To
 preview Statistics with clearly labelled demo sessions:
 `python -m ocusense --demo-history`.
@@ -172,10 +180,15 @@ ocusense/
     session.py         per-session recording: blink rate, closure times, gaps
     models.py          shared data structures (SessionSummary, MinuteBin)
     stats.py           Statistics maths: periods, weighted averages, display units
+    distributions.py   blink distributions: events, intervals, 60 s windows, histograms
+    replay.py          replays a saved recording through the real calibration and detector
   monitoring/          camera + MediaPipe
     pipeline.py        one camera frame → structured results (EyeMonitor)
     camera_worker.py   background thread; sends results to the interface
   storage.py           where session summaries are kept (memory now, file later)
+  recording.py         writes the raw EAR recording (CSV + calibration JSON)
+  recording_files.py   reads and groups recordings for analysis (read-only)
+  exports.py           writes derived analysis results to a chosen folder
   demo_data.py         labelled demo sessions for --demo-history
   ui/                  PySide6 interface — displays results, relays actions
     app.py             start-up, error dialogs, --self-test
@@ -186,6 +199,8 @@ ocusense/
     current_session_page.py  Statistics › Current session
     all_time_page.py   Statistics › All time
     patterns_page.py   Statistics › Understanding your patterns
+    distributions_panel.py  the "Blink distributions" histograms (live and imported)
+    recordings_section.py   All time: import, choose and inspect recordings (background loading)
     settings_page.py   Settings
     account_page.py    Log in (not available yet)
     theme.py           colours, fonts, style sheet

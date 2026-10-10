@@ -12,6 +12,7 @@ from ocusense.core.models import SessionSummary
 from ocusense.core.stats import METRICS, format_duration, format_metric
 
 from . import theme
+from .distributions_panel import DistributionsPanel
 from .widgets.artwork import Composition
 from .widgets.common import label, rule, vline
 from .widgets.openness_graph import OpennessGraph
@@ -100,6 +101,12 @@ class CurrentSessionPage(Page):
         body.addWidget(label("Relative to your calibrated open and closed positions — not a fatigue score.",
                              "secondary", theme.ui_font(13), wrap=True))
 
+        self.section("Blink distributions", body)
+        body.addWidget(label("How your blinks vary within this session — descriptive only, not a fatigue "
+                             "assessment. Updates every few seconds.", "secondary", theme.ui_font(14), wrap=True))
+        self.distributions = DistributionsPanel()
+        body.addWidget(self.distributions)
+
         self.section("Breaks and check-ins", body)
         body.addWidget(paragraph("Breaks and check-ins aren’t recorded by the Mac app yet, so none are shown "
                                  "for this session.", secondary=True))
@@ -121,6 +128,10 @@ class CurrentSessionPage(Page):
         self.time_values["blinks"].setText(str(summary.blinks))
         for key, value in self.metric_values.items():
             value.setText(format_metric(key, summary.metric(key)))
+
+    def show_distributions(self, data, thresholds, context: dict) -> None:
+        self.distributions.show_data(data, "Distributions appear once tracking has started.", thresholds, context,
+                                     "Current session")
 
     def set_graph(self, samples, now, dimmed: bool = False, caption: str = "") -> None:
         self.graph.set_data(samples, now, dimmed=dimmed)

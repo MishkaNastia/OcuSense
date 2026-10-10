@@ -21,12 +21,13 @@ States:
 """
 
 import time
+from dataclasses import asdict
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QMessageBox, QStackedWidget, QWidget
 
-from ocusense.config import MIN_SESSION_SECONDS, MODEL_PATH
+from ocusense.config import CLOSE_BELOW, MIN_SESSION_SECONDS, MODEL_PATH, REOPEN_ABOVE
 from ocusense.core.calibration import GuidedCalibration
 from ocusense.core.session import SessionRecorder
 from ocusense.demo_data import demo_sessions
@@ -337,6 +338,8 @@ class MainWindow(QMainWindow):
         sessions = self.store.all()
         if self.view == "current":
             self.current_page.show_session(current, paused=self.state == "paused")
+            if self.recorder is not None:
+                self._show_live_distributions()
             if current is not None and self.last_update is not None and self.state != "monitoring":
                 self.current_page.set_graph(self.last_update.samples, self.last_update.now, dimmed=True,
                                             caption="Paused — the camera is off")
@@ -344,6 +347,16 @@ class MainWindow(QMainWindow):
             self.stats_page.refresh(sessions, current, self.demo_history)
         elif self.view == "patterns":
             self.patterns_page.refresh(sessions)
+
+    def _show_live_distributions(self) -> None:
+        """Every 2 s while Current session is shown (never per frame); bins stay fixed."""
+        recorder = self.recorder
+        info = recorder.calibration
+        thresholds = (info.close_below, info.reopen_above) if info else (CLOSE_BELOW, REOPEN_ABOVE)
+        context = {"source": {"type": "live session", "started": recorder.started_at.isoformat(timespec="seconds")},
+                   "calibration": asdict(info) if info else None,
+                   "thresholds": {"close_below": thresholds[0], "reopen_above": thresholds[1]}}
+        self.current_page.show_distributions(recorder.distributions.snapshot(time.monotonic()), thresholds, context)
 
     def _refresh_settings(self) -> None:
         calibration = self.monitor.calibration_info if self.monitor.calibration else None

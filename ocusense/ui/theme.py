@@ -86,5 +86,18 @@ QCheckBox:focus {{ outline: none; }}
 QCheckBox::indicator:focus {{ border-color: {COBALT}; }}
 QPushButton:disabled {{ color: {GRAPHITE}; background: transparent; border: 2px dashed {RULE}; }}
 
+QComboBox {{
+    min-height: 36px; padding: 0 12px; border: 2px solid {INK}; border-radius: 10px;
+    background: {PAPER}; color: {INK}; font-size: 14px;
+}}
+QComboBox:focus {{ border-color: {COBALT}; }}
+QComboBox QAbstractItemView {{ background: {PAPER}; color: {INK}; selection-background-color: {INK};
+    selection-color: {PAPER}; border: 1px solid {INK}; }}
+QSlider::groove:horizontal {{ height: 4px; background: {RULE}; border-radius: 2px; }}
+QSlider::handle:horizontal {{ width: 18px; height: 18px; margin: -8px 0; border-radius: 9px;
+    background: {COBALT}; border: 2px solid {INK}; }}
+QSlider:focus {{ outline: none; }}
+QSlider::handle:horizontal:focus {{ border-color: {COBALT}; background: {PAPER}; }}
+
 QToolTip {{ background: {PAPER}; color: {INK}; border: 1px solid {INK}; padding: 4px; }}
 """
