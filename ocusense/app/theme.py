@@ -62,5 +62,28 @@ QPushButton[kind="quiet"] {{ background: transparent; color: {INK}; border: 2px 
 QPushButton[kind="quiet"]:hover {{ background: {PAPER_DEEP}; }}
 QPushButton[kind="quiet"]:focus {{ border-color: {COBALT}; }}
 
+QScrollArea {{ background: {PAPER}; border: none; }}
+QWidget#Segmented {{ border: 2px solid {INK}; border-radius: 11px; background: transparent; }}
+QPushButton[kind="segment"] {{
+    min-height: 32px; padding: 0 14px; border-radius: 8px; border: 2px solid transparent;
+    background: transparent; color: {INK}; font-size: 14px; font-weight: 500;
+}}
+QPushButton[kind="segment"]:hover {{ background: {PAPER_DEEP}; }}
+QPushButton[kind="segment"]:checked {{ background: {INK}; color: {PAPER}; font-weight: 700; }}
+QPushButton[kind="segment"]:focus {{ border-color: {COBALT}; }}
+QPushButton[kind="row"] {{
+    text-align: left; min-height: 48px; padding: 0 6px; border-radius: 6px; border: 2px solid transparent;
+    background: transparent; color: {INK}; font-size: 15px; font-weight: 700;
+}}
+QPushButton[kind="row"]:hover {{ background: #EFE7D4; }}
+QPushButton[kind="row"]:focus {{ border-color: {COBALT}; }}
+QPushButton[kind="nav"] {{
+    min-height: 34px; padding: 0 6px; border: 2px solid transparent; border-radius: 0;
+    background: transparent; color: {INK}; font-size: 15px; font-weight: 500;
+}}
+QPushButton[kind="nav"]:checked {{ border-bottom: 2px solid {INK}; font-weight: 700; }}
+QPushButton[kind="nav"]:focus {{ border: 2px solid {COBALT}; border-radius: 6px; }}
+QPushButton[kind="nav"]:disabled {{ color: {GRAPHITE}; }}
+
 QToolTip {{ background: {PAPER}; color: {INK}; border: 1px solid {INK}; padding: 4px; }}
 """

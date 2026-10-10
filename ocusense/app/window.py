@@ -19,13 +19,16 @@ from PySide6.QtWidgets import (
 )
 
 from ocusense.core.calibration import STEPS, GuidedCalibration
+from ocusense.core.session import SessionRecorder, SessionStore
 from ocusense.core.monitor import (
     CALIBRATION_DONE, CALIBRATION_FAILED, CLOSED_STEP_FINISHED, MODEL_PATH, EyeMonitor,
 )
 
 from . import theme
 from .artwork import Composition, LogoMark
+from .demo import demo_sessions
 from .graph import OpennessGraph
+from .stats_page import StatsPage
 from .worker import MonitorThread, open_camera
 
 PREVIEW_INSET = QSize(4, 4)  # keep the preview image inside its 2 px border
@@ -125,7 +128,7 @@ class Status(QWidget):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, demo_history=False):
         super().__init__()
         self.setWindowTitle("OcuSense")
         self.resize(1120, 900)
@@ -138,6 +141,12 @@ class MainWindow(QMainWindow):
         self.elapsed = 0.0  # seconds of monitoring in this session (excluding pauses)
         self.running_since = None
         self.last_update = None
+        self.view = "study"  # which tab is shown: "study" or "stats"
+        self.demo_history = demo_history
+        # Completed sessions: in memory only for now (forgotten when the app quits).
+        self.store = SessionStore(demo_sessions() if demo_history else None)
+        self.recorder = None  # the session being recorded
+        self._ticks = 0
 
         root = QWidget()
         root.setObjectName("Root")
@@ -152,6 +161,9 @@ class MainWindow(QMainWindow):
         self.calibration_page = self._build_calibration_page()
         self.pages.addWidget(self.study_page)
         self.pages.addWidget(self.calibration_page)
+        self.stats_page = StatsPage()
+        self.stats_page.go_to_study.connect(self.show_study)
+        self.pages.addWidget(self.stats_page)
         outer.addWidget(self.pages, 1)
 
         self.clock = QTimer(self)
@@ -171,6 +183,16 @@ class MainWindow(QMainWindow):
         wordmark = _label("OcuSense", font=theme.ui_font(25, QFont.Weight.Bold))
         wordmark.setStyleSheet("letter-spacing: -0.5px;")
         layout.addWidget(wordmark)
+        layout.addSpacing(36)
+        self.nav_study = QPushButton("Study")
+        self.nav_stats = QPushButton("Statistics")
+        for button, handler in ((self.nav_study, self.show_study), (self.nav_stats, self.show_stats)):
+            button.setProperty("kind", "nav")
+            button.setCheckable(True)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+            button.clicked.connect(handler)
+            layout.addWidget(button)
         layout.addStretch(1)
         self.status = Status()
         layout.addWidget(self.status)
@@ -363,6 +385,7 @@ class MainWindow(QMainWindow):
     def start(self):
         if not self._start_camera():
             return
+        self._finish_session()
         self.monitor.reset_session()
         self.elapsed = 0.0
         if self.monitor.calibration is None:
@@ -371,6 +394,8 @@ class MainWindow(QMainWindow):
             self._enter_monitoring()
 
     def pause(self):
+        if self.recorder:
+            self.recorder.pause(time.monotonic())
         self._stop_clock()
         self._stop_camera()
         self._set_state("paused")
@@ -385,12 +410,14 @@ class MainWindow(QMainWindow):
             return
         self._stop_clock()
         self._stop_camera()
+        saved = self._finish_session()
         self.monitor.reset_session()
         self.elapsed = 0.0
-        self._set_state("ready", "Session ended." if self.monitor.calibration else "")
+        self._set_state("ready", "Session ended — see it under Statistics." if saved else "")
 
     def recalibrate(self):
         self._stop_clock()
+        self._finish_session()  # a new calibration starts a new session
         if self._start_camera():
             self._begin_calibration()
 
@@ -408,8 +435,24 @@ class MainWindow(QMainWindow):
         self._set_state("calibrating")
 
     def _enter_monitoring(self):
-        self.running_since = time.monotonic()
+        now = time.monotonic()
+        self.running_since = now
+        if self.recorder is None:
+            self.recorder = SessionRecorder(now)
+        else:
+            self.recorder.resume(now)
         self._set_state("monitoring")
+
+    def _finish_session(self):
+        """End the recorded session; keep it for Statistics if it lasted at least 10 seconds."""
+        if self.recorder is None:
+            return False
+        summary = self.recorder.finish(time.monotonic())
+        self.recorder = None
+        if summary.study_seconds >= 10:
+            self.store.add(summary)
+            return True
+        return False
 
     def _stop_clock(self):
         if self.running_since is not None:
@@ -418,6 +461,8 @@ class MainWindow(QMainWindow):
 
     # ---------------------------------------------------------------- updates
     def _on_failed(self, message):
+        if self.recorder:
+            self.recorder.pause(time.monotonic())
         self._stop_clock()
         self._stop_camera()
         self._set_state("error", message)
@@ -434,6 +479,8 @@ class MainWindow(QMainWindow):
                                                    Qt.TransformationMode.SmoothTransformation))
         if self.state != "monitoring":
             return
+        if self.recorder:
+            self.recorder.add_frame(update.now, update.openness[2] if update.openness else None, update.blinked)
         self.blink_label.setText(f"{update.blinks} blink{'s' if update.blinks != 1 else ''} this session")
         if not update.face_found:
             self.status.set("warning", "Face not tracked")
@@ -488,6 +535,37 @@ class MainWindow(QMainWindow):
         total = self.elapsed + (time.monotonic() - self.running_since if self.running_since is not None else 0)
         seconds = int(total)
         self.timer_label.setText(f"{seconds // 3600:02d}:{seconds // 60 % 60:02d}:{seconds % 60:02d}")
+        self._ticks += 1
+        if self.view == "stats" and self.state == "monitoring" and self._ticks % 8 == 0:
+            self._refresh_stats()  # every 2 seconds while a session is running
+
+    # ------------------------------------------------------------- navigation
+    def show_study(self):
+        self.view = "study"
+        self._show_page()
+
+    def show_stats(self):
+        if self.state == "calibrating":
+            return
+        self.view = "stats"
+        self._refresh_stats()
+        self._show_page()
+
+    def _refresh_stats(self):
+        current = self.recorder.summary(time.monotonic()) if self.recorder else None
+        if current is not None and current.study_seconds < 1:
+            current = None
+        self.stats_page.refresh(self.store.all(), current, self.demo_history)
+
+    def _show_page(self):
+        if self.state == "calibrating":
+            page = self.calibration_page
+        else:
+            page = self.stats_page if self.view == "stats" else self.study_page
+        self.pages.setCurrentWidget(page)
+        self.nav_study.setChecked(page is not self.stats_page)
+        self.nav_stats.setChecked(page is self.stats_page)
+        self.nav_stats.setEnabled(self.state != "calibrating")
 
     # ------------------------------------------------------------------ state
     def _set_state(self, state, message=""):
@@ -502,7 +580,9 @@ class MainWindow(QMainWindow):
         for button in (self.start_button, self.pause_button, self.resume_button, self.stop_button, self.recalibrate_button):
             button.setVisible(button in show)
         self.start_button.setText("Try again" if state == "error" else "Start")
-        self.pages.setCurrentWidget(self.calibration_page if state == "calibrating" else self.study_page)
+        if state == "calibrating":
+            self.view = "study"
+        self._show_page()
         self.message_label.setText(message)
 
         if state == "ready":
@@ -512,6 +592,7 @@ class MainWindow(QMainWindow):
             self.graph.clear("Press Start. Your first session begins with a 30-second calibration." if first
                              else "Press Start to begin a new session.")
             self.blink_label.setText("0 blinks this session")
+            self.start_button.setFocus()
         elif state == "error":
             self.status.set("warning", "Camera unavailable")
             self.graph.clear("")
@@ -536,6 +617,7 @@ class MainWindow(QMainWindow):
         self._refresh_timer()
 
     def closeEvent(self, event):
+        self._finish_session()
         self._stop_camera()
         self.monitor.close()
         super().closeEvent(event)

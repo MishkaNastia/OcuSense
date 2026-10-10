@@ -25,6 +25,11 @@ python -m ocusense
 Press **Start**. The first session begins with a 30-second calibration; after
 that you see the timer, Pause / Stop / Recalibrate and the live eye-openness
 graph. Pause turns the camera off; Stop ends the session (calibration is kept).
+**Statistics** (header tab) shows today / this week / this month: study time,
+sessions, tracking coverage, a timeline with blink rate, median closure duration
+or time classified as closed, and recent sessions. For now sessions are kept in
+memory only and forgotten when the app quits. To preview the page with clearly
+labelled demo sessions: `python -m ocusense --demo-history`.
 ⌘. also stops. Tab moves between buttons.
 
 ## Build OcuSense.app (macOS)

@@ -4,6 +4,7 @@ The window is driven with fake camera updates, in Qt's invisible "offscreen" mod
 """
 
 import os
+import time
 import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -13,6 +14,7 @@ from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from ocusense.core.monitor import CALIBRATION_DONE, CALIBRATION_FAILED, MODEL_PATH  # noqa: E402
 from ocusense.app.worker import MonitorUpdate  # noqa: E402
+from ocusense.core.session import SessionRecorder  # noqa: E402
 
 app = QApplication.instance() or QApplication([])
 
@@ -134,6 +136,74 @@ class WindowTest(unittest.TestCase):
         w.stop()
         w._on_update(update(blinks=9))
         self.assertEqual(w.blink_label.text(), "0 blinks this session")
+
+    def _run_session(self, seconds, blink_every=4):
+        """Feed `seconds` of fake frames at 30 fps while monitoring."""
+        w = self.window
+        t0 = time.monotonic() - seconds  # frames end "now", on the same clock the app uses
+        w.recorder = SessionRecorder(t0)
+        for i in range(int(seconds * 30)):
+            t = t0 + i / 30
+            closed = blink_every and 1.0 <= t % blink_every < 1.2
+            reopened = blink_every and abs(t % blink_every - 1.2) < 1 / 60
+            value = 0.05 if closed else 0.9
+            w._on_update(update(now=t, openness=(value, value, value), blinked=bool(reopened)))
+
+    def test_stopped_session_appears_in_statistics(self):
+        w = self.window
+        w.monitor.calibration = object()
+        w.start()
+        self._run_session(30)
+        w.stop()
+        sessions = w.store.all()
+        self.assertEqual(len(sessions), 1)
+        self.assertGreater(sessions[0].blinks, 0)
+        w.show_stats()
+        self.assertIs(w.pages.currentWidget(), w.stats_page)
+        self.assertEqual(w.stats_page.summary_values["sessions"].text(), "1")
+        self.assertTrue(w.nav_stats.isChecked())
+
+    def test_very_short_session_is_not_kept(self):
+        w = self.window
+        w.monitor.calibration = object()
+        w.start()
+        w.stop()
+        self.assertEqual(w.store.all(), [])
+
+    def test_paused_session_shows_as_in_progress(self):
+        w = self.window
+        w.monitor.calibration = object()
+        w.start()
+        self._run_session(15)
+        w.pause()
+        w.show_stats()
+        self.assertEqual(w.store.all(), [])  # not finished yet
+        self.assertEqual(w.stats_page.summary_values["sessions"].text(), "0")  # completed only
+        self.assertTrue(w.stats_page.body.isVisible() or not w.isVisible())
+
+    def test_statistics_unavailable_during_calibration(self):
+        w = self.window
+        w.start()
+        self.assertFalse(w.nav_stats.isEnabled())
+        w.show_stats()
+        self.assertIs(w.pages.currentWidget(), w.calibration_page)
+
+    def test_statistics_page_draws_every_view(self):
+        from ocusense.app.demo import demo_sessions
+        page = self.window.stats_page
+        page.resize(1100, 900)
+        for period in ("today", "week", "month"):
+            for metric in ("rate", "closure", "closed"):
+                page.period, page.metric_key = period, metric
+                page.refresh(demo_sessions(), None, demo=True)
+                self.assertFalse(page.widget().grab().isNull())
+                self.assertFalse(page.chart.grab().isNull())
+
+    def test_new_user_sees_empty_statistics(self):
+        w = self.window
+        w.show_stats()
+        self.assertTrue(w.stats_page.body.isHidden())
+        self.assertFalse(w.stats_page.empty.isHidden())
 
     def test_frame_from_an_old_camera_run_is_ignored(self):
         w = self.window

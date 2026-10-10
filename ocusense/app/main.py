@@ -30,7 +30,7 @@ def run():
     app.setStyleSheet(theme.STYLE_SHEET)
     # Let Tab reach every button on macOS, not only text fields.
     app.styleHints().setTabFocusBehavior(Qt.TabFocusBehavior.TabFocusAllControls)
-    window = MainWindow()
+    window = MainWindow(demo_history="--demo-history" in sys.argv)
     if "--self-test" in sys.argv:
         code = self_test(window)
         window.close()
