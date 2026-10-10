@@ -3,8 +3,8 @@
 Live webcam blink counter using OpenCV, Google MediaPipe Face Landmarker
 (to locate eyelid points) and the Eye Aspect Ratio (EAR) with personal
 calibration. All video is processed locally in memory: camera images are never
-saved or uploaded. The only thing written to disk is the raw EAR recording (see
-below).
+saved or uploaded. Only the raw EAR recording (see below) and your reference for
+blink timing (`reference.json`) are written to disk.
 
 For how every measurement and graph works (methods, time windows, histograms,
 saved files), see [docs/measurements.md](docs/measurements.md).

@@ -294,6 +294,7 @@ files rotate every **10 minutes**.
 | **Live graph** | both-eyes openness (clipped) over the **last 10 s**; dashed lines at the 35 % and 65 % detector thresholds; a red dot at the lowest point of each counted blink. The line breaks where tracking was lost or frames were more than 0.5 s apart. Dimmed while paused. |
 | **Last 60 seconds** | rolling window (section 9): blink rate, median closure duration, time classified as closed, plus valid observation, monitored time and tracking coverage. Rate and closed time show "Collecting data" until 30 s of valid observation. |
 | Precision note | the measured frames per second and the resulting timing precision (8.6) |
+| Break reminder | a note under the buttons (with the time) when a break reminder was given, until dismissed — see [11.7](#117-compared-with-your-reference) |
 | Show details (or Settings › Measurement details) | raw EAR of both eyes, unclipped openness, whether the frame is valid and closed, processing rate, number of blinks and timed closures in the window, and the calibration in use |
 
 ### Statistics › Current session
@@ -303,6 +304,7 @@ files rotate every **10 minutes**.
 | Eye measurements · whole session so far | blink rate, median closure duration and time classified as closed over **all** valid observation of the session (not just the last 60 s) |
 | Personal eye openness graph | the same 10 s live graph as on the Study page |
 | Blink distributions | five histograms, updated every 2 s — see [11](#11-blink-distributions-histograms) |
+| Compared with your reference | the saved reference (or, without one, this session's first 10 minutes), the latest 5-minute window's test result and a count of windows so far — see [11.7](#117-compared-with-your-reference) |
 
 ### Statistics › All time
 | Element | What it shows |
@@ -415,6 +417,59 @@ invalid frame, a longer gap, a pause, a recalibration or the end of the data end
   (counts, medians, quartiles, exclusions; both frequency measures in per minute and per second), `analysis_settings.json` (definitions, bins,
   thresholds, calibration, source files, exclusions) and `histogram.png`.
 
+### 11.7 Compared with your reference
+Statistics › Current session asks whether the **time between blinks** (11.2) is still
+distributed like in your **reference**: the first 10 minutes of one session, saved once.
+- **Reference**: the intervals whose two onsets both fall in the first **600 s** of a session.
+  If no reference is saved, the next session's first 10 minutes become it, as long as they hold
+  at least **50** intervals (otherwise the session after that tries again). It is kept when you
+  recalibrate. **Settings › Data & privacy › Make a new reference…** discards it, and the next
+  session's first 10 minutes become the new one. `analysis/set_reference.py` makes one from a
+  saved recording instead. It is saved as `reference.json` beside the recordings folder
+  (section 12).
+- **Fit**: log-normal by maximum likelihood on y = ln(interval): mu = mean(y),
+  sigma² = mean((y − mu)²) (ddof = 0). Intervals ≤ 0 are excluded and counted.
+- **Windows**: **300 s** long, starting at the session start and every **30 s** after. An
+  interval belongs to a window when both its onsets are inside. Pause time counts as session
+  time, so a window during a pause usually has too few intervals.
+- **Test**: two-sample likelihood ratio. H0: one (mu, sigma) for the reference and the window
+  together. H1: one each. LR = 2·[ℓ(reference) + ℓ(window) − ℓ(pooled)], with ℓ the normal
+  log-likelihood of the logs (the log-normal's 1/x term cancels). p = exp(−LR/2), the
+  chi-square survival function with 2 degrees of freedom. A window is **below the line** when
+  p < **0.01**.
+- **Confirmed different**: only when **3 windows in a row** are below the line (6 minutes of
+  data, since the windows overlap). A single window below the line is shown as "not confirmed
+  yet". A window that can't be tested breaks the run, and the count starts again.
+- **Not tested**: fewer than **15** intervals in the window ("not enough data"); a baseline
+  with fewer than 2 intervals or no spread ("baseline unusable").
+- **When**: with a saved reference, each window is tested **5 s** after it ends (an interval is
+  only recorded when its second blink reopens). The first result comes at about **5 min**, then
+  one every 30 s. In the session that **creates** the reference, nothing can be tested before
+  its first 10 minutes are complete. At **10 min**, every window that has already ended is
+  compared with them at once (these overlap them and are marked so, as a sanity check), and then
+  one every 30 s.
+- **Break reminder**: when **3 windows in a row** are below the line **and** their median
+  interval is longer than the reference's (window mu > reference mu: blinking less often), the
+  app shows a Mac notification and a note on the Study page: "Hey, you should take a break, else
+  your eyes will become drier than the Sahara desert." At most **one per slow stretch** (a
+  stretch ends after **5 min** without such a window) and at least **20 min** apart. Faster
+  blinking never triggers one. Settings › Reminders › Break reminders switches it off (for as
+  long as OcuSense is open). The trigger is a statistical comparison of blink timing; the app
+  doesn't measure dryness.
+- **Same as offline**: `analysis/sliding_window_lrt.ipynb` runs the same code
+  (`sliding_windows`) on saved recordings against the saved reference, so the live and offline
+  results match.
+- **Limitations**: windows overlap (90 % shared data) and about 100 are tested per hour with
+  no correction for multiple testing, so single windows below the line happen by chance. That is
+  why only 3 in a row count. With 3 in a row a difference is confirmed at the earliest 1 minute
+  after the first window below the line.
+  With 15–100 intervals per window, the fits and p-values are approximate. Tracking gaps cut
+  intervals, and long ones are lost most often. "Different" means "not distributed like those
+  10 minutes": a different activity (long reading, talking) counts just as drift does, so
+  comparisons mean most during the same kind of activity as the reference. A reference kept
+  across recalibrations may have been detected with other thresholds. Like everything here it
+  describes timing only: it is not a fatigue assessment.
+
 ---
 
 ## 12. Saved recordings
@@ -444,6 +499,11 @@ next file starts within 0.5 s of the previous one's last frame (the app rotated 
 the camera kept running); everything else stays separate. The recording is replayed through
 the app's own calibration code and detector. One unavoidable difference from live use: a
 time gap longer than 0.5 s inside a file is treated like a pause.
+
+**`reference.json`** (beside the `recordings` folder): your reference for blink timing
+(11.7). It holds the reference's intervals as (onset, onset) pairs in seconds since that session
+started, the fit (n, mu, sigma), when and from what it was made, and the calibration in use.
+Numbers only.
 
 No camera images and no face landmarks are ever saved.
 
@@ -482,6 +542,7 @@ No camera images and no face landmarks are ever saved.
 | Session totals and per-minute bins | `ocusense/core/session.py`, `ocusense/core/models.py` |
 | Period values (day, week, month) | `ocusense/core/stats.py` |
 | Blink distributions | `ocusense/core/distributions.py` |
+| Comparison with the reference, break reminders | `ocusense/core/baseline_drift.py`, `ocusense/reference.py`, `ocusense/notifications.py` |
 | Replaying saved recordings | `ocusense/core/replay.py`, `ocusense/recording_files.py` |
 | Saving recordings | `ocusense/recording.py` |
 | Exports | `ocusense/exports.py` |

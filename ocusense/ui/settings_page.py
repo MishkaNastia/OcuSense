@@ -55,6 +55,7 @@ def _button(text: str, kind: str) -> QPushButton:
 class SettingsPage(Page):
     recalibrate_requested = Signal()
     clear_history_requested = Signal()
+    new_reference_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__("Settings", "Settings", "Settings apply while OcuSense is open.", parent)
@@ -78,7 +79,16 @@ class SettingsPage(Page):
 
         # Reminders
         self.section("Reminders")
-        self.body.addWidget(setting_row("Break reminders and check-ins",
+        self.reminders = QCheckBox("On")
+        self.reminders.setChecked(True)
+        self.reminders.setAccessibleName("Break reminders")
+        self.body.addWidget(setting_row(
+            "Break reminders",
+            "A Mac notification (and a note on the Study page) when you have been blinking less often than in your "
+            "reference for several minutes: 3 five-minute windows in a row below p = 0.01 with longer intervals. "
+            "At most one per slow stretch and one every 20 minutes. Faster blinking never triggers one.",
+            self.reminders))
+        self.body.addWidget(setting_row("Check-ins",
                                         "Not in the Mac app yet. The planned gentle prompts can be tried in the "
                                         "sample session on the OcuSense website.", tag="Not available yet"))
 
@@ -93,7 +103,8 @@ class SettingsPage(Page):
         self.body.addWidget(paragraph(
             "Camera images are analysed in memory on this Mac and thrown away immediately — they are never saved "
             "or uploaded. Statistics (session times, blink counts, closure durations) are <b>kept only until you "
-            "quit OcuSense</b>. The raw EAR recording below is the only thing saved to disk.", rich=True))
+            "quit OcuSense</b>. Only the raw EAR recording and your reference for blink timing (below) are saved "
+            "to disk.", rich=True))
         self.record = QCheckBox("Record")
         self.record.setChecked(True)
         self.record.setAccessibleName("Record the raw EAR of every frame")
@@ -112,6 +123,15 @@ class SettingsPage(Page):
             "and your calibrated openness, as a CSV file (plus the calibration used) every "
             f"{RECORDING_CHUNK_SECONDS / 60:.0f} minutes and when you pause, stop or quit. Numbers only — no images.", controls, extra=(self.recording_detail,)))
         self.folder = None
+        self.reference_button = _button("Make a new reference…", "secondary")
+        self.reference_button.clicked.connect(self.new_reference_requested.emit)
+        self.reference_detail = label("", "secondary", theme.ui_font(14), wrap=True)
+        self.reference_detail.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.body.addWidget(setting_row(
+            "Reference for blink timing",
+            "The time between your blinks in the first 10 minutes of one session. Every session is compared with "
+            "it (Statistics › Current session). Saved as numbers only; kept when you recalibrate.",
+            self.reference_button, extra=(self.reference_detail,)))
         self.clear_button = _button("Clear session history…", "secondary")
         self.clear_button.clicked.connect(self.clear_history_requested.emit)
         self.history_detail = label("", "secondary", theme.ui_font(14), wrap=True)
@@ -133,6 +153,20 @@ class SettingsPage(Page):
         folder = str(log.directory)
         shown = "~" + folder[len(home):] if folder.startswith(home) else folder
         self.recording_detail.setText(f"{status} Folder: {shown}")
+
+    def show_reference(self, reference, error: str, path: Path) -> None:
+        """reference: the saved ocusense.reference.Reference, or None."""
+        home = str(Path.home())
+        shown = "~" + str(path)[len(home):] if str(path).startswith(home) else str(path)
+        if error:
+            text = f"{error} Make a new reference to replace it. File: {shown}"
+        elif reference is None:
+            text = "No reference yet: the first 10 minutes of your next session become it."
+        else:
+            text = (f"Made from the session of {reference.label()}: {reference.n} intervals, median "
+                    f"{reference.median:.1f} s between blinks. File: {shown}")
+        self.reference_detail.setText(text)
+        self.reference_button.setEnabled(reference is not None or bool(error))
 
     def _open_folder(self) -> None:
         if self.folder is not None:

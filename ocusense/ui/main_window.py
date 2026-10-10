@@ -22,16 +22,20 @@ States:
 
 import time
 from dataclasses import asdict
+from datetime import datetime
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QMessageBox, QStackedWidget, QWidget
 
 from ocusense.config import CLOSE_BELOW, MIN_SESSION_SECONDS, MODEL_PATH, REOPEN_ABOVE
+from ocusense.core.baseline_drift import BreakReminder, LiveDrift
 from ocusense.core.calibration import GuidedCalibration
 from ocusense.core.session import SessionRecorder
 from ocusense.demo_data import demo_sessions
 from ocusense.monitoring.camera_worker import CameraWorker, MonitorUpdate, open_camera
+from ocusense import notifications
+from ocusense import reference as reference_file
 from ocusense.monitoring.pipeline import CALIBRATION_DONE, CALIBRATION_FAILED, CLOSED_STEP_FINISHED, EyeMonitor
 from ocusense.recording import EarRecording
 from ocusense.storage import SessionStore
@@ -45,6 +49,8 @@ from .settings_page import SettingsPage
 from .sidebar import STATISTICS_PAGES, Sidebar
 from .study_page import StudyPage
 from .widgets.common import vline
+
+BREAK_MESSAGE = "Hey, you should take a break, else your eyes will become drier than the Sahara desert."
 
 CAMERA_HELP = ("Could not open the camera. On a Mac: System Settings › Privacy & Security › Camera, "
                "allow this app (or Terminal / VS Code when running from there), then reopen it.")
@@ -76,6 +82,17 @@ class MainWindow(QMainWindow):
         self.demo_history = demo_history
         self.store = SessionStore(demo_sessions() if demo_history else None)  # in memory for now
         self.recorder: SessionRecorder | None = None
+        self._drift: tuple[SessionRecorder, LiveDrift] | None = None  # comparison with the reference
+        self._reminder: BreakReminder | None = None  # break reminders for that session
+        self.notify = notifications.post  # replaced in tests
+        self.reference_path = reference_file.default_path()
+        self.reference: reference_file.Reference | None = None  # the saved reference for blink timing
+        self.reference_error = ""
+        self._reference_checked: SessionRecorder | None = None  # the session whose first 10 min were considered
+        try:
+            self.reference = reference_file.load(self.reference_path)
+        except reference_file.ReferenceFileError as error:
+            self.reference_error = str(error)  # never overwritten automatically
         self.ear_log = EarRecording()  # raw EAR per frame, written every 10 minutes
         self._ticks = 0
 
@@ -121,6 +138,7 @@ class MainWindow(QMainWindow):
         self.current_page.go_to_study.connect(self.show_study)
         self.settings_page.recalibrate_requested.connect(self._recalibrate_from_settings)
         self.settings_page.clear_history_requested.connect(self.clear_history)
+        self.settings_page.new_reference_requested.connect(self.make_new_reference)
         self.settings_page.record.toggled.connect(self._set_recording)
         self.settings_page.details.toggled.connect(self.study.details_button.setChecked)
         self.study.details_button.toggled.connect(self.settings_page.details.setChecked)
@@ -229,6 +247,7 @@ class MainWindow(QMainWindow):
             return False
         summary = self.recorder.finish(time.monotonic())
         self.recorder = None
+        self._drift = None
         if summary.study_seconds >= MIN_SESSION_SECONDS:
             self.store.add(summary)
             return True
@@ -304,6 +323,13 @@ class MainWindow(QMainWindow):
         self._ticks += 1
         if self.state == "monitoring" and self.recorder and self._ticks % 2 == 0:
             self._refresh_measurements()  # twice per second
+        if self.state == "monitoring" and self.recorder and self._ticks % 4 == 0:
+            drift = self._drift_for(self.recorder)
+            new = drift.update(self.recorder.distributions.intervals, time.monotonic())
+            self._save_reference_if_new()
+            for result in new if drift.baseline_fit is not None else ():  # no usable baseline: nothing to compare
+                if self._reminder.update(result, drift.baseline_fit.mu) and self.settings_page.reminders.isChecked():
+                    self._remind()
         if self.view in STATISTICS_PAGES and self.state == "monitoring" and self._ticks % 8 == 0:
             self._refresh_stats()  # every 2 seconds while a session is running
 
@@ -340,6 +366,8 @@ class MainWindow(QMainWindow):
             self.current_page.show_session(current, paused=self.state == "paused")
             if self.recorder is not None:
                 self._show_live_distributions()
+                self.current_page.show_drift(self._drift_for(self.recorder), self.recorder.distributions.intervals,
+                                             time.monotonic(), self.reference, self.reference_error)
             if current is not None and self.last_update is not None and self.state != "monitoring":
                 self.current_page.set_graph(self.last_update.samples, self.last_update.now, dimmed=True,
                                             caption="Paused — the camera is off")
@@ -347,6 +375,60 @@ class MainWindow(QMainWindow):
             self.stats_page.refresh(sessions, current, self.demo_history)
         elif self.view == "patterns":
             self.patterns_page.refresh(sessions)
+
+    def _drift_for(self, recorder: SessionRecorder) -> LiveDrift:
+        """The comparison for this session: with the saved reference, or (without one) its own first 10 minutes."""
+        if self._drift is None or self._drift[0] is not recorder:
+            saved = self.reference.intervals if self.reference else None
+            self._drift = (recorder, LiveDrift(recorder.distributions.start, reference=saved))
+            self._reminder = BreakReminder()
+            self.study.hide_reminder()
+        return self._drift[1]
+
+    def _remind(self) -> None:
+        """Blinking less often than in the reference, confirmed: suggest a break (notification + Study page)."""
+        self.notify(BREAK_MESSAGE, "Time for a break")
+        self.study.show_reminder(f"{BREAK_MESSAGE} ({datetime.now():%H:%M})")
+
+    def _save_reference_if_new(self) -> None:
+        """Without a reference, a session's first 10 minutes become it once complete (if usable). Tried once per session."""
+        recorder, drift = self._drift
+        if (self.reference is not None or self.reference_error or drift.fixed or drift.baseline_pairs is None
+                or self._reference_checked is recorder):
+            return
+        self._reference_checked = recorder
+        pairs = [(a - drift.start, b - drift.start) for a, b in drift.baseline_pairs]
+        info = recorder.calibration
+        calibration = {k: (v.isoformat(timespec="seconds") if hasattr(v, "isoformat") else v)
+                       for k, v in asdict(info).items()} if info else None
+        new = reference_file.from_pairs(pairs, recorder.started_at, "live session", calibration)
+        if new is None:
+            return  # too few intervals: the next session tries again
+        try:
+            reference_file.save(new, self.reference_path)
+        except OSError as error:
+            self.reference_error = f"Couldn’t save the reference: {error.strerror or error}"
+            return
+        self.reference = new
+
+    def make_new_reference(self) -> None:
+        box = QMessageBox(QMessageBox.Icon.Warning, "Make a new reference?",
+                          "This discards the saved reference. The first 10 minutes of your next session become "
+                          "the new one. A session that is running now keeps its current comparison.", parent=self)
+        discard = box.addButton("Discard Reference", QMessageBox.ButtonRole.DestructiveRole)
+        box.setDefaultButton(box.addButton(QMessageBox.StandardButton.Cancel))
+        if self._confirm(box) is not discard:
+            return
+        try:
+            reference_file.discard(self.reference_path)
+        except OSError as error:
+            self.reference_error = f"Couldn’t remove the reference: {error.strerror or error}"
+        else:
+            self.reference = None
+            self.reference_error = ""
+            if self.recorder is not None:
+                self._reference_checked = self.recorder  # the running session doesn't become the new reference
+        self._refresh_settings()
 
     def _show_live_distributions(self) -> None:
         """Every 2 s while Current session is shown (never per frame); bins stay fixed."""
@@ -372,6 +454,7 @@ class MainWindow(QMainWindow):
         completed = sum(1 for s in self.store.all() if not s.in_progress)
         self.settings_page.show_state(text, can, completed)
         self.settings_page.show_recording(self.ear_log)
+        self.settings_page.show_reference(self.reference, self.reference_error, self.reference_path)
 
     def _save_recording(self) -> None:
         """Write buffered EAR rows to a CSV file; a failure is reported, and the rows are kept for the next try."""

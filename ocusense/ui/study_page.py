@@ -74,6 +74,22 @@ class StudyPage(QScrollArea):
         session.addLayout(controls)
         self.message_label = label("", "secondary", theme.ui_font(14), wrap=True)
         session.addWidget(self.message_label)
+        # break reminder (core/baseline_drift.BreakReminder), hidden until one is given
+        self.reminder = QFrame()
+        self.reminder.setObjectName("Reminder")
+        self.reminder.setStyleSheet(f"#Reminder {{ background: {theme.PAPER_DEEP}; border: 2px solid {theme.INK}; "
+                                    "border-radius: 6px; }")
+        reminder_row = QHBoxLayout(self.reminder)
+        reminder_row.setContentsMargins(16, 12, 12, 12)
+        reminder_row.setSpacing(12)
+        self.reminder_label = label("", font=theme.ui_font(15, QFont.Weight.DemiBold), wrap=True)
+        self.reminder_label.setAccessibleName("Break reminder")
+        reminder_row.addWidget(self.reminder_label, 1)
+        self.reminder_dismiss = button("Dismiss", "quiet")
+        self.reminder_dismiss.clicked.connect(self.hide_reminder)
+        reminder_row.addWidget(self.reminder_dismiss, 0, Qt.AlignmentFlag.AlignTop)
+        self.reminder.hide()
+        session.addWidget(self.reminder)
         top.addLayout(session, 1)
         top.addWidget(Composition(), 0, Qt.AlignmentFlag.AlignTop)
         layout.addLayout(top)
@@ -204,6 +220,13 @@ class StudyPage(QScrollArea):
                 f"Durations are timed between camera frames ({snap.processing_rate:.0f} per second), so they are "
                 f"accurate to about ±{frame_ms:.0f} ms. Blink rate and closed time appear after "
                 f"{MIN_VALID_SECONDS_FOR_RATE:.0f} s of valid observation (an MVP engineering choice).")
+
+    def show_reminder(self, text: str) -> None:
+        self.reminder_label.setText(text)
+        self.reminder.show()
+
+    def hide_reminder(self) -> None:
+        self.reminder.hide()
 
     def clear_measurements(self) -> None:
         self.openness_value.setText(UNAVAILABLE)
