@@ -56,6 +56,7 @@ from .patterns_page import PatternsPage
 from .settings_page import SettingsPage
 from .sidebar import STATISTICS_PAGES, Sidebar
 from .eye_rest_card import BODY as EYE_REST_BODY, TITLE as EYE_REST_TITLE, EyeRestCard
+from .menu_bar import MenuBarIcon
 from .pomodoro_page import PomodoroPage
 from .session_summary import SessionExtras, SessionSummaryCard
 from .study_page import StudyPage
@@ -206,6 +207,7 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+."), self, activated=self.stop)  # ⌘. on macOS
         self._set_state("ready")
         self._load_saved_calibration(announce=True)
+        self.menu_bar = MenuBarIcon(self)  # the eye in the macOS menu bar
 
     # ------------------------------------------------------------- camera life
     def _start_camera(self) -> bool:
@@ -417,6 +419,8 @@ class MainWindow(QMainWindow):
         self.study.set_time(self.elapsed + running)
         self._ticks += 1
         self._check_eye_rest(time.monotonic())
+        if self._ticks % 4 == 0 and getattr(self, "menu_bar", None) is not None:
+            self.menu_bar.refresh()  # once a second
         if self.state == "monitoring" and self.recorder and self._ticks % 2 == 0:
             self._refresh_measurements()  # twice per second
         if self.state == "monitoring" and self.recorder and self._ticks % 4 == 0:

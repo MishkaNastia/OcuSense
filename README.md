@@ -40,7 +40,7 @@ The sidebar on the left switches pages without interrupting monitoring:
 - **Pomodoro** — a customisable focus timer (focus, short and long breaks, presets,
   auto-start, Mac notification and optional sound when a phase ends) with animated
   Miró pictures; the sidebar shows the time left. Animations follow macOS
-  "Reduce motion". Separate from eye monitoring.
+  "Reduce motion". Focus rounds run eye monitoring and breaks pause it (switchable).
 - **Statistics** (expands) — **Current session** (the running session's time,
   coverage and measurements), **All time** (totals, a date filter, a timeline
   with blink rate, median closure duration or time classified as closed, and
@@ -68,6 +68,18 @@ every file can be re-analysed from the raw EAR. One calibration per file: a
 recalibration starts a new one. Numbers only, no images. Settings › Data &
 privacy can switch it off and open the folder. About 1 MB per 10 minutes at 30
 frames per second.
+
+**20-20-20 eye rest.** After a stretch of monitored screen time (default 20 min),
+a card asks you to look about 6 m (20 ft) away for 20 seconds, with a countdown; a
+pause of 20 s or more (e.g. a Pomodoro break) starts the count again. Settings ›
+Reminders: on/off and 15–45 min.
+
+**Session summary.** After Stop, a card recaps the session: study time, blinks,
+blink rate, median closure, closed time, tracking coverage, Pomodoro focus rounds
+and the reminders that came up.
+
+**Menu bar.** The OcuSense eye in the macOS menu bar shows the monitoring and
+Pomodoro status and offers Start/Pause/Resume, Stop, the Pomodoro, Open and Quit.
 
 **Distance reminder.** Calibration asks you to sit about an arm's length away. If
 your face later looks 1.6× as big for 3 s, OcuSense shows "Trying to lick the
