@@ -3,8 +3,9 @@
 Live webcam blink counter using OpenCV, Google MediaPipe Face Landmarker
 (to locate eyelid points) and the Eye Aspect Ratio (EAR) with personal
 calibration. All video is processed locally in memory: camera images are never
-saved or uploaded. Only the raw EAR recording (see below) and your reference for
-blink timing (`reference.json`) are written to disk.
+saved or uploaded. Only the raw EAR recording (see below), your reference for
+blink timing (`reference.json`) and your reminder choices (`preferences.json`)
+are written to disk.
 
 For how every measurement and graph works (methods, time windows, histograms,
 saved files), see [docs/measurements.md](docs/measurements.md).
@@ -64,7 +65,8 @@ frames per second.
 your face later looks 1.6× as big for 3 s, OcuSense shows "Trying to lick the
 screen? Go easy on your eyes and move back a little." in the window, and as a macOS
 notification while it's in the background (packaged app; macOS asks permission
-once). At most every 5 minutes; Settings › Reminders switches it off.
+once). Settings › Reminders: "Remind again after" from 5 s to 10 min (default 5 min)
+and an on/off switch; both are remembered.
 
 **Blink distributions.** Statistics › Current session shows live histograms
 (closure duration by default; also time between blinks, blink rate per minute,

@@ -13,6 +13,8 @@ import tempfile  # noqa: E402
 
 RECORDINGS = tempfile.mkdtemp(prefix="ocusense-test-recordings-")
 os.environ["OCUSENSE_RECORDINGS_DIR"] = RECORDINGS  # never write into the real Library folder
+PREFERENCES_FILE = os.path.join(RECORDINGS, "preferences.json")
+os.environ["OCUSENSE_PREFERENCES_FILE"] = PREFERENCES_FILE  # never change the person's real Settings choices
 
 from PySide6.QtGui import QColor, QImage  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
@@ -640,6 +642,41 @@ class DistanceReminderTest(unittest.TestCase):
         w.pause()
         self.assertTrue(w.banner_holder.isHidden())
         self.assertFalse(w.proximity.too_close)
+
+
+@unittest.skipUnless(MODEL_PATH.exists(), "model file missing - run download_model.py")
+class ReminderIntervalTest(unittest.TestCase):
+    def tearDown(self):
+        if os.path.exists(PREFERENCES_FILE):
+            os.remove(PREFERENCES_FILE)
+
+    def open_window(self):
+        from ocusense.ui.main_window import MainWindow
+        window = MainWindow()
+        self.addCleanup(window.close)
+        return window
+
+    def test_choices_from_5_seconds_to_10_minutes(self):
+        combo = self.open_window().settings_page.interval
+        texts = [combo.itemText(i) for i in range(combo.count())]
+        self.assertEqual(texts[0], "5 s")
+        self.assertEqual(texts[-1], "10 min")
+        self.assertEqual(combo.currentText(), "5 min")  # the default
+
+    def test_choice_applies_and_is_remembered(self):
+        w = self.open_window()
+        combo = w.settings_page.interval
+        combo.setCurrentIndex(combo.findText("30 s"))
+        self.assertEqual(w.proximity.cooldown_seconds, 30)
+        self.assertIn("again every 30 s", w.settings_page.distance_explain.text())
+        w.settings_page.distance.setChecked(False)
+        self.assertFalse(combo.isEnabled())
+        again = self.open_window()  # next launch
+        self.assertEqual(again.settings_page.interval.currentText(), "30 s")
+        self.assertEqual(again.proximity.cooldown_seconds, 30)
+        self.assertFalse(again.settings_page.distance.isChecked())
+        self.assertFalse(again.distance_reminder)
+        self.assertFalse(again.settings_page.interval.isEnabled())
 
 
 if __name__ == "__main__":

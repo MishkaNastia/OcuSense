@@ -55,7 +55,9 @@ MEASUREMENT_VERSION = "ear-personal-v2"
 PROXIMITY_WARN_RATIO = 1.6  # remind when this much closer than at calibration…
 PROXIMITY_SUSTAIN_SECONDS = 3.0  # …for this long (a quick lean forward doesn't count)
 PROXIMITY_CLEAR_RATIO = 1.3  # back below this = moved back (two levels stop on/off flicker)
-PROXIMITY_COOLDOWN_SECONDS = 300.0  # at most one reminder every 5 minutes
+PROXIMITY_COOLDOWN_SECONDS = 300.0  # default: at most one reminder every 5 minutes…
+# …adjustable in Settings › Reminders to one of these (seconds), from 5 s to 10 minutes
+PROXIMITY_COOLDOWN_CHOICES = (5, 10, 15, 30, 60, 120, 180, 300, 600)
 
 # --- Raw EAR recording (ocusense/recording.py) ---
 RECORDING_CHUNK_SECONDS = 600.0  # a new CSV file every 10 minutes (and on pause, stop and quit)

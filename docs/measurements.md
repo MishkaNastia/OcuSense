@@ -81,7 +81,7 @@ calibration values are measured, not set.
 | `PROXIMITY_WARN_RATIO` | 1.6 | distance reminder when the face looks 1.6× as big as at calibration… |
 | `PROXIMITY_SUSTAIN_SECONDS` | 3 s | …for this long |
 | `PROXIMITY_CLEAR_RATIO` | 1.3 | below this the person counts as moved back |
-| `PROXIMITY_COOLDOWN_SECONDS` | 300 s | at most one distance reminder every 5 minutes |
+| `PROXIMITY_COOLDOWN_SECONDS` | 300 s | default time before another distance reminder (adjustable: 5 s, 10 s, 15 s, 30 s, 1, 2, 3, 5 or 10 min) |
 | `MEASUREMENT_VERSION` | `ear-personal-v2` | changes whenever a definition changes |
 
 The 0.5 s gap, the 30 s minimum and the 20 s per-minute minimum are **engineering
@@ -547,9 +547,12 @@ blink or squint. Dividing by the image width makes it independent of camera reso
    lean forward doesn't count; an unreliable frame restarts the 3 s).
 2. The reminder stays until closeness falls below **1.3** (two levels, like the blink detector,
    so it doesn't flicker), or until you press **Got it**.
-3. At most **one reminder every 5 minutes**.
-4. Pausing, stopping or recalibrating clears it. Settings › Reminders › Distance reminder
-   switches it off.
+3. **Remind again after** (Settings › Reminders, default **5 minutes**, from **5 s to 10 min**):
+   if you are still too close when that time has passed, you are reminded again — and never
+   more often than that, even if you move back and forth.
+4. Pausing, stopping or recalibrating clears it. The **On** switch in Settings › Reminders turns
+   it off. Both choices are remembered between launches
+   (`~/Library/Application Support/OcuSense/preferences.json`).
 
 **Where it appears.** Always as a card at the top of the OcuSense window, in the OcuSense
 alert style (paper card, ink border, a Miró mark: an eye pressed against the screen with a

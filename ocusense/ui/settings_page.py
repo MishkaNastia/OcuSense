@@ -9,10 +9,11 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QFont
-from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QCheckBox, QComboBox, QHBoxLayout, QPushButton, QVBoxLayout, QWidget
 
 from ocusense.config import (
-    CAMERA_INDEX, PROXIMITY_COOLDOWN_SECONDS, PROXIMITY_SUSTAIN_SECONDS, PROXIMITY_WARN_RATIO, RECORDING_CHUNK_SECONDS,
+    CAMERA_INDEX, PROXIMITY_COOLDOWN_CHOICES, PROXIMITY_COOLDOWN_SECONDS, PROXIMITY_SUSTAIN_SECONDS,
+    PROXIMITY_WARN_RATIO, RECORDING_CHUNK_SECONDS,
 )
 
 from . import theme
@@ -45,6 +46,11 @@ def setting_row(title: str, detail: str, control: QWidget | None = None, tag: st
     return row
 
 
+def interval_text(seconds: float) -> str:
+    """5 s, 30 s, 1 min, 10 min …"""
+    return f"{seconds:g} s" if seconds < 60 else f"{seconds / 60:g} min"
+
+
 def _button(text: str, kind: str) -> QPushButton:
     widget = QPushButton(text)
     widget.setProperty("kind", kind)
@@ -55,11 +61,13 @@ def _button(text: str, kind: str) -> QPushButton:
 
 class SettingsPage(Page):
     recalibrate_requested = Signal()
+    distance_interval_changed = Signal(float)  # seconds between distance reminders
     clear_history_requested = Signal()
     new_reference_requested = Signal()
 
     def __init__(self, parent=None):
-        super().__init__("Settings", "Settings", "Settings apply while OcuSense is open.", parent)
+        super().__init__("Settings", "Settings", "Reminder choices are remembered; the other settings apply while "
+                                                 "OcuSense is open.", parent)
 
         # Monitoring
         self.section("Monitoring")
@@ -92,14 +100,26 @@ class SettingsPage(Page):
         self.distance = QCheckBox("On")
         self.distance.setChecked(True)
         self.distance.setAccessibleName("Distance reminder")
+        self.interval = QComboBox()
+        self.interval.setAccessibleName("Remind again after")
+        for seconds in PROXIMITY_COOLDOWN_CHOICES:
+            self.interval.addItem(interval_text(seconds), float(seconds))
+        self.interval.currentIndexChanged.connect(
+            lambda i: (self._explain_distance(), self.distance_interval_changed.emit(self.interval.itemData(i))))
+        self.distance.toggled.connect(self.interval.setEnabled)
+        controls = QWidget()
+        controls_row = QHBoxLayout(controls)
+        controls_row.setContentsMargins(0, 0, 0, 0)
+        controls_row.setSpacing(10)
+        controls_row.addWidget(label("Remind again after", "secondary", theme.ui_font(14)))
+        controls_row.addWidget(self.interval)
+        controls_row.addSpacing(8)
+        controls_row.addWidget(self.distance)
+        self.distance_explain = label("", "secondary", theme.ui_font(14), wrap=True)
         self.distance_detail = label("", "secondary", theme.ui_font(14), wrap=True)
-        self.body.addWidget(setting_row(
-            "Distance reminder",
-            f"“Trying to lick the screen?” — when your face looks {PROXIMITY_WARN_RATIO:g}× as big as during "
-            f"calibration (roughly {100 / PROXIMITY_WARN_RATIO:.0f} % of the distance) for "
-            f"{PROXIMITY_SUSTAIN_SECONDS:g} s; at most once every {PROXIMITY_COOLDOWN_SECONDS / 60:.0f} minutes. "
-            "Shown in the window, and as a Mac notification while OcuSense is in the background.",
-            self.distance, extra=(self.distance_detail,)))
+        self.body.addWidget(setting_row("Distance reminder", "", controls,
+                                        extra=(self.distance_explain, self.distance_detail)))
+        self.set_distance_interval(PROXIMITY_COOLDOWN_SECONDS)
         self.body.addWidget(setting_row("Check-ins",
                                         "Not in the Mac app yet. The planned gentle prompts can be tried in the "
                                         "sample session on the OcuSense website.", tag="Not available yet"))
@@ -115,8 +135,8 @@ class SettingsPage(Page):
         self.body.addWidget(paragraph(
             "Camera images are analysed in memory on this Mac and thrown away immediately — they are never saved "
             "or uploaded. Statistics (session times, blink counts, closure durations) are <b>kept only until you "
-            "quit OcuSense</b>. Only the raw EAR recording and your reference for blink timing (below) are saved "
-            "to disk.", rich=True))
+            "quit OcuSense</b>. Only the raw EAR recording, your reference for blink timing (below) and your "
+            "reminder choices are saved to disk.", rich=True))
         self.record = QCheckBox("Record")
         self.record.setChecked(True)
         self.record.setAccessibleName("Record the raw EAR of every frame")
@@ -149,6 +169,22 @@ class SettingsPage(Page):
         self.history_detail = label("", "secondary", theme.ui_font(14), wrap=True)
         self.body.addWidget(setting_row("Session history", "", self.clear_button, extra=(self.history_detail,)))
         self.finish()
+
+    def set_distance_interval(self, seconds: float) -> None:
+        """Show a chosen interval (from preferences) without announcing it as a change."""
+        self.interval.blockSignals(True)
+        self.interval.setCurrentIndex(max(0, self.interval.findData(float(seconds))))
+        self.interval.blockSignals(False)
+        self._explain_distance()
+
+    def _explain_distance(self) -> None:
+        every = interval_text(self.interval.currentData())
+        self.distance_explain.setText(
+            f"“Trying to lick the screen?” — when your face looks {PROXIMITY_WARN_RATIO:g}× as big as during "
+            f"calibration (roughly {100 / PROXIMITY_WARN_RATIO:.0f} % of the distance) for "
+            f"{PROXIMITY_SUSTAIN_SECONDS:g} s; again every {every} while you stay that close, and never more often "
+            "than that. Shown in the window, and as a Mac notification while OcuSense is in the background.")
+        self.fit_height()
 
     def show_distance(self, enabled: bool, has_reference: bool) -> None:
         if not enabled:

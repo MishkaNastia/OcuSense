@@ -66,9 +66,14 @@ class ProximityRulesTest(unittest.TestCase):
         self.assertAlmostEqual(fired[0], 3.0, delta=1 / 30)
         self.assertTrue(m.too_close)
 
-    def test_only_once_until_moved_back_and_then_after_cooldown(self):
+    def test_repeats_every_interval_while_still_close(self):
+        m = ProximityMonitor(1.6, 1.3, 3.0, 5.0)  # "remind again after 5 s"
+        fired = frames(m, 0, 20, 1.8)
+        self.assertEqual([round(t) for t in fired], [3, 8, 13, 18])
+
+    def test_never_more_often_than_the_interval(self):
         m = ProximityMonitor(1.6, 1.3, 3.0, 300.0)
-        self.assertEqual(len(frames(m, 0, 60, 1.8)), 1)  # staying close: one reminder
+        self.assertEqual(len(frames(m, 0, 60, 1.8)), 1)  # staying close for a minute: one reminder
         frames(m, 60, 5, 1.0)  # moved back
         self.assertFalse(m.too_close)
         self.assertEqual(frames(m, 65, 10, 1.8), [])  # close again within 5 minutes: quiet
@@ -95,6 +100,12 @@ class ProximityRulesTest(unittest.TestCase):
         m.reset()
         self.assertFalse(m.too_close)
         self.assertEqual(frames(m, 10, 10, 1.8), [])
+
+    def test_interval_can_change_while_running(self):
+        m = ProximityMonitor(1.6, 1.3, 3.0, 600.0)
+        frames(m, 0, 4, 1.8)
+        m.cooldown_seconds = 5.0  # changed in Settings
+        self.assertEqual(len(frames(m, 4, 5, 1.8)), 1)
 
     def test_levels_must_be_ordered(self):
         with self.assertRaises(ValueError):

@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
     QApplication, QHBoxLayout, QMainWindow, QMessageBox, QStackedWidget, QVBoxLayout, QWidget,
 )
 
+from ocusense.preferences import Preferences
 from ocusense.config import CLOSE_BELOW, MIN_SESSION_SECONDS, MODEL_PATH, REOPEN_ABOVE
 from ocusense.core.baseline_drift import BreakReminder, LiveDrift
 from ocusense.core.calibration import GuidedCalibration
@@ -101,8 +102,9 @@ class MainWindow(QMainWindow):
         except reference_file.ReferenceFileError as error:
             self.reference_error = str(error)  # never overwritten automatically
         self.ear_log = EarRecording()  # raw EAR per frame, written every 10 minutes
-        self.proximity = ProximityMonitor()  # distance reminder
-        self.distance_reminder = True  # Settings › Reminders
+        self.preferences = Preferences.load()  # remembered Settings choices
+        self.proximity = ProximityMonitor(cooldown_seconds=self.preferences.distance_reminder_interval)
+        self.distance_reminder = self.preferences.distance_reminder  # Settings › Reminders
         self._ticks = 0
 
         root = QWidget()
@@ -165,7 +167,10 @@ class MainWindow(QMainWindow):
         self.settings_page.clear_history_requested.connect(self.clear_history)
         self.settings_page.new_reference_requested.connect(self.make_new_reference)
         self.settings_page.record.toggled.connect(self._set_recording)
+        self.settings_page.distance.setChecked(self.distance_reminder)
+        self.settings_page.set_distance_interval(self.preferences.distance_reminder_interval)
         self.settings_page.distance.toggled.connect(self._set_distance_reminder)
+        self.settings_page.distance_interval_changed.connect(self._set_distance_interval)
         self.settings_page.details.toggled.connect(self.study.details_button.setChecked)
         self.study.details_button.toggled.connect(self.settings_page.details.setChecked)
 
@@ -511,8 +516,15 @@ class MainWindow(QMainWindow):
         if name == "Reminder settings":
             self.show_page("settings")
 
+    def _set_distance_interval(self, seconds: float) -> None:
+        self.proximity.cooldown_seconds = seconds
+        self.preferences.distance_reminder_interval = seconds
+        self.preferences.save()
+
     def _set_distance_reminder(self, on: bool) -> None:
         self.distance_reminder = on
+        self.preferences.distance_reminder = on
+        self.preferences.save()
         if not on:
             self._clear_distance_reminder()
         self._refresh_settings()

@@ -10,7 +10,8 @@ Rules (values in config.py):
   PROXIMITY_SUSTAIN_SECONDS — a quick lean forward doesn't count;
 * the person counts as "moved back" only below PROXIMITY_CLEAR_RATIO (two levels,
   like the blink detector, so the reminder doesn't flicker on and off);
-* at most one reminder every PROXIMITY_COOLDOWN_SECONDS.
+* at most one reminder every `cooldown_seconds` (5 s to 10 minutes, chosen in
+  Settings): still too close when that time has passed → reminded again.
 
 It measures size, not centimetres, and never affects blink detection.
 """
@@ -46,7 +47,7 @@ class ProximityMonitor:
             return False
         if self._close_since is None:
             self._close_since = now
-        if self.too_close or now - self._close_since < self.sustain_seconds:
+        if now - self._close_since < self.sustain_seconds:
             return False
         if self._last_reminder is not None and now - self._last_reminder < self.cooldown_seconds:
             return False
