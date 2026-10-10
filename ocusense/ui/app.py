@@ -3,6 +3,7 @@
 Options:
   --demo-history   fill Statistics with clearly labelled demo sessions
   --self-test      check a build without a camera: model loads, one frame is analysed
+  --notification-test  send one test Mac notification and quit (check name, icon and permission)
 """
 
 import sys
@@ -35,7 +36,19 @@ def _fail(message: str, details: str = "") -> int:
     return 1
 
 
+def _notification_test() -> int:
+    import time
+
+    from ocusense import notifications
+    sent = notifications.post("Go easy on your eyes and move back a little. (Test)", "Trying to lick the screen?")
+    time.sleep(3)  # macOS answers asynchronously; give it a moment before quitting
+    print("notification requested" if sent else "notifications unavailable here")
+    return 0 if sent else 1
+
+
 def run() -> int:
+    if "--notification-test" in sys.argv:
+        return _notification_test()
     app = QApplication(sys.argv)
     app.setApplicationName("OcuSense")
     app.setStyle("Fusion")  # predictable styling; our own colours come from the style sheet
