@@ -58,6 +58,12 @@ class EyeMonitor:
         self._start = time.monotonic()
         self._last_timestamp_ms = -1
 
+    def reset_session(self):
+        """Start a new session: forget blink counts and graph history, keep the calibration."""
+        self.counter = BlinkCounter()
+        self.eye_counters = {"left": BlinkCounter(), "right": BlinkCounter()}
+        self.history.clear()
+
     def start_calibration(self, now):
         self.calibration = None  # forget the old one; never mix old and new
         self.history.clear()

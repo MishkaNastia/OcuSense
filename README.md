@@ -15,7 +15,19 @@ pip install -r requirements.txt
 python download_model.py
 ```
 
-## Run
+## Run the desktop app (PySide6)
+
+```
+source .venv/bin/activate
+python -m ocusense
+```
+
+Press **Start**. The first session begins with a 30-second calibration; after
+that you see the timer, Pause / Stop / Recalibrate and the live eye-openness
+graph. Pause turns the camera off; Stop ends the session (calibration is kept).
+⌘. also stops. Tab moves between buttons.
+
+## Run the OpenCV prototype
 
 ```
 source .venv/bin/activate
@@ -59,7 +71,7 @@ everyone - see [EVALUATION_CHECKLIST.md](EVALUATION_CHECKLIST.md).
   calibration, blink counting, openness history, and `monitor.py`, which
   runs one measuring step per camera frame).
 - `main.py` + `score_graph.py`: the OpenCV prototype window.
-- A PySide6 desktop app (macOS first) will be built on top of `ocusense/core`.
+- `ocusense/app/`: the PySide6 desktop app (window, camera thread, graph, artwork).
 
 ## Tests
 
