@@ -61,6 +61,7 @@ class EyeRestWindowTest(unittest.TestCase):
         self.window.notify = lambda message, title: self.sent.append((title, message))
         self.window._start_camera = lambda: (setattr(self.window, "thread", FakeThread()), True)[1]
         self.window.monitor.calibration = object()
+        self.window.settings_page.eye_rest.setChecked(True)  # off by default
         self.window.start()
 
     def tearDown(self):
@@ -97,19 +98,23 @@ class EyeRestWindowTest(unittest.TestCase):
         w._check_eye_rest(1000.5)
         self.assertFalse(w.eye_rest_card.isHidden())
 
-    def test_settings_switch_and_interval_are_remembered(self):
-        from ocusense.ui.main_window import MainWindow
+    def test_off_by_default_and_the_switch_is_remembered(self):
+        from ocusense.preferences import Preferences
+        self.assertFalse(Preferences().eye_rest)
         w = self.window
-        w.settings_page.eye_rest_every.setCurrentIndex(w.settings_page.eye_rest_every.findData(30))
-        self.assertEqual(w.eye_rest.interval, 30 * 60)
+        self.assertEqual(w.eye_rest.interval, 20 * 60)  # fixed: the "20" of 20-20-20
         w.settings_page.eye_rest.setChecked(False)
         w.eye_rest.screen_seconds = 10 ** 6
         w._check_eye_rest(1000.0)
-        self.assertTrue(w.eye_rest_card.isHidden())
+        self.assertTrue(w.eye_rest_card.isHidden())  # off: nothing appears
+        from ocusense.ui.main_window import MainWindow
         again = MainWindow()
         self.addCleanup(again.close)
         self.assertFalse(again.settings_page.eye_rest.isChecked())
-        self.assertEqual(again.settings_page.eye_rest_every.currentData(), 30)
+        again.settings_page.eye_rest.setChecked(True)
+        third = MainWindow()
+        self.addCleanup(third.close)
+        self.assertTrue(third.settings_page.eye_rest.isChecked())
 
 
 if __name__ == "__main__":

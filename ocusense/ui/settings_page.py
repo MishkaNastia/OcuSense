@@ -15,7 +15,6 @@ from ocusense.config import (
     CAMERA_INDEX, PROXIMITY_COOLDOWN_CHOICES, PROXIMITY_COOLDOWN_SECONDS, PROXIMITY_SUSTAIN_SECONDS,
     PROXIMITY_WARN_RATIO, RECORDING_CHUNK_SECONDS,
 )
-from ocusense.core.eye_rest import INTERVAL_CHOICES as EYE_REST_CHOICES
 
 from . import theme
 from .widgets.common import label
@@ -63,7 +62,7 @@ def _button(text: str, kind: str) -> QPushButton:
 class SettingsPage(Page):
     recalibrate_requested = Signal()
     distance_interval_changed = Signal(float)  # seconds between distance reminders
-    eye_rest_changed = Signal(bool, int)  # (on, every so many minutes)
+    eye_rest_changed = Signal(bool)  # 20-20-20 eye rest switched on or off
     clear_history_requested = Signal()
     new_reference_requested = Signal()
 
@@ -124,26 +123,12 @@ class SettingsPage(Page):
         self.set_distance_interval(PROXIMITY_COOLDOWN_SECONDS)
         self.eye_rest = QCheckBox("On")
         self.eye_rest.setAccessibleName("20-20-20 eye rest")
-        self.eye_rest_every = QComboBox()
-        self.eye_rest_every.setAccessibleName("Eye rest every, minutes")
-        for minutes in EYE_REST_CHOICES:
-            self.eye_rest_every.addItem(f"{minutes} min", minutes)
-        rest_controls = QWidget()
-        rest_row = QHBoxLayout(rest_controls)
-        rest_row.setContentsMargins(0, 0, 0, 0)
-        rest_row.setSpacing(10)
-        rest_row.addWidget(label("Every", "secondary", theme.ui_font(14)))
-        rest_row.addWidget(self.eye_rest_every)
-        rest_row.addSpacing(8)
-        rest_row.addWidget(self.eye_rest)
         self.body.addWidget(setting_row(
             "20-20-20 eye rest",
-            "After a stretch of screen time, a card asks you to look about 6 metres (20 feet) away for 20 seconds, "
-            "with a countdown. Counts only while monitoring runs; a pause of 20 s or more (like a Pomodoro break) "
-            "starts the count again. A Mac notification while OcuSense is in the background.", rest_controls))
-        self.eye_rest.toggled.connect(self.eye_rest_every.setEnabled)
-        self.eye_rest.toggled.connect(lambda _on: self._eye_rest_changed())
-        self.eye_rest_every.currentIndexChanged.connect(lambda _i: self._eye_rest_changed())
+            "Off unless you switch it on. Then, after 20 minutes of monitored screen time, a card asks you to look "
+            "about 6 metres (20 feet) away for 20 seconds, with a countdown. A pause of 20 s or more (like a "
+            "Pomodoro break) starts the count again.", self.eye_rest))
+        self.eye_rest.toggled.connect(self.eye_rest_changed.emit)
         self.body.addWidget(setting_row("Check-ins",
                                         "Not in the Mac app yet. The planned gentle prompts can be tried in the "
                                         "sample session on the OcuSense website.", tag="Not available yet"))
@@ -195,18 +180,11 @@ class SettingsPage(Page):
         self.body.addWidget(setting_row("Session history", "", self.clear_button, extra=(self.history_detail,)))
         self.finish()
 
-    def show_eye_rest(self, on: bool, minutes: int) -> None:
-        """Show remembered choices without announcing them as changes."""
-        for widget in (self.eye_rest, self.eye_rest_every):
-            widget.blockSignals(True)
+    def show_eye_rest(self, on: bool) -> None:
+        """Show the remembered choice without announcing it as a change."""
+        self.eye_rest.blockSignals(True)
         self.eye_rest.setChecked(on)
-        self.eye_rest_every.setCurrentIndex(max(0, self.eye_rest_every.findData(minutes)))
-        self.eye_rest_every.setEnabled(on)
-        for widget in (self.eye_rest, self.eye_rest_every):
-            widget.blockSignals(False)
-
-    def _eye_rest_changed(self) -> None:
-        self.eye_rest_changed.emit(self.eye_rest.isChecked(), self.eye_rest_every.currentData())
+        self.eye_rest.blockSignals(False)
 
     def set_distance_interval(self, seconds: float) -> None:
         """Show a chosen interval (from preferences) without announcing it as a change."""

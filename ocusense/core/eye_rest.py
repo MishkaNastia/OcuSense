@@ -6,11 +6,11 @@ count starts over. Pure Python: times are time.monotonic() seconds from the call
 """
 
 REST_SECONDS = 20.0
-INTERVAL_CHOICES = (15, 20, 30, 45)  # minutes offered in Settings
+INTERVAL_MINUTES = 20  # the "20" of 20-20-20
 
 
 class EyeRestTimer:
-    def __init__(self, interval_minutes: float = 20):
+    def __init__(self, interval_minutes: float = INTERVAL_MINUTES):
         self.interval = interval_minutes * 60.0
         self.screen_seconds = 0.0  # monitored time since the last rest
         self._last: float | None = None

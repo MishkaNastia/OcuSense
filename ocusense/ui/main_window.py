@@ -118,7 +118,7 @@ class MainWindow(QMainWindow):
         self.preferences = Preferences.load()  # remembered Settings choices
         self.proximity = ProximityMonitor(cooldown_seconds=self.preferences.distance_reminder_interval)
         self.distance_reminder = self.preferences.distance_reminder  # Settings › Reminders
-        self.eye_rest = EyeRestTimer(self.preferences.eye_rest_minutes)  # 20-20-20
+        self.eye_rest = EyeRestTimer()  # 20-20-20 (off unless switched on in Settings)
         self._eye_rest_waiting = False  # due while another reminder was on screen
         self.session_extras = SessionExtras()  # reminders and focus rounds in the running session
         self.summary_card: SessionSummaryCard | None = None
@@ -196,7 +196,7 @@ class MainWindow(QMainWindow):
         self.pomodoro_page.status_text.connect(self.sidebar.set_pomodoro_status)
         self.pomodoro_page.phase_ended.connect(self._pomodoro_phase_ended)
         self.pomodoro_page.state_changed.connect(self._pomodoro_state_changed)
-        self.settings_page.show_eye_rest(self.preferences.eye_rest, self.preferences.eye_rest_minutes)
+        self.settings_page.show_eye_rest(self.preferences.eye_rest)
         self.settings_page.eye_rest_changed.connect(self._set_eye_rest)
         self.settings_page.details.toggled.connect(self.study.details_button.setChecked)
         self.study.details_button.toggled.connect(self.settings_page.details.setChecked)
@@ -499,10 +499,10 @@ class MainWindow(QMainWindow):
             if app.applicationState() != Qt.ApplicationState.ApplicationActive or not self.isActiveWindow():
                 self.notify(EYE_REST_BODY, EYE_REST_TITLE)
 
-    def _set_eye_rest(self, on: bool, minutes: int) -> None:
-        self.preferences.eye_rest, self.preferences.eye_rest_minutes = on, minutes
+    def _set_eye_rest(self, on: bool) -> None:
+        self.preferences.eye_rest = on
         self.preferences.save()
-        self.eye_rest.interval = minutes * 60.0
+        self.eye_rest.rested()  # switching on starts a fresh 20 minutes
         if not on:
             self._eye_rest_waiting = False
             self.eye_rest_card.setVisible(False)

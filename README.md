@@ -69,10 +69,10 @@ recalibration starts a new one. Numbers only, no images. Settings › Data &
 privacy can switch it off and open the folder. About 1 MB per 10 minutes at 30
 frames per second.
 
-**20-20-20 eye rest.** After a stretch of monitored screen time (default 20 min),
-a card asks you to look about 6 m (20 ft) away for 20 seconds, with a countdown; a
-pause of 20 s or more (e.g. a Pomodoro break) starts the count again. Settings ›
-Reminders: on/off and 15–45 min.
+**20-20-20 eye rest (off by default).** Switched on in Settings › Reminders, it
+asks after 20 minutes of monitored screen time to look about 6 m (20 ft) away for
+20 seconds, with a countdown; a pause of 20 s or more (e.g. a Pomodoro break)
+starts the count again.
 
 **Session summary.** After Stop, a card recaps the session: study time, blinks,
 blink rate, median closure, closed time, tracking coverage, Pomodoro focus rounds
