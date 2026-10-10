@@ -1,6 +1,6 @@
-"""Monitoring logic with no user interface.
+"""Pure calculations: EAR, personal calibration, blink rule, session metrics.
 
-Both the OpenCV prototype (main.py) and the future PySide6 app use this
-package, so the measuring, calibration and counting rules live in one place.
-Nothing in here opens windows or draws anything.
+The one authoritative place for every formula and blink rule. No PySide6,
+no camera, no MediaPipe: functions receive numbers or landmark coordinates.
+Used by the desktop app (ocusense/ui) and the OpenCV prototype (prototype/).
 """

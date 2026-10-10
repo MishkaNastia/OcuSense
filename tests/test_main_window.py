@@ -12,15 +12,15 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtGui import QColor, QImage  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
-from ocusense.core.monitor import CALIBRATION_DONE, CALIBRATION_FAILED, MODEL_PATH  # noqa: E402
-from ocusense.app.worker import MonitorUpdate  # noqa: E402
+from ocusense.monitoring.pipeline import CALIBRATION_DONE, CALIBRATION_FAILED, MODEL_PATH  # noqa: E402
+from ocusense.monitoring.camera_worker import MonitorUpdate  # noqa: E402
 from ocusense.core.session import SessionRecorder  # noqa: E402
 
 app = QApplication.instance() or QApplication([])
 
 
 class FakeThread:
-    """Stands in for MonitorThread: no camera, no background thread."""
+    """Stands in for CameraWorker: no camera, no background thread."""
 
     def __init__(self):
         self.calibration_requests = 0
@@ -50,7 +50,7 @@ def update(**changes):
 @unittest.skipUnless(MODEL_PATH.exists(), "model file missing - run download_model.py")
 class WindowTest(unittest.TestCase):
     def setUp(self):
-        from ocusense.app.window import MainWindow
+        from ocusense.ui.main_window import MainWindow
         self.window = MainWindow()
         self.thread = FakeThread()
         self.window._start_camera = self._fake_start
@@ -64,8 +64,8 @@ class WindowTest(unittest.TestCase):
 
     def visible_buttons(self):
         w = self.window
-        names = {"Start": w.start_button, "Pause": w.pause_button, "Resume": w.resume_button,
-                 "Stop": w.stop_button, "Recalibrate": w.recalibrate_button}
+        names = {"Start": w.study.start_button, "Pause": w.study.pause_button, "Resume": w.study.resume_button,
+                 "Stop": w.study.stop_button, "Recalibrate": w.study.recalibrate_button}
         return sorted(name for name, button in names.items() if not button.isHidden())
 
     def test_starts_ready(self):
@@ -78,8 +78,8 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(w.state, "calibrating")
         self.assertEqual(self.thread.calibration_requests, 1)
         w._on_update(update(cal_step=1, cal_seconds_left=3.2))
-        self.assertIn("STEP 2 OF 3", w.cal_eyebrow.text())
-        self.assertEqual(w.cal_count.text(), "4")
+        self.assertIn("STEP 2 OF 3", w.calibration.eyebrow.text())
+        self.assertEqual(w.calibration.countdown.text(), "4")
         w.monitor.calibration = object()
         w._on_update(update(events=[CALIBRATION_DONE]))
         self.assertEqual(w.state, "monitoring")
@@ -90,8 +90,8 @@ class WindowTest(unittest.TestCase):
         w.start()
         w._on_update(update(events=[CALIBRATION_FAILED], cal_status="failed", cal_error="Too similar."))
         self.assertEqual(w.state, "calibrating")
-        self.assertIn("Too similar.", w.cal_error.text())
-        self.assertFalse(w.try_again_button.isHidden())
+        self.assertIn("Too similar.", w.calibration.error.text())
+        self.assertFalse(w.calibration.try_again_button.isHidden())
 
     def test_monitoring_updates_count_and_status(self):
         w = self.window
@@ -99,11 +99,11 @@ class WindowTest(unittest.TestCase):
         w.start()
         samples = [(99.0 + i * 0.1, (0.9, 0.9, 0.9 if i % 5 else 0.1), i % 5 == 1) for i in range(10)]
         w._on_update(update(blinks=3, samples=samples))
-        self.assertEqual(w.blink_label.text(), "3 blinks this session")
+        self.assertEqual(w.study.blink_label.text(), "3 blinks this session")
         self.assertEqual(w.status.text.text(), "Monitoring")
         w._on_update(update(face_found=False, openness=None))
         self.assertEqual(w.status.text.text(), "Face not tracked")
-        self.assertFalse(w.graph.grab().isNull())  # the graph paints without errors
+        self.assertFalse(w.study.graph.grab().isNull())  # the graph paints without errors
 
     def test_pause_turns_camera_off_and_resume_keeps_calibration(self):
         w = self.window
@@ -126,7 +126,7 @@ class WindowTest(unittest.TestCase):
         w.stop()
         self.assertEqual(w.state, "ready")
         self.assertEqual(w.monitor.counter.count, 0)
-        self.assertEqual(w.timer_label.text(), "00:00:00")
+        self.assertEqual(w.study.timer_label.text(), "00:00:00")
         self.assertEqual(self.visible_buttons(), ["Recalibrate", "Start"])
 
     def test_late_update_after_stop_is_ignored(self):
@@ -135,7 +135,7 @@ class WindowTest(unittest.TestCase):
         w.start()
         w.stop()
         w._on_update(update(blinks=9))
-        self.assertEqual(w.blink_label.text(), "0 blinks this session")
+        self.assertEqual(w.study.blink_label.text(), "0 blinks this session")
 
     def _run_session(self, seconds, blink_every=4):
         """Feed `seconds` of fake frames at 30 fps while monitoring."""
@@ -186,10 +186,10 @@ class WindowTest(unittest.TestCase):
         w.start()
         self.assertFalse(w.nav_stats.isEnabled())
         w.show_stats()
-        self.assertIs(w.pages.currentWidget(), w.calibration_page)
+        self.assertIs(w.pages.currentWidget(), w.calibration)
 
     def test_statistics_page_draws_every_view(self):
-        from ocusense.app.demo import demo_sessions
+        from ocusense.demo_data import demo_sessions
         page = self.window.stats_page
         page.resize(1100, 900)
         for period in ("today", "week", "month"):
@@ -210,9 +210,9 @@ class WindowTest(unittest.TestCase):
         w.monitor.calibration = object()
         w.start()
         w._on_update(update(blinks=9, source=FakeThread()))  # not the current run
-        self.assertEqual(w.blink_label.text(), "0 blinks this session")
+        self.assertEqual(w.study.blink_label.text(), "0 blinks this session")
         w._on_update(update(blinks=4, source=self.thread))
-        self.assertEqual(w.blink_label.text(), "4 blinks this session")
+        self.assertEqual(w.study.blink_label.text(), "4 blinks this session")
 
 
 if __name__ == "__main__":

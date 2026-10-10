@@ -9,12 +9,13 @@ import time
 from dataclasses import dataclass, field
 
 import cv2
+import numpy as np
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtGui import QImage
 
+from ocusense.config import CAMERA_INDEX, PREVIEW_WIDTH
 from ocusense.core.calibration import STEPS
-
-PREVIEW_WIDTH = 480
+from ocusense.monitoring.pipeline import EyeMonitor, FrameResult
 
 
 @dataclass
@@ -36,10 +37,10 @@ class MonitorUpdate:
     cal_error: str
     samples: list = field(default_factory=list)
     preview: QImage = None
-    source: object = None  # the MonitorThread (camera run) that produced it
+    source: object = None  # the CameraWorker (camera run) that produced it
 
 
-def open_camera(index=0):
+def open_camera(index: int = CAMERA_INDEX) -> cv2.VideoCapture | None:
     """Open the webcam on the calling (main) thread. Returns None if it can't."""
     camera = cv2.VideoCapture(index)
     if not camera.isOpened():
@@ -48,14 +49,14 @@ def open_camera(index=0):
     return camera
 
 
-def to_qimage(frame_bgr, width=PREVIEW_WIDTH):
+def to_qimage(frame_bgr: np.ndarray, width: int = PREVIEW_WIDTH) -> QImage:
     height = int(frame_bgr.shape[0] * width / frame_bgr.shape[1])
     small = cv2.resize(frame_bgr, (width, height), interpolation=cv2.INTER_AREA)
     rgb = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
     return QImage(rgb.data, width, height, 3 * width, QImage.Format.Format_RGB888).copy()
 
 
-def snapshot(monitor, result, now):
+def snapshot(monitor: EyeMonitor, result: FrameResult, now: float) -> MonitorUpdate:
     m = result.measurement
     cal = monitor.calibrator
     step = cal.step
@@ -79,7 +80,12 @@ def snapshot(monitor, result, now):
     )
 
 
-class MonitorThread(QThread):
+class CameraWorker(QThread):
+    """Reads frames from an already-open camera and runs the pipeline on each one.
+
+    Results are sent with the `updated` signal; Qt delivers them on the
+    interface thread, so widgets are only ever touched there."""
+
     updated = Signal(object)  # MonitorUpdate
     failed = Signal(str)
 
@@ -90,11 +96,11 @@ class MonitorThread(QThread):
         self._lock = threading.Lock()
         self._calibration_requested = False
 
-    def request_calibration(self):
+    def request_calibration(self) -> None:
         with self._lock:
             self._calibration_requested = True
 
-    def run(self):
+    def run(self) -> None:
         while not self.isInterruptionRequested():
             ok, frame = self.camera.read()
             if not ok:

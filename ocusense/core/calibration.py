@@ -19,20 +19,19 @@ It says nothing about fatigue or health.
 import statistics
 from dataclasses import dataclass
 
-from .blink_counter import BlinkCounter
+# A calibration is rejected unless all of these hold (values documented in config.py).
+from ocusense.config import (
+    MAX_SPREAD_FRACTION, MIN_CALIBRATION_BLINKS, MIN_RELATIVE_SEPARATION, MIN_SAMPLES,
+)
 
-# A calibration is rejected unless all of these hold.
-MIN_SAMPLES = 15  # reliable frames needed per phase
-MIN_RELATIVE_SEPARATION = 0.25  # closed reference must be at least 25% below open
-MAX_SPREAD_FRACTION = 0.25  # wobble within a phase vs. the open-closed gap
-MIN_CALIBRATION_BLINKS = 3  # blinks that must be detected in the blink phase
+from .blink_counter import BlinkCounter
 
 
 class CalibrationError(Exception):
     """Calibration was not good enough; the message says why."""
 
 
-def robust_reference(samples):
+def robust_reference(samples: list[float]) -> tuple[float, float]:
     """Median and robust spread of a list of EAR values.
 
     The median ignores a few odd frames (e.g. an accidental blink while
@@ -49,14 +48,14 @@ class EyeReference:
     open_ear: float
     closed_ear: float
 
-    def openness(self, ear):
+    def openness(self, ear: float) -> float:
         value = (ear - self.closed_ear) / (self.open_ear - self.closed_ear)
         # Clip to 0..1 so one eye squeezed extra hard (or opened extra
         # wide) can't dominate when the two eyes are combined.
         return min(1.0, max(0.0, value))
 
 
-def build_eye_reference(eye_name, open_samples, closed_samples):
+def build_eye_reference(eye_name: str, open_samples: list[float], closed_samples: list[float]) -> "EyeReference":
     """Make one eye's reference, or raise CalibrationError explaining why not."""
     if len(open_samples) < MIN_SAMPLES or len(closed_samples) < MIN_SAMPLES:
         raise CalibrationError(
@@ -80,7 +79,7 @@ def build_eye_reference(eye_name, open_samples, closed_samples):
     return EyeReference(open_ear, closed_ear)
 
 
-def combine(left_openness, right_openness):
+def combine(left_openness: float, right_openness: float) -> float:
     """Combine the two eyes into one value by averaging.
 
     Each eye was already scaled to its own 0..1 range, so an eye that is
@@ -97,14 +96,14 @@ class PersonalCalibration:
     left: EyeReference
     right: EyeReference
 
-    def openness(self, ears):
+    def openness(self, ears: dict[str, float]) -> tuple[float, float, float]:
         """Return (left, right, combined) personal eye openness."""
         left = self.left.openness(ears["left"])
         right = self.right.openness(ears["right"])
         return left, right, combine(left, right)
 
 
-def count_blinks(openness_values):
+def count_blinks(openness_values: list[float | None]) -> int:
     """How many blinks the normal counter finds in a list (None = paused)."""
     counter = BlinkCounter()
     for value in openness_values:
@@ -147,7 +146,7 @@ class GuidedCalibration:
         self.result = None  # PersonalCalibration once DONE
         self.error = ""  # message once FAILED
 
-    def start(self, now):
+    def start(self, now: float) -> None:
         self.status = self.RUNNING
         self.result = None
         self.error = ""
@@ -161,11 +160,11 @@ class GuidedCalibration:
     def step(self):
         return STEPS[self._step_index] if self.status == self.RUNNING else None
 
-    def measuring(self, now):
+    def measuring(self, now: float) -> bool:
         """True once the get-ready countdown of the current step is over."""
         return self.step is not None and now - self._step_start >= self.step.get_ready_seconds
 
-    def seconds_left(self, now):
+    def seconds_left(self, now: float) -> float:
         step = self.step
         if step is None:
             return 0
@@ -174,7 +173,7 @@ class GuidedCalibration:
             return step.get_ready_seconds - elapsed
         return step.get_ready_seconds + step.measure_seconds - elapsed
 
-    def update(self, now, ears):
+    def update(self, now: float, ears: dict[str, float] | None) -> None:
         step = self.step
         if step is None:
             return

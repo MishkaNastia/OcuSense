@@ -1,31 +1,46 @@
-"""Turns session summaries into what the Statistics page shows. No UI here."""
+"""Turns session summaries into what the Statistics page shows. No UI here.
+
+Values are computed in internal units (closure in seconds). to_display()
+is the one place that converts them for people to read (closure in ms).
+"""
 
 import statistics
 from dataclasses import dataclass
 from datetime import date, timedelta
 
+from .models import SessionSummary
+
+# scale_max is in display units. display_factor converts internal → display units.
 METRICS = {
-    "rate": dict(name="Blink rate", unit="blinks per minute", short="blinks/min", decimals=1, scale_max=24,
+    "rate": dict(name="Blink rate", unit="blinks per minute", short="blinks/min", decimals=1, scale_max=24, display_factor=1,
                  explain="Complete blinks counted per minute of tracked study time."),
     "closure": dict(name="Median closure duration", unit="milliseconds", short="ms", decimals=0, scale_max=300,
+                    display_factor=1000,  # stored in seconds, shown in milliseconds
                     explain="The typical time your eyes stayed below the closing threshold during a blink. "
                             "The median keeps a few long blinks from dominating."),
     "closed": dict(name="Time classified as closed", unit="% of tracked time", short="%", decimals=1, scale_max=6,
+                   display_factor=1,
                    explain="Share of tracked time when your personal eye openness was below the closing threshold."),
 }
 
 
-def format_metric(name, value, with_unit=True):
+def to_display(name: str, value: float | None) -> float | None:
+    """Convert an internal value (e.g. closure in seconds) to display units (ms)."""
+    return None if value is None else value * METRICS[name]["display_factor"]
+
+
+def format_metric(name: str, value: float | None, with_unit: bool = True) -> str:
+    """Format an internal value for display, including the unit conversion."""
     if value is None:
         return "—"
     m = METRICS[name]
-    text = f"{value:.{m['decimals']}f}"
+    text = f"{to_display(name, value):.{m['decimals']}f}"
     if not with_unit:
         return text + ("%" if name == "closed" else "")
     return text + ("%" if name == "closed" else " " + m["short"])
 
 
-def format_duration(seconds):
+def format_duration(seconds: float) -> str:
     if seconds < 60:
         return f"{int(seconds)} s"
     minutes = int(round(seconds / 60))
@@ -34,7 +49,7 @@ def format_duration(seconds):
     return f"{minutes // 60} h" + (f" {minutes % 60} min" if minutes % 60 else "")
 
 
-def period_days(period, today):
+def period_days(period: str, today: date) -> list[date]:
     """The calendar days shown for a period, oldest first."""
     if period == "today":
         return [today]
@@ -42,12 +57,12 @@ def period_days(period, today):
     return [first + timedelta(days=i) for i in range((today - first).days + 1)]
 
 
-def combined_metric(sessions, name):
-    """One value for several sessions, weighted by tracked time (not a plain average)."""
+def combined_metric(sessions: list[SessionSummary], name: str) -> float | None:
+    """One value for several sessions, weighted by tracked time (not a plain average). Internal units."""
     tracked = sum(s.tracked_seconds for s in sessions)
     if name == "closure":
         closures = [c for s in sessions for c in s.closure_seconds]
-        return statistics.median(closures) * 1000 if closures else None
+        return statistics.median(closures) if closures else None
     if tracked < 1:
         return None
     if name == "rate":
@@ -70,7 +85,7 @@ class PeriodStats:
         return [s for s in self.sessions if s.started_at.date() == day]
 
 
-def period_stats(sessions, period, today=None):
+def period_stats(sessions: list[SessionSummary], period: str, today: date | None = None) -> PeriodStats:
     today = today or date.today()
     days = period_days(period, today)
     chosen = [s for s in sessions if days[0] <= s.started_at.date() <= days[-1]]
@@ -82,7 +97,7 @@ def period_stats(sessions, period, today=None):
     )
 
 
-def hour_range(sessions, minimum_span=6):
+def hour_range(sessions: list[SessionSummary], minimum_span: int = 6) -> tuple[int, int]:
     """Start and end hour for the timeline axis, covering every session shown."""
     if not sessions:
         return 8, 20
@@ -99,8 +114,8 @@ def hour_range(sessions, minimum_span=6):
     return start, end
 
 
-def minute_series(sessions, metric):
-    """[(datetime, value or None)] per minute across sessions, for the Today chart."""
+def minute_series(sessions: list[SessionSummary], metric: str) -> list:
+    """[(datetime, internal value or None)] per minute across sessions, for the Today chart."""
     points = []
     for s in sorted(sessions, key=lambda s: s.started_at):
         for minute in s.minutes:

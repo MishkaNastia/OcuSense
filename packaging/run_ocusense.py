@@ -2,6 +2,6 @@
 
 import sys
 
-from ocusense.app.main import run
+from ocusense.ui.app import run
 
 sys.exit(run())

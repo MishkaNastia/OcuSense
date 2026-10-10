@@ -3,7 +3,8 @@
 import unittest
 from datetime import date, datetime
 
-from ocusense.core.session import SessionRecorder, SessionStore
+from ocusense.core.session import SessionRecorder
+from ocusense.storage import SessionStore
 from ocusense.core.stats import combined_metric, format_duration, format_metric, hour_range, period_days, period_stats
 
 FPS = 30
@@ -32,7 +33,7 @@ class RecorderTest(unittest.TestCase):
         s = r.finish(end)
         self.assertEqual(s.blinks, 15)
         self.assertAlmostEqual(s.metric("rate"), 15, delta=0.5)
-        self.assertAlmostEqual(s.metric("closure"), 200, delta=40)  # ms, within a frame or so
+        self.assertAlmostEqual(s.metric("closure"), 0.200, delta=0.040)  # seconds, within a frame or so
         self.assertAlmostEqual(s.metric("closed"), 15 * 0.2 / 60 * 100, delta=0.6)
         self.assertAlmostEqual(s.coverage, 1.0, delta=0.02)
 
@@ -133,6 +134,7 @@ class StatsTest(unittest.TestCase):
         self.assertEqual(format_metric("rate", 14.72), "14.7 blinks/min")
         self.assertEqual(format_metric("closed", 3.04), "3.0%")
         self.assertEqual(format_metric("closure", None), "—")
+        self.assertEqual(format_metric("closure", 0.184), "184 ms")  # seconds in, milliseconds shown
         self.assertEqual(format_duration(155 * 60), "2 h 35 min")
         self.assertEqual(format_duration(45), "45 s")
 

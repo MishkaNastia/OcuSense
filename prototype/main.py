@@ -3,7 +3,7 @@
 The measuring, calibration and counting live in ocusense/core; this file
 only opens the camera, draws on the video and handles keys.
 
-Run with:  python main.py
+Run from the project folder with:  python -m prototype
 Keys (click the video window first):
   SPACE or C  start / redo personal calibration
   M           show / hide the face mesh
@@ -22,12 +22,9 @@ from mediapipe.tasks.python import vision
 from ocusense.core.blink_counter import CLOSE_BELOW, REOPEN_ABOVE
 from ocusense.core.calibration import GuidedCalibration
 from ocusense.core.eye_metrics import EYE_LANDMARKS
-from ocusense.core.monitor import (
-    CALIBRATION_DONE, CALIBRATION_FAILED, CLOSED_STEP_FINISHED, MODEL_PATH, EyeMonitor,
-)
-from score_graph import draw_score_graph
-
-CAMERA_INDEX = 0  # 0 = the laptop's built-in webcam
+from ocusense.config import CAMERA_INDEX, MODEL_PATH
+from ocusense.monitoring.pipeline import CALIBRATION_DONE, CALIBRATION_FAILED, CLOSED_STEP_FINISHED, EyeMonitor
+from prototype.score_graph import draw_score_graph
 WINDOW_NAME = "OcuSense - press Q to quit"
 
 GREEN = (0, 200, 0)

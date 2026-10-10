@@ -16,8 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from PySide6.QtCore import QRectF, Qt  # noqa: E402
 from PySide6.QtGui import QColor, QGuiApplication, QImage, QPainter, QPainterPath, QPen  # noqa: E402
 
-from ocusense.app import theme  # noqa: E402
-from ocusense.app.artwork import paint_logo  # noqa: E402
+from ocusense.ui import theme  # noqa: E402
+from ocusense.ui.widgets.artwork import paint_logo  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 

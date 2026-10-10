@@ -24,16 +24,15 @@ EYE_LANDMARKS = {
     "right": (362, 385, 387, 263, 373, 380),
 }
 
-# Tracking-quality limits used to pause measurement.
-MIN_EYE_WIDTH_PX = 15  # smaller than this: face too far away / too small
-MIN_EYE_WIDTH_RATIO = 0.6  # one eye much narrower than the other: head turned
+# Tracking-quality limits used to pause measurement (documented in config.py).
+from ocusense.config import MIN_EYE_WIDTH_PX, MIN_EYE_WIDTH_RATIO
 
 
-def distance(a, b):
+def distance(a: tuple[float, float], b: tuple[float, float]) -> float:
     return math.hypot(a[0] - b[0], a[1] - b[1])
 
 
-def eye_aspect_ratio(points):
+def eye_aspect_ratio(points: list[tuple[float, float]]) -> float | None:
     """EAR from six (x, y) pixel points ordered p1..p6."""
     p1, p2, p3, p4, p5, p6 = points
     width = distance(p1, p4)
@@ -42,7 +41,7 @@ def eye_aspect_ratio(points):
     return (distance(p2, p6) + distance(p3, p5)) / (2 * width)
 
 
-def eye_points_px(landmarks, indices, frame_width, frame_height):
+def eye_points_px(landmarks, indices: tuple[int, ...], frame_width: int, frame_height: int) -> list[tuple[float, float]]:
     """Convert MediaPipe's 0-1 coordinates into pixel coordinates.
 
     This matters because camera images are not square: a 0.1 step
@@ -58,7 +57,7 @@ class EyeMeasurement:
     reason: str  # why it's unreliable ("" when reliable)
 
 
-def measure_eyes(landmarks, frame_width, frame_height):
+def measure_eyes(landmarks, frame_width: int, frame_height: int) -> "EyeMeasurement":
     """Compute both EARs and decide whether this frame is trustworthy."""
     ears = {}
     widths = {}

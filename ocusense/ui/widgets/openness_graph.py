@@ -8,12 +8,10 @@ from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QBrush, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
-from ocusense.core.blink_counter import CLOSE_BELOW, REOPEN_ABOVE
-from ocusense.core.history import GRAPH_SECONDS
+from ocusense.config import CLOSE_BELOW, GRAPH_SECONDS, MAX_FRAME_GAP, REOPEN_ABOVE
 
-from . import theme
+from .. import theme
 
-MAX_GAP_SECONDS = 0.5  # samples further apart than this are not joined
 
 
 class OpennessGraph(QWidget):
@@ -104,7 +102,7 @@ class OpennessGraph(QWidget):
         dip = None  # lowest point since the last blink
         blink_points = []
         for t, openness, blinked in self.samples:
-            if openness is None or (last_t is not None and t - last_t > MAX_GAP_SECONDS):
+            if openness is None or (last_t is not None and t - last_t > MAX_FRAME_GAP):
                 pen_down = False
             if openness is not None:
                 point = QPointF(x_of(t), y_of(openness[2]))

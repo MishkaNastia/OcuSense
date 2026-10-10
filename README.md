@@ -35,7 +35,7 @@ labelled demo sessions: `python -m ocusense --demo-history`.
 ## Build OcuSense.app (macOS)
 
 ```
-.venv/bin/pip install pyinstaller
+.venv/bin/pip install -r requirements-build.txt
 ./packaging/build_mac.sh
 ```
 
@@ -48,7 +48,7 @@ for OcuSense itself.
 
 ```
 source .venv/bin/activate
-python main.py
+python -m prototype
 ```
 
 In the video window:
@@ -71,27 +71,72 @@ Blinks are only counted after a successful calibration.
 4. A blink is counted once per open → closed (below 0.35) → open
    (above 0.65) sequence (`ocusense/core/blink_counter.py`). Measurement pauses when the
    face is lost, too small or turned away.
-5. The screen also shows each eye separately: its openness, EAR,
+5. The OpenCV prototype also shows each eye separately: its openness, EAR,
    calibration references and its own blink count. Per-eye counts also
    include one-eyed winks; the main "Blinks" count needs both eyes.
 6. A live graph at the bottom shows the last 10 seconds of personal eye
-   openness (left, right, both), the two thresholds, and a green tick for
-   each counted blink (`ocusense/core/history.py`, drawn by `score_graph.py`). It is kept in memory only.
+   openness and a mark for each counted blink (`ocusense/core/history.py`;
+   drawn by `ocusense/ui/widgets/openness_graph.py`). It is kept in memory only.
 
 Personal eye openness is relative to your own calibration only. It is not
 a fatigue or health measure, and accuracy has not been established for
 everyone - see [EVALUATION_CHECKLIST.md](EVALUATION_CHECKLIST.md).
 
-## Project layout
+## Project structure
 
-- `ocusense/core/`: monitoring logic with no user interface (EAR,
-  calibration, blink counting, openness history, and `monitor.py`, which
-  runs one measuring step per camera frame).
-- `main.py` + `score_graph.py`: the OpenCV prototype window.
-- `ocusense/app/`: the PySide6 desktop app (window, camera thread, graph, artwork).
+```
+ocusense/
+  config.py            documented defaults (thresholds, limits, camera, file paths)
+  core/                pure calculations — no PySide6, camera or MediaPipe
+    eye_metrics.py     EAR from eyelid points, tracking-quality checks
+    calibration.py     personal open/closed references, validation, personal openness
+    blink_counter.py   the blink rule (open → closed → open)
+    history.py         last 10 s of openness for the live graph
+    session.py         per-session recording: blink rate, closure times, gaps
+    models.py          shared data structures (SessionSummary, MinuteBin)
+    stats.py           Statistics maths: periods, weighted averages, display units
+  monitoring/          camera + MediaPipe
+    pipeline.py        one camera frame → structured results (EyeMonitor)
+    camera_worker.py   background thread; sends results to the interface
+  storage.py           where session summaries are kept (memory now, file later)
+  demo_data.py         labelled demo sessions for --demo-history
+  ui/                  PySide6 interface — displays results, relays actions
+    app.py             start-up, error dialogs, --self-test
+    main_window.py     header, navigation, session life cycle
+    study_page.py      study screen
+    calibration_view.py guided calibration screen
+    statistics_page.py "Your patterns"
+    theme.py           colours, fonts, style sheet
+    widgets/           drawing-only pieces (graph, chart, artwork, status)
+prototype/             original OpenCV window (python -m prototype)
+packaging/             Mac build script, PyInstaller recipe, icon generator
+tests/                 one test file per area, plus structure guards
+models/                MediaPipe face model (python download_model.py)
+```
+
+**Where future work goes**
+
+- **New measurement or formula** (e.g. a new eye metric): `ocusense/core/` —
+  one function, with tests. Per-session versions go in `core/session.py`;
+  period summaries in `core/stats.py`. Store internal values in seconds and
+  convert only for display (`stats.to_display`).
+- **New default or threshold**: `ocusense/config.py`, with a comment and unit.
+  A person's own calibration data is *not* config.
+- **Feedback rules** (break reminders, pattern check-ins): a new pure module in
+  `ocusense/core/` that takes session numbers and returns a decision; the
+  interface only shows it.
+- **Saving history**: replace `SessionStore` in `ocusense/storage.py`.
+- **Interface changes**: the page in `ocusense/ui/`; reusable drawing in
+  `ui/widgets/`; colours and fonts in `ui/theme.py`. Interface code never
+  recalculates EAR or blinks — `tests/test_structure.py` checks this.
+- **Files used at runtime** (models, fonts, images): load them with
+  `config.resource_path(...)` so they work in development and in OcuSense.app,
+  and add them to `packaging/OcuSense.spec`.
 
 ## Tests
 
 ```
 python -m unittest
 ```
+
+Runs every test in `tests/` (no camera needed; the window is tested offscreen).

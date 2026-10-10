@@ -6,7 +6,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QBrush, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QWidget
 
-from . import theme
+from .. import theme
 
 
 def _pen(hex_value, width):

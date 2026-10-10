@@ -5,27 +5,21 @@ EyeMonitor.process() for every frame, and decides how to show the result.
 Frames are analysed in memory and never stored.
 """
 
-import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import cv2
 import mediapipe as mp
+import numpy as np
 from mediapipe.tasks.python import BaseOptions, vision
 
-from .blink_counter import BlinkCounter
-from .calibration import GuidedCalibration
-from .eye_metrics import measure_eyes
-from .history import ScoreHistory
+from ocusense.config import MODEL_PATH
+from ocusense.core.blink_counter import BlinkCounter
+from ocusense.core.calibration import GuidedCalibration
+from ocusense.core.eye_metrics import measure_eyes
+from ocusense.core.history import ScoreHistory
 
-def _resource_root():
-    """The project folder, or the app's bundled resources when running as OcuSense.app."""
-    bundle = getattr(sys, "_MEIPASS", None)  # set by PyInstaller inside the packaged app
-    return Path(bundle) if bundle else Path(__file__).resolve().parents[2]
-
-
-MODEL_PATH = _resource_root() / "models" / "face_landmarker.task"
 
 # Events that process() can report, so the interface can react to them.
 CLOSED_STEP_FINISHED = "closed_step_finished"  # eyes may open again
@@ -33,7 +27,7 @@ CALIBRATION_DONE = "calibration_done"
 CALIBRATION_FAILED = "calibration_failed"
 
 
-def create_landmarker(model_path=MODEL_PATH):
+def create_landmarker(model_path: Path = MODEL_PATH):
     options = vision.FaceLandmarkerOptions(
         base_options=BaseOptions(model_asset_path=str(model_path)),
         running_mode=vision.RunningMode.VIDEO,
@@ -53,7 +47,7 @@ class FrameResult:
 
 
 class EyeMonitor:
-    def __init__(self, model_path=MODEL_PATH):
+    def __init__(self, model_path: Path = MODEL_PATH):
         self.counter = BlinkCounter()  # both eyes together (the main count)
         # One extra counter per eye, fed with that eye's own openness. These
         # also count one-eyed winks, which the main count ignores.
@@ -65,19 +59,19 @@ class EyeMonitor:
         self._start = time.monotonic()
         self._last_timestamp_ms = -1
 
-    def reset_session(self):
+    def reset_session(self) -> None:
         """Start a new session: forget blink counts and graph history, keep the calibration."""
         self.counter = BlinkCounter()
         self.eye_counters = {"left": BlinkCounter(), "right": BlinkCounter()}
         self.history.clear()
 
-    def start_calibration(self, now):
+    def start_calibration(self, now: float) -> None:
         self.calibration = None  # forget the old one; never mix old and new
         self.history.clear()
         self.calibrator.start(now)
 
-    def process(self, camera_frame, now):
-        """Analyse one camera frame taken at time `now` (time.monotonic())."""
+    def process(self, camera_frame: np.ndarray, now: float) -> FrameResult:
+        """Analyse one BGR camera frame taken at `now` (time.monotonic(), seconds)."""
         # Mirror the image so it behaves like a mirror. The eye names
         # ("left"/"right") in eye_metrics depend on this.
         frame = cv2.flip(camera_frame, 1)
@@ -122,5 +116,5 @@ class EyeMonitor:
         self.eye_counters["right"].update(openness[1] if openness else None)
         return result
 
-    def close(self):
+    def close(self) -> None:
         self.landmarker.close()

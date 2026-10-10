@@ -6,7 +6,7 @@ saved to disk.
 
 from collections import deque
 
-GRAPH_SECONDS = 10.0  # how much history the graph shows
+from ocusense.config import GRAPH_SECONDS
 
 
 class ScoreHistory:
@@ -17,11 +17,11 @@ class ScoreHistory:
     is paused (shown as a gap in the graph).
     """
 
-    def __init__(self, seconds=GRAPH_SECONDS):
+    def __init__(self, seconds: float = GRAPH_SECONDS):
         self.seconds = seconds
         self.samples = deque()
 
-    def add(self, now, openness, blinked=False):
+    def add(self, now: float, openness: tuple | None, blinked: bool = False) -> None:
         self.samples.append((now, openness, blinked))
         while now - self.samples[0][0] > self.seconds:
             self.samples.popleft()

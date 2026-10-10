@@ -8,7 +8,7 @@ import math
 import random
 from datetime import date, datetime, timedelta
 
-from ocusense.core.session import MinuteBin, SessionSummary
+from ocusense.core.models import MinuteBin, SessionSummary
 
 # (days ago, start "HH:MM", study minutes, blink rate, median closure ms, % closed, tracked share)
 PLAN = [

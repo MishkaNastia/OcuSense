@@ -1,7 +1,7 @@
-"""Lets you start the desktop app with:  python -m ocusense"""
+"""Start the desktop app with:  python -m ocusense"""
 
 import sys
 
-from ocusense.app.main import run
+from ocusense.ui.app import run
 
 sys.exit(run())

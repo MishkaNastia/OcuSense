@@ -8,12 +8,9 @@ Personal eye openness comes from calibration.py:
 1.0 = as open as during your calibration, 0.0 = as closed as during it.
 """
 
-# Eyes count as CLOSED when openness drops below this value...
-CLOSE_BELOW = 0.35
-# ...and only count as OPEN again once it rises above this value.
-# Using two different values stops tiny wobbles around one number from
-# being counted as many blinks.
-REOPEN_ABOVE = 0.65
+# Thresholds are documented in ocusense/config.py (closed below CLOSE_BELOW,
+# open again only above REOPEN_ABOVE, so wobbles aren't counted twice).
+from ocusense.config import CLOSE_BELOW, REOPEN_ABOVE
 
 
 class BlinkCounter:
@@ -22,7 +19,7 @@ class BlinkCounter:
     OPEN = "open"
     CLOSED = "closed"
 
-    def __init__(self, close_below=CLOSE_BELOW, reopen_above=REOPEN_ABOVE):
+    def __init__(self, close_below: float = CLOSE_BELOW, reopen_above: float = REOPEN_ABOVE):
         if close_below >= reopen_above:
             raise ValueError("close_below must be lower than reopen_above")
         self.close_below = close_below
@@ -30,7 +27,7 @@ class BlinkCounter:
         self.count = 0
         self.state = self.UNKNOWN
 
-    def update(self, openness):
+    def update(self, openness: float | None) -> bool:
         """Feed in one frame.
 
         openness is the personal eye openness, or None when measurement is

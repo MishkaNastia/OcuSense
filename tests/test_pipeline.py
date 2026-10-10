@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 
 from ocusense.core.calibration import GuidedCalibration
-from ocusense.core.monitor import MODEL_PATH, EyeMonitor
+from ocusense.monitoring.pipeline import MODEL_PATH, EyeMonitor
 
 
 @unittest.skipUnless(MODEL_PATH.exists(), "model file missing - run download_model.py")
