@@ -12,7 +12,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QWidget
 
 from ocusense.core.baseline_drift import NOT_ENOUGH_DATA, TESTED, LiveDrift
-from ocusense.config import POSTURE_CALIBRATION_SECONDS, POSTURE_SUSTAIN_SECONDS
+from ocusense.config import LID_RECALIBRATE_DEGREES, POSTURE_CALIBRATION_SECONDS, POSTURE_SUSTAIN_SECONDS
 from ocusense.core.models import SessionSummary
 from ocusense.core.posture import PostureCalibration
 from ocusense.reference import MIN_REFERENCE_INTERVALS
@@ -116,20 +116,24 @@ class CurrentSessionPage(Page):
         self.posture_indicator = StatusIndicator()
         self.posture_indicator.set("ready", "Not calibrated")
         posture_row.addWidget(self.posture_indicator, 1)
-        self.posture_button = QPushButton("Calibrate posture")
+        self.posture_button = QPushButton("Recalibrate posture")
         self.posture_button.setProperty("kind", "secondary")
         self.posture_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.posture_button.clicked.connect(self.calibrate_posture.emit)
         posture_row.addWidget(self.posture_button, 0, Qt.AlignmentFlag.AlignTop)
         body.addLayout(posture_row)
-        self.posture_detail = label("Sit up straight, facing the screen, and press Calibrate posture: OcuSense "
-                                    "records your head angle, distance and position for "
-                                    f"{POSTURE_CALIBRATION_SECONDS:.0f} seconds and compares with them from then on.", "secondary", theme.ui_font(14), wrap=True)
+        minutes = POSTURE_CALIBRATION_SECONDS / 60
+        self.posture_detail = label(f"After each eye calibration, the first {minutes:.0f} minutes of work become your "
+                                    "posture baseline: sit the way you want to, at a good distance from the screen. "
+                                    "Moved your chair or desk? Press Recalibrate posture.",
+                                    "secondary", theme.ui_font(14), wrap=True)
         body.addWidget(self.posture_detail)
         body.addWidget(label("Head angle, distance (estimated from your iris, so approximate) and how low your face "
                              "sits in the picture. A limit must be exceeded for "
                              f"{POSTURE_SUSTAIN_SECONDS:.0f} seconds in a row to count, so "
-                             "glancing away doesn't. Shown live only — never saved. Not a health assessment.",
+                             "glancing away doesn't. On MacBooks that report the screen angle, small screen tilts "
+                             f"are corrected and a tilt of {LID_RECALIBRATE_DEGREES:.0f}° or more records a new "
+                             "baseline. Shown live only — never saved. Not a health assessment.",
                              "secondary", theme.ui_font(13), wrap=True))
 
         self.section("Blink distributions", body)
@@ -246,8 +250,10 @@ class CurrentSessionPage(Page):
     def show_posture(self, update) -> None:
         """update: the window's MonitorUpdate. Only shows what core/posture.py worked out."""
         if update.posture_cal_status == PostureCalibration.RUNNING:
-            self.posture_indicator.set("calibrating", "Calibrating posture…")
-            self.posture_detail.setText(f"Sit up straight and look at the screen · {update.posture_cal_seconds_left:.0f} s")
+            minutes, seconds = divmod(int(round(update.posture_cal_seconds_left)), 60)
+            self.posture_indicator.set("calibrating", f"Recording your posture: {minutes}:{seconds:02d} left")
+            self.posture_detail.setText("Keep working, sitting the way you want to, at a good distance from the "
+                                        "screen. Posture isn't judged until this is done.")
             return
         if update.posture_cal_status == PostureCalibration.FAILED and update.posture_status is None:
             self.posture_indicator.set("paused", "Posture calibration failed")
@@ -274,6 +280,9 @@ class CurrentSessionPage(Page):
             parts.append(f"about {status.distance_cm:.0f} cm away (calibrated {status.baseline_distance_cm:.0f} cm)")
         parts.append(f"face {abs(status.centre_drop) * 100:.0f} % of the picture "
                      f"{'lower' if status.centre_drop > 0 else 'higher'}")
+        if status.lid_change:
+            parts.append(f"screen tilted {abs(status.lid_change):.0f}° {'back' if status.lid_change > 0 else 'forward'}"
+                         " (corrected)")
         self.posture_detail.setText("Compared with your calibration: " + " · ".join(parts) + ".")
 
     def show_distributions(self, data, thresholds, context: dict) -> None:

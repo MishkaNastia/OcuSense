@@ -16,6 +16,7 @@ from PySide6.QtGui import QImage
 from ocusense.config import CAMERA_INDEX, PREVIEW_WIDTH
 from ocusense.core.calibration import STEPS
 from ocusense.core.posture import PostureCalibration
+from ocusense.lid_sensor import LidSensor
 from ocusense.monitoring.pipeline import EyeMonitor, FrameResult
 
 
@@ -47,6 +48,7 @@ class MonitorUpdate:
     posture_cal_status: str = PostureCalibration.IDLE
     posture_cal_seconds_left: float = 0.0
     posture_cal_error: str = ""
+    lid_sensor: bool = False  # the screen angle could be read (tilt is corrected and watched)
 
 
 def open_camera(index: int = CAMERA_INDEX) -> cv2.VideoCapture | None:
@@ -94,6 +96,7 @@ def snapshot(monitor: EyeMonitor, result: FrameResult, now: float) -> MonitorUpd
         posture_cal_status=monitor.posture_calibrator.status,
         posture_cal_seconds_left=monitor.posture_calibrator.seconds_left(now),
         posture_cal_error=monitor.posture_calibrator.error,
+        lid_sensor=result.posture is not None and result.posture.lid_angle is not None,
     )
 
 
@@ -113,6 +116,7 @@ class CameraWorker(QThread):
         self._lock = threading.Lock()
         self._calibration_requested = False
         self._posture_calibration_requested = False
+        self.lid = LidSensor()  # opened on this thread, read at most twice a second
 
     def request_calibration(self) -> None:
         with self._lock:
@@ -123,6 +127,12 @@ class CameraWorker(QThread):
             self._posture_calibration_requested = True
 
     def run(self) -> None:
+        try:
+            self._run()
+        finally:
+            self.lid.close()
+
+    def _run(self) -> None:
         while not self.isInterruptionRequested():
             ok, frame = self.camera.read()
             if not ok:
@@ -136,7 +146,7 @@ class CameraWorker(QThread):
                 self.monitor.start_calibration(now)
             if posture:
                 self.monitor.start_posture_calibration(now)
-            result = self.monitor.process(frame, now)
+            result = self.monitor.process(frame, now, self.lid.read(now))
             update = snapshot(self.monitor, result, now)
             update.source = self
             self.updated.emit(update)

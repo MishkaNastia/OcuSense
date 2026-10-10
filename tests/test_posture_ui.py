@@ -7,7 +7,7 @@ from tests.test_main_window import FakeThread, update  # sets offscreen Qt and a
 
 from ocusense.core.models import PostureStatus
 from ocusense.core.posture import HEAD_DROPPED, SLUMPED, PostureCalibration
-from ocusense.monitoring.pipeline import MODEL_PATH
+from ocusense.monitoring.pipeline import MODEL_PATH, SCREEN_TILTED
 
 os.environ["OCUSENSE_NO_NOTIFICATIONS"] = "1"
 
@@ -19,6 +19,8 @@ class PostureUiTest(unittest.TestCase):
         self.window = MainWindow()
         self.thread = FakeThread()
         self.window._start_camera = lambda: (setattr(self.window, "thread", self.thread), True)[1]
+        self.notifications = []
+        self.window.notify = lambda message, title: self.notifications.append((title, message))
         self.page = self.window.current_page
 
     def tearDown(self):
@@ -46,16 +48,18 @@ class PostureUiTest(unittest.TestCase):
 
     def test_calibrating_then_good_then_poor(self):
         self.monitoring()
-        self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=2.2)
-        self.assertEqual(self.page.posture_indicator.text.text(), "Calibrating posture…")
-        self.assertIn("2 s", self.page.posture_detail.text())
+        self.assertEqual(self.page.posture_button.text(), "Recalibrate posture")
+        self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=80.4)
+        self.assertEqual(self.page.posture_indicator.text.text(), "Recording your posture: 1:20 left")
+        self.assertIn("Keep working", self.page.posture_detail.text())
 
         good = PostureStatus(tracked=True, pitch_change=-2.0, roll_change=1.0, distance_cm=63.0,
-                             baseline_distance_cm=65.0, centre_drop=0.01, size_ratio=1.02)
+                             baseline_distance_cm=65.0, centre_drop=0.01, size_ratio=1.02, lid_change=3.0)
         self.send(posture_cal_status=PostureCalibration.DONE, posture_status=good)
         self.assertEqual(self.page.posture_indicator.text.text(), "Good posture")
         self.assertIn("head 2° higher", self.page.posture_detail.text())
         self.assertIn("about 63 cm away (calibrated 65 cm)", self.page.posture_detail.text())
+        self.assertIn("screen tilted 3° back (corrected)", self.page.posture_detail.text())
 
         brief = PostureStatus(tracked=True, outside=(HEAD_DROPPED,), longest_outside=4.0, pitch_change=20.0,
                               roll_change=0.0, centre_drop=0.0)
@@ -67,6 +71,15 @@ class PostureUiTest(unittest.TestCase):
         self.send(posture_cal_status=PostureCalibration.DONE, posture_status=poor)
         self.assertEqual(self.page.posture_indicator.text.text(), "Poor posture: head dropped, slumped")
         self.assertEqual(self.page.posture_indicator.glyph.kind, "warning")
+
+    def test_screen_tilt_sends_the_message(self):
+        self.monitoring()
+        self.send(events=[SCREEN_TILTED], posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=120)
+        self.assertEqual(self.notifications, [("OcuSense", "You tilted your screen, recalibrating now")])
+        self.assertIn("You tilted your screen, recalibrating now", self.window.study.message_label.text())
+        self.assertEqual(self.page.posture_indicator.text.text(), "Recording your posture: 2:00 left")
+        self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=119)
+        self.assertEqual(len(self.notifications), 1)  # once per tilt
 
     def test_failed_calibration_and_lost_face(self):
         self.monitoring()

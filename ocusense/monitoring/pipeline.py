@@ -21,7 +21,7 @@ from ocusense.core.calibration import GuidedCalibration
 from ocusense.core.eye_metrics import measure_eyes
 from ocusense.core.history import ScoreHistory
 from ocusense.core.models import CalibrationInfo, FrameObservation, PostureReading, PostureStatus
-from ocusense.core.posture import PostureCalibration, PostureMonitor, read_posture
+from ocusense.core.posture import PostureCalibration, PostureMonitor, TiltWatcher, read_posture
 
 
 # Events that process() can report, so the interface can react to them.
@@ -30,6 +30,7 @@ CALIBRATION_DONE = "calibration_done"
 CALIBRATION_FAILED = "calibration_failed"
 POSTURE_CALIBRATION_DONE = "posture_calibration_done"
 POSTURE_CALIBRATION_FAILED = "posture_calibration_failed"
+SCREEN_TILTED = "screen_tilted"  # the screen was clearly tilted: the posture baseline is being recorded again
 
 
 def create_landmarker(model_path: Path = MODEL_PATH):
@@ -69,6 +70,7 @@ class EyeMonitor:
         self.landmarker = create_landmarker(model_path)
         self.posture_calibrator = PostureCalibration()  # separate from the eye calibration
         self.posture_monitor: PostureMonitor | None = None  # once posture is calibrated
+        self.tilt = TiltWatcher()  # screen tilt since the posture baseline (MacBook lid sensor)
         self._start = time.monotonic()
         self._last_timestamp_ms = -1
 
@@ -91,8 +93,9 @@ class EyeMonitor:
             self.posture_monitor.reset()
 
     def start_posture_calibration(self, now: float) -> None:
-        """The "sit up straight" step; the eye calibration and blink counting carry on unchanged."""
+        """Record a new posture baseline; the eye calibration and blink counting carry on unchanged."""
         self.posture_calibrator.start(now)
+        self.tilt.set_reference(None)  # taken from the next lid reading
 
     def start_calibration(self, now: float) -> None:
         self.calibration = None  # forget the old one; never mix old and new
@@ -100,8 +103,11 @@ class EyeMonitor:
         self.history.clear()
         self.calibrator.start(now)
 
-    def process(self, camera_frame: np.ndarray, now: float) -> FrameResult:
-        """Analyse one BGR camera frame taken at `now` (time.monotonic(), seconds)."""
+    def process(self, camera_frame: np.ndarray, now: float, lid_angle: float | None = None) -> FrameResult:
+        """Analyse one BGR camera frame taken at `now` (time.monotonic(), seconds).
+
+        lid_angle: the MacBook screen angle in degrees (lid_sensor.py), or None without the sensor.
+        """
         # Mirror the image so it behaves like a mirror. The eye names
         # ("left"/"right") in eye_metrics depend on this.
         frame = cv2.flip(camera_frame, 1)
@@ -120,7 +126,7 @@ class EyeMonitor:
         measurement = measure_eyes(landmarks, width, height) if landmarks else None
         reliable_ears = measurement.ears if measurement and measurement.reliable else None
         result = FrameResult(frame, landmarks, measurement)
-        self._posture(detection, landmarks, width, height, now, result)
+        self._posture(detection, landmarks, width, height, now, lid_angle, result)
 
         # --- calibration or counting ---
         calibrator = self.calibrator
@@ -142,6 +148,7 @@ class EyeMonitor:
                     reference_face_scale=self.calibration.face_scale,
                 )
                 result.events.append(CALIBRATION_DONE)
+                self.start_posture_calibration(now)  # the next 2 min of work become the posture baseline
             elif calibrator.status == GuidedCalibration.FAILED:
                 result.events.append(CALIBRATION_FAILED)
         raw = None
@@ -176,14 +183,22 @@ class EyeMonitor:
         self.eye_counters["right"].update(openness[1] if openness else None)
         return result
 
-    def _posture(self, detection, landmarks, width: int, height: int, now: float, result: FrameResult) -> None:
+    def _posture(self, detection, landmarks, width: int, height: int, now: float, lid_angle: float | None,
+                 result: FrameResult) -> None:
         """Posture is measured beside the eyes and never changes them; plain numbers go to core/posture.py."""
         matrix = None
         if landmarks and detection.facial_transformation_matrixes:
             matrix = [[float(v) for v in row] for row in detection.facial_transformation_matrixes[0]]
         points = [(p.x, p.y) for p in landmarks] if landmarks else []
-        result.posture = read_posture(matrix, points, width, height)
+        result.posture = read_posture(matrix, points, width, height, lid_angle)
         calibrator = self.posture_calibrator
+        if calibrator.status == PostureCalibration.RUNNING or self.posture_monitor is not None:
+            if self.tilt.reference is None:
+                self.tilt.set_reference(lid_angle)  # the angle this baseline is (being) made at
+            elif self.tilt.update(now, lid_angle):
+                result.events.append(SCREEN_TILTED)
+                self.start_posture_calibration(now)
+                self.tilt.set_reference(lid_angle)
         if calibrator.status == PostureCalibration.RUNNING:
             calibrator.update(now, result.posture)
             if calibrator.status == PostureCalibration.DONE:

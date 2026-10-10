@@ -5,8 +5,8 @@ import unittest
 
 from ocusense.core.models import PostureBaseline, PostureReading
 from ocusense.core.posture import (
-    HEAD_DROPPED, HEAD_TILTED, IRIS_EDGES, SLUMPED, TOO_CLOSE, PostureCalibration, PostureMonitor, angle_difference,
-    distance_cm, head_pose, iris_width_px, read_posture,
+    HEAD_DROPPED, HEAD_TILTED, IRIS_EDGES, SLUMPED, TOO_CLOSE, PostureCalibration, PostureMonitor, TiltWatcher,
+    angle_difference, corrected_for_tilt, distance_cm, head_pose, iris_width_px, read_posture,
 )
 
 
@@ -38,8 +38,12 @@ def face_points(centre=(0.5, 0.5), size=0.3, iris=0.02):
 BASE = PostureBaseline(pitch=2.0, roll=1.0, distance_cm=65.0, centre_y=0.45, size=0.30)
 
 
-def reading(pitch=2.0, roll=1.0, distance=65.0, centre_y=0.45, size=0.30):
-    return PostureReading(pitch=pitch, yaw=0.0, roll=roll, distance_cm=distance, centre_y=centre_y, size=size)
+def reading(pitch=2.0, roll=1.0, distance=65.0, centre_y=0.45, size=0.30, lid=None):
+    return PostureReading(pitch=pitch, yaw=0.0, roll=roll, distance_cm=distance, centre_y=centre_y, size=size,
+                          lid_angle=lid)
+
+
+SLUMP = dict(centre_y=0.6, size=0.36)  # lower and 20 % bigger
 
 
 class HeadPoseTest(unittest.TestCase):
@@ -88,7 +92,9 @@ class DistanceTest(unittest.TestCase):
         self.assertIsNone(distance_cm(None, 640))
 
     def test_read_posture(self):
-        r = read_posture(pose_matrix(10, 0, -5), face_points(centre=(0.5, 0.6), size=0.3, iris=0.018), 640, 480)
+        r = read_posture(pose_matrix(10, 0, -5), face_points(centre=(0.5, 0.6), size=0.3, iris=0.018), 640, 480,
+                         lid_angle=118.0)
+        self.assertEqual((r.aspect, r.lid_angle), (640 / 480, 118.0))
         self.assertAlmostEqual(r.pitch, 10)
         self.assertAlmostEqual(r.roll, -5)
         self.assertAlmostEqual(r.centre_y, 0.6)
@@ -102,33 +108,46 @@ class DistanceTest(unittest.TestCase):
 
 
 class CalibrationTest(unittest.TestCase):
-    def test_medians_after_three_seconds(self):
-        cal = PostureCalibration()
+    def record(self, readings, seconds=120.0):
+        """Feed readings at 30 frames/s over `seconds`, the last one at the end."""
+        cal = PostureCalibration(seconds=seconds)
         cal.start(0.0)
-        for i in range(90):  # 30 frames/s
-            pitch = 50.0 if i == 10 else 2.0  # one odd frame doesn't move the median
-            cal.update(i / 30, reading(pitch=pitch, distance=64.0 + (i % 3)))
-            self.assertEqual(cal.status, PostureCalibration.RUNNING)
-        cal.update(3.0, reading())
+        n = int(seconds * 30)
+        for i in range(n):
+            cal.update(i / 30, readings(i))
+        cal.update(seconds, readings(n))
+        return cal
+
+    def test_medians_after_two_minutes(self):
+        cal = self.record(lambda i: reading(pitch=50.0 if i % 100 == 0 else 2.0 + (i % 3) - 1,  # odd frames ignored
+                                            distance=64.0 + (i % 3), lid=118.0))
         self.assertEqual(cal.status, PostureCalibration.DONE)
         self.assertEqual(cal.result.pitch, 2.0)
         self.assertEqual(cal.result.distance_cm, 65.0)
         self.assertEqual(cal.result.centre_y, 0.45)
+        self.assertEqual(cal.result.lid_angle, 118.0)
 
-    def test_fails_without_enough_measured_frames(self):
+    def test_still_running_before_the_end(self):
         cal = PostureCalibration()
         cal.start(0.0)
-        for i in range(91):
-            cal.update(i / 30, reading() if i < 5 else None)
+        cal.update(119.0, reading())
+        self.assertEqual(cal.status, PostureCalibration.RUNNING)
+        self.assertAlmostEqual(cal.seconds_left(100.0), 20.0)
+        self.assertEqual(PostureCalibration().seconds_left(5.0), 0.0)
+
+    def test_fails_without_enough_measured_frames(self):
+        cal = self.record(lambda i: reading() if i < 200 else None)  # face seen for ~7 s of 120
         self.assertEqual(cal.status, PostureCalibration.FAILED)
         self.assertIn("try again", cal.error)
         self.assertIsNone(cal.result)
 
-    def test_seconds_left(self):
-        cal = PostureCalibration()
-        self.assertEqual(cal.seconds_left(5.0), 0.0)
-        cal.start(1.0)
-        self.assertAlmostEqual(cal.seconds_left(2.0), 2.0)
+    def test_fails_when_the_posture_kept_changing(self):
+        cal = self.record(lambda i: reading(pitch=-10.0 + 20.0 * ((i // 300) % 2)))  # head up and down in turns
+        self.assertEqual(cal.status, PostureCalibration.FAILED)
+        self.assertIn("kept changing", cal.error)
+
+    def test_no_lid_angle_without_the_sensor(self):
+        self.assertIsNone(self.record(lambda i: reading()).result.lid_angle)
 
 
 class LimitTest(unittest.TestCase):
@@ -155,10 +174,11 @@ class LimitTest(unittest.TestCase):
         far = PostureMonitor(PostureBaseline(2.0, 1.0, 100.0, 0.45, 0.3))
         self.assertEqual(far.exceeded(reading(distance=79.0)), {TOO_CLOSE})  # 21 % closer, still far away
 
-    def test_slumped_means_lower_in_the_picture(self):
-        self.assertEqual(self.check(centre_y=0.45 + 0.09), {SLUMPED})
-        self.assertEqual(self.check(centre_y=0.45 + 0.07), set())
-        self.assertEqual(self.check(centre_y=0.45 - 0.2), set())  # higher (sitting up more) is fine
+    def test_slumped_means_lower_and_bigger(self):
+        self.assertEqual(self.check(centre_y=0.45 + 0.09, size=0.30 * 1.11), {SLUMPED})
+        self.assertEqual(self.check(centre_y=0.45 + 0.09, size=0.30), set())  # lower only: more likely the camera
+        self.assertEqual(self.check(centre_y=0.45 + 0.07, size=0.40), set())
+        self.assertEqual(self.check(centre_y=0.45 - 0.2, size=0.40), set())  # higher (sitting up more) is fine
 
 
 class SustainedRuleTest(unittest.TestCase):
@@ -170,14 +190,15 @@ class SustainedRuleTest(unittest.TestCase):
 
     def test_poor_only_after_thirty_seconds(self):
         monitor = PostureMonitor(BASE)
-        status = self.run_frames(monitor, 29.9, centre_y=0.6)
+        status = self.run_frames(monitor, 29.9, **SLUMP)
         self.assertFalse(status.poor)
         self.assertEqual(status.outside, (SLUMPED,))
         self.assertGreater(status.longest_outside, 29)
-        status = monitor.update(30.0, reading(centre_y=0.6))
+        status = monitor.update(30.0, reading(**SLUMP))
         self.assertTrue(status.poor)
         self.assertEqual(status.problems, (SLUMPED,))
         self.assertAlmostEqual(status.centre_drop, 0.15)
+        self.assertAlmostEqual(status.size_ratio, 1.2)
 
     def test_short_glance_never_counts(self):
         monitor = PostureMonitor(BASE)
@@ -198,17 +219,73 @@ class SustainedRuleTest(unittest.TestCase):
 
     def test_lost_face_resets_like_lost_tracking(self):
         monitor = PostureMonitor(BASE)
-        self.run_frames(monitor, 20, centre_y=0.6)
+        self.run_frames(monitor, 20, **SLUMP)
         self.assertFalse(monitor.update(20.0, None).tracked)
-        status = self.run_frames(monitor, 20, start=20.1, centre_y=0.6)  # 40 s slumped in total, but not in a row
+        status = self.run_frames(monitor, 20, start=20.1, **SLUMP)  # 40 s slumped in total, but not in a row
         self.assertFalse(status.poor)
 
     def test_each_limit_has_its_own_timer(self):
         monitor = PostureMonitor(BASE)
-        self.run_frames(monitor, 20, centre_y=0.6)  # slumped from 0 s
-        status = self.run_frames(monitor, 15, start=20.0, centre_y=0.6, roll=20.0)  # also tilted from 20 s
+        self.run_frames(monitor, 20, **SLUMP)  # slumped from 0 s
+        status = self.run_frames(monitor, 15, start=20.0, roll=20.0, **SLUMP)  # also tilted from 20 s
         self.assertEqual(status.problems, (SLUMPED,))  # slumped 35 s; tilted only 15 s
         self.assertEqual(set(status.outside), {SLUMPED, HEAD_TILTED})
+
+
+
+class ScreenTiltTest(unittest.TestCase):
+    LID_BASE = PostureBaseline(pitch=2.0, roll=1.0, distance_cm=65.0, centre_y=0.45, size=0.30, lid_angle=118.0)
+
+    def test_no_correction_without_the_sensor(self):
+        self.assertEqual(corrected_for_tilt(reading(pitch=5.0, centre_y=0.5), BASE), (5.0, 0.5, None))
+        self.assertEqual(corrected_for_tilt(reading(pitch=5.0, centre_y=0.5), self.LID_BASE)[2], None)  # no lid now
+
+    def test_opening_the_screen_is_subtracted(self):
+        # screen opened 5° further: the camera looks 5° up, so the head looks 5° more "chin down"
+        # and the face sits 1.0 × 4/3 × tan(5°) ≈ 11.7 % of the frame height lower
+        shift = 4 / 3 * math.tan(math.radians(5))
+        pitch, centre_y, change = corrected_for_tilt(reading(pitch=7.0, centre_y=0.45 + shift, lid=123.0),
+                                                     self.LID_BASE)
+        self.assertAlmostEqual(pitch, 2.0)
+        self.assertAlmostEqual(centre_y, 0.45)
+        self.assertEqual(change, 5.0)
+
+    def test_tilted_screen_isnt_bad_posture(self):
+        shift = 4 / 3 * math.tan(math.radians(4))
+        r = reading(pitch=6.0, centre_y=0.45 + shift, size=0.36, lid=122.0)  # 4° tilt, face looks lower
+        self.assertEqual(PostureMonitor(BASE).exceeded(r), {SLUMPED})  # without the sensor this would look slumped
+        self.assertEqual(PostureMonitor(self.LID_BASE).exceeded(r), set())
+        status = PostureMonitor(self.LID_BASE).update(0.0, r)
+        self.assertAlmostEqual(status.centre_drop, 0.0)
+        self.assertEqual(status.lid_change, 4.0)
+
+
+class TiltWatcherTest(unittest.TestCase):
+    def feed(self, watcher, angles, start=0.0, step=0.5):
+        return [t for i, a in enumerate(angles) if watcher.update(t := start + i * step, a)]
+
+    def test_settled_tilt_gives_one_event(self):
+        w = TiltWatcher()
+        w.set_reference(118.0)
+        moving = [118, 120, 123, 126, 129]  # being adjusted…
+        resting = [129, 129, 130, 129, 129, 129, 129]  # …then left there
+        events = self.feed(w, moving + resting)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0], 4.0)  # it reached 129° at 2.0 s and stayed within ±1° until 4.0 s
+        self.assertEqual(w.reference, 129.0)
+        self.assertEqual(self.feed(w, [129] * 20, start=10.0), [])  # staying there: no more events
+
+    def test_small_or_passing_moves_dont_count(self):
+        w = TiltWatcher()
+        w.set_reference(118.0)
+        self.assertEqual(self.feed(w, [118, 120, 121, 122, 121, 120] * 5), [])  # under 5°
+        self.assertEqual(self.feed(w, [118, 125, 131, 125, 118, 118], start=20.0), [])  # moved and came back
+
+    def test_needs_a_reference_and_a_reading(self):
+        w = TiltWatcher()
+        self.assertEqual(self.feed(w, [140] * 10), [])
+        w.set_reference(118.0)
+        self.assertEqual(self.feed(w, [None] * 10), [])
 
 
 if __name__ == "__main__":

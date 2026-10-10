@@ -123,16 +123,19 @@ class PostureReading:
     distance_cm: float | None  # estimated eye-to-camera distance, from the iris width
     centre_y: float  # face centre height in the picture: 0 = top, 1 = bottom
     size: float  # face width ÷ frame width
+    aspect: float = 4 / 3  # frame width ÷ height (to turn a screen tilt into a shift in the picture)
+    lid_angle: float | None = None  # MacBook screen angle in degrees, or None without the sensor
 
 
 @dataclass(frozen=True)
 class PostureBaseline:
-    """The "sit up straight" reference: median values from the posture calibration step."""
+    """The posture reference: median values from the posture calibration (2 min of normal work)."""
     pitch: float
     roll: float
     distance_cm: float
     centre_y: float
     size: float
+    lid_angle: float | None = None  # screen angle during calibration, or None without the sensor
 
 
 @dataclass(frozen=True)
@@ -149,3 +152,4 @@ class PostureStatus:
     baseline_distance_cm: float | None = None
     centre_drop: float | None = None  # fraction of the frame height, + = lower than at calibration
     size_ratio: float | None = None  # face size now ÷ at calibration (> 1 = bigger: closer or slid forward)
+    lid_change: float | None = None  # screen tilted since calibration, degrees (+ = opened further); corrected for

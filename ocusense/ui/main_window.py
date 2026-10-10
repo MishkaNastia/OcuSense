@@ -41,7 +41,9 @@ from ocusense.demo_data import demo_sessions
 from ocusense.monitoring.camera_worker import CameraWorker, MonitorUpdate, open_camera
 from ocusense import notifications
 from ocusense import reference as reference_file
-from ocusense.monitoring.pipeline import CALIBRATION_DONE, CALIBRATION_FAILED, CLOSED_STEP_FINISHED, EyeMonitor
+from ocusense.monitoring.pipeline import (
+    CALIBRATION_DONE, CALIBRATION_FAILED, CLOSED_STEP_FINISHED, SCREEN_TILTED, EyeMonitor,
+)
 from ocusense.recording import EarRecording
 from ocusense.storage import SessionStore
 
@@ -56,6 +58,7 @@ from .study_page import StudyPage
 from .widgets.alert_banner import AlertBanner, TooCloseMark
 from .widgets.common import vline
 
+TILT_MESSAGE = "You tilted your screen, recalibrating now"
 BREAK_MESSAGE = "Hey, you should take a break, else your eyes will become drier than the Sahara desert."
 DISTANCE_TITLE = "Trying to lick the screen?"
 DISTANCE_BODY = "Go easy on your eyes and move back a little."
@@ -321,6 +324,9 @@ class MainWindow(QMainWindow):
             return
         if self.recorder:
             self.recorder.add_observation(update.observation)
+        if SCREEN_TILTED in update.events:
+            self.notify(TILT_MESSAGE, "OcuSense")  # the posture baseline is recorded again (2 min)
+            self.study.message_label.setText(f"{TILT_MESSAGE} ({datetime.now():%H:%M}).")
         self._check_distance(update.now, update.closeness)
         self.study.set_live_openness(update.observation)
         self.study.set_blinks(update.blinks)
