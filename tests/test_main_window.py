@@ -15,6 +15,8 @@ RECORDINGS = tempfile.mkdtemp(prefix="ocusense-test-recordings-")
 os.environ["OCUSENSE_RECORDINGS_DIR"] = RECORDINGS  # never write into the real Library folder
 PREFERENCES_FILE = os.path.join(RECORDINGS, "preferences.json")
 os.environ["OCUSENSE_PREFERENCES_FILE"] = PREFERENCES_FILE  # never change the person's real Settings choices
+CALIBRATION_FILE = os.path.join(RECORDINGS, "calibration.json")
+os.environ["OCUSENSE_CALIBRATION_FILE"] = CALIBRATION_FILE  # never read or replace the person's real calibration
 
 from PySide6.QtGui import QColor, QImage  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
@@ -679,6 +681,73 @@ class ReminderIntervalTest(unittest.TestCase):
         self.assertFalse(again.settings_page.distance.isChecked())
         self.assertFalse(again.distance_reminder)
         self.assertFalse(again.settings_page.interval.isEnabled())
+
+
+@unittest.skipUnless(MODEL_PATH.exists(), "model file missing - run download_model.py")
+class SavedCalibrationTest(unittest.TestCase):
+    """Calibrate once: the calibration is saved and reused on the next launch."""
+
+    def setUp(self):
+        from ocusense.calibration_store import CalibrationStore
+        from tests.test_calibration_store import CAL, INFO
+        self.cal, self.info = CAL, INFO
+        self.store = CalibrationStore()  # the temporary file set at the top of this module
+        self.thread = FakeThread()
+
+    def tearDown(self):
+        if os.path.exists(CALIBRATION_FILE):
+            os.remove(CALIBRATION_FILE)
+
+    def open_window(self):
+        from ocusense.ui.main_window import MainWindow
+        window = MainWindow()
+        window._start_camera = lambda: (setattr(window, "thread", self.thread), True)[1]
+        self.addCleanup(window.close)
+        return window
+
+    def test_first_calibration_is_saved(self):
+        w = self.open_window()
+        w.start()
+        self.assertEqual(w.state, "calibrating")  # nothing saved yet: calibrate
+        w.monitor.calibration, w.monitor.calibration_info = self.cal, self.info  # what the worker produces
+        w._on_update(update(events=[CALIBRATION_DONE]))
+        self.assertEqual(self.store.load().calibration, self.cal)
+        self.assertIn("saved", w.study.message_label.text())
+
+    def test_next_launch_starts_monitoring_right_away(self):
+        self.store.save(self.cal, self.info)
+        w = self.open_window()
+        self.assertEqual(w.monitor.calibration, self.cal)
+        self.assertIn("saved calibration from 10 Oct 2026", w.study.message_label.text())
+        self.assertFalse(w.study.recalibrate_button.isHidden())  # recalibration is always possible
+        w.start()
+        self.assertEqual(w.state, "monitoring")
+        self.assertEqual(self.thread.calibration_requests, 0)  # no calibration this session
+        self.assertEqual(w.monitor.calibration_info.reference_face_scale, 0.21)  # distance reminder works too
+
+    def test_cancelled_recalibration_keeps_the_saved_one(self):
+        self.store.save(self.cal, self.info)
+        w = self.open_window()
+        w.recalibrate()
+        self.assertEqual(w.state, "calibrating")
+        w.monitor.calibration = None  # the worker forgets the old one when calibration starts
+        w.cancel_calibration()
+        self.assertEqual(w.monitor.calibration, self.cal)
+        self.assertIn("saved calibration is still in use", w.study.message_label.text())
+
+    def test_failed_recalibration_does_not_replace_the_file(self):
+        self.store.save(self.cal, self.info)
+        before = open(CALIBRATION_FILE).read()
+        w = self.open_window()
+        w.recalibrate()
+        w._on_update(update(events=[CALIBRATION_FAILED], cal_status="failed", cal_error="Too similar."))
+        self.assertEqual(open(CALIBRATION_FILE).read(), before)
+
+    def test_settings_show_the_saved_date(self):
+        self.store.save(self.cal, self.info)
+        w = self.open_window()
+        w.show_page("settings")
+        self.assertIn("Calibrated on 10 Oct 2026 at 15:52", w.settings_page.calibration_row_detail.text())
 
 
 if __name__ == "__main__":

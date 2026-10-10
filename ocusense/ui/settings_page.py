@@ -135,8 +135,9 @@ class SettingsPage(Page):
         self.body.addWidget(paragraph(
             "Camera images are analysed in memory on this Mac and thrown away immediately — they are never saved "
             "or uploaded. Statistics (session times, blink counts, closure durations) are <b>kept only until you "
-            "quit OcuSense</b>. Only the raw EAR recording, your reference for blink timing (below) and your "
-            "reminder choices are saved to disk.", rich=True))
+            "quit OcuSense</b>. Saved on this Mac: your calibration (a few numbers, reused every time OcuSense "
+            "opens), the raw EAR recording, your reference for blink timing (below) and your reminder choices.",
+            rich=True))
         self.record = QCheckBox("Record")
         self.record.setChecked(True)
         self.record.setAccessibleName("Record the raw EAR of every frame")

@@ -3,9 +3,10 @@
 Live webcam blink counter using OpenCV, Google MediaPipe Face Landmarker
 (to locate eyelid points) and the Eye Aspect Ratio (EAR) with personal
 calibration. All video is processed locally in memory: camera images are never
-saved or uploaded. Only the raw EAR recording (see below), your reference for
-blink timing (`reference.json`) and your reminder choices (`preferences.json`)
-are written to disk.
+saved or uploaded. Only the raw EAR recording (see below), your personal calibration
+(`calibration.json`, reused every time the app opens), your reference for blink
+timing (`reference.json`) and your reminder choices (`preferences.json`) are
+written to disk.
 
 For how every measurement and graph works (methods, time windows, histograms,
 saved files), see [docs/measurements.md](docs/measurements.md).
@@ -27,7 +28,10 @@ source .venv/bin/activate
 python -m ocusense
 ```
 
-Press **Start**. The first session begins with a 30-second calibration; after
+Press **Start**. The very first time, a short calibration (about 25 s) comes first.
+It is saved on this Mac (`~/Library/Application Support/OcuSense/calibration.json`)
+and reused every time OcuSense opens, so later sessions start right away; use
+**Recalibrate** (Study page or Settings) when your lighting, glasses or seat change. After
 that you see the timer, Pause / Stop / Recalibrate and the live eye-openness
 graph. Pause turns the camera off; Stop ends the session (calibration is kept).
 The sidebar on the left switches pages without interrupting monitoring:

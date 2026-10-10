@@ -131,8 +131,9 @@ Unreliable frames are **not** counted as open or closed: they are missing observ
 
 ## 4. Calibration
 
-Calibration measures **your** open and closed eyes. It runs at the start of the first
-session (and whenever you press Recalibrate) and takes **23.5 seconds**:
+Calibration measures **your** open and closed eyes. It runs **once** — the first time
+someone presses Start on a Mac — and whenever they press **Recalibrate**. It takes
+**23.5 seconds**:
 
 | Step | Instruction | Get ready | Measuring | Frames used |
 | --- | --- | --- | --- | --- |
@@ -159,6 +160,18 @@ the eye centres ÷ image width) for the distance reminder (section 13).
 
 Each calibration is stored with: the four reference EARs, the two detector thresholds, the
 reference face size, the time it was made and the measurement version (see [12](#12-saved-recordings)).
+
+**Saved and reused.** A successful calibration is saved on the Mac, in the user account's
+`~/Library/Application Support/OcuSense/calibration.json` (one person per Mac account), and
+loaded every time OcuSense opens, so Start goes straight to monitoring. The file holds only
+numbers: the four reference EARs, the reference face size, the calibration time and the
+measurement version (the detector thresholds come from the current settings).
+- **Recalibrate** replaces it — but only when the new calibration succeeds. A cancelled or
+  failed recalibration keeps the saved one.
+- A damaged file, values that fail the calibration's own checks, or a file made with another
+  measurement version are ignored: OcuSense says so and calibrates again.
+- Recalibrate when lighting, glasses, seat or screen position change: a calibration made in a
+  different setup can make eyes look less open than they are (section 14).
 
 ---
 

@@ -80,6 +80,22 @@ class EyeMonitor:
         for counter in self.eye_counters.values():
             counter.update(None)
 
+    def _info(self, calibration, calibrated_at: datetime) -> CalibrationInfo:
+        return CalibrationInfo(
+            calibrated_at=calibrated_at,
+            left_open_ear=calibration.left.open_ear, left_closed_ear=calibration.left.closed_ear,
+            right_open_ear=calibration.right.open_ear, right_closed_ear=calibration.right.closed_ear,
+            close_below=self.counter.close_below, reopen_above=self.counter.reopen_above,
+            measurement_version=MEASUREMENT_VERSION,
+            reference_face_scale=calibration.face_scale,
+        )
+
+    def use_calibration(self, calibration, calibrated_at: datetime) -> None:
+        """Use a saved calibration (made earlier, loaded from disk). Call while no frame is being processed."""
+        self.calibration = calibration
+        self.calibration_info = self._info(calibration, calibrated_at)
+        self.history.clear()
+
     def start_calibration(self, now: float) -> None:
         self.calibration = None  # forget the old one; never mix old and new
         self.calibration_info = None
@@ -118,14 +134,7 @@ class EyeMonitor:
                     result.events.append(CLOSED_STEP_FINISHED)
             if calibrator.status == GuidedCalibration.DONE:
                 self.calibration = calibrator.result
-                self.calibration_info = CalibrationInfo(
-                    calibrated_at=datetime.now(),
-                    left_open_ear=self.calibration.left.open_ear, left_closed_ear=self.calibration.left.closed_ear,
-                    right_open_ear=self.calibration.right.open_ear, right_closed_ear=self.calibration.right.closed_ear,
-                    close_below=self.counter.close_below, reopen_above=self.counter.reopen_above,
-                    measurement_version=MEASUREMENT_VERSION,
-                    reference_face_scale=self.calibration.face_scale,
-                )
+                self.calibration_info = self._info(self.calibration, datetime.now())
                 result.events.append(CALIBRATION_DONE)
             elif calibrator.status == GuidedCalibration.FAILED:
                 result.events.append(CALIBRATION_FAILED)

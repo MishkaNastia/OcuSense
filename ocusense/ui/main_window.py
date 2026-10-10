@@ -8,6 +8,7 @@ It connects the pieces and holds no layouts of its own pages:
   CameraWorker (monitoring/camera_worker.py)     — frames in, structured results out
   SessionRecorder + SessionStore                 — numbers kept for Statistics
   EarRecording (recording.py)                    — raw EAR of every frame, saved as CSV files
+  CalibrationStore (calibration_store.py)        — the personal calibration, saved once and reused
   ProximityMonitor + AlertBanner                 — the distance reminder (banner + macOS notification)
 
 Navigation only swaps the visible page: it never starts, stops or restarts the
@@ -31,6 +32,7 @@ from PySide6.QtWidgets import (
     QApplication, QHBoxLayout, QMainWindow, QMessageBox, QStackedWidget, QVBoxLayout, QWidget,
 )
 
+from ocusense.calibration_store import CalibrationStore
 from ocusense.preferences import Preferences
 from ocusense.config import CLOSE_BELOW, MIN_SESSION_SECONDS, MODEL_PATH, REOPEN_ABOVE
 from ocusense.core.baseline_drift import BreakReminder, LiveDrift
@@ -108,6 +110,7 @@ class MainWindow(QMainWindow):
         except reference_file.ReferenceFileError as error:
             self.reference_error = str(error)  # never overwritten automatically
         self.ear_log = EarRecording()  # raw EAR per frame, written every 10 minutes
+        self.calibration_store = CalibrationStore()  # calibrate once, reuse on every launch
         self.preferences = Preferences.load()  # remembered Settings choices
         self.proximity = ProximityMonitor(cooldown_seconds=self.preferences.distance_reminder_interval)
         self.distance_reminder = self.preferences.distance_reminder  # Settings › Reminders
@@ -189,6 +192,7 @@ class MainWindow(QMainWindow):
         self.clock.start(250)
         QShortcut(QKeySequence("Ctrl+."), self, activated=self.stop)  # ⌘. on macOS
         self._set_state("ready")
+        self._load_saved_calibration(announce=True)
 
     # ------------------------------------------------------------- camera life
     def _start_camera(self) -> bool:
@@ -268,7 +272,23 @@ class MainWindow(QMainWindow):
     def cancel_calibration(self) -> None:
         self._stop_camera()
         self._save_recording()
-        self._set_state("ready", "Calibration cancelled. Press Start to calibrate again.")
+        if self._load_saved_calibration():  # a cancelled recalibration keeps the saved calibration
+            self._set_state("ready", "Recalibration cancelled — your saved calibration is still in use.")
+        else:
+            self._set_state("ready", "Calibration cancelled. Press Start to calibrate again.")
+
+    def _load_saved_calibration(self, announce: bool = False) -> bool:
+        """Use the calibration saved on this Mac, if there is a valid one. Only while the camera is off."""
+        saved = self.calibration_store.load()
+        if saved is None:
+            if announce and self.calibration_store.last_error:
+                self.study.message_label.setText(self.calibration_store.last_error + " Press Start to calibrate again.")
+            return False
+        self.monitor.use_calibration(saved.calibration, saved.calibrated_at)
+        if announce:
+            self._set_state("ready", f"Using your saved calibration from {saved.calibrated_at:%-d %b %Y}. "
+                                     "Recalibrate if your lighting, glasses or seat changed.")
+        return True
 
     def _begin_calibration(self) -> None:
         self._clear_distance_reminder()  # a new calibration sets a new reference distance
@@ -350,11 +370,15 @@ class MainWindow(QMainWindow):
         if CLOSED_STEP_FINISHED in update.events:
             QApplication.beep()  # "you can open your eyes"
         if CALIBRATION_DONE in update.events:
+            saved = self.monitor.calibration_info is not None and self.calibration_store.save(
+                self.monitor.calibration, self.monitor.calibration_info)
             self.monitor.reset_session()
             self.study.graph.clear()
             self.elapsed = 0.0
             self._enter_monitoring()
-            self.study.message_label.setText("Calibration complete.")
+            self.study.message_label.setText(
+                "Calibration complete and saved — next time you can start right away." if saved
+                else self.calibration_store.last_error or "Calibration complete.")
         elif CALIBRATION_FAILED in update.events:
             self.calibration.show_failure(update.cal_error)
         elif update.cal_status == GuidedCalibration.RUNNING and update.cal_step is not None:
@@ -506,11 +530,12 @@ class MainWindow(QMainWindow):
     def _refresh_settings(self) -> None:
         calibration = self.monitor.calibration_info if self.monitor.calibration else None
         if calibration is not None:
-            text = f"Calibrated at {calibration.calibrated_at:%H:%M}. Recalibrate if lighting, glasses or your position change."
+            text = (f"Calibrated on {calibration.calibrated_at:%-d %b %Y at %H:%M}. Saved on this Mac and reused "
+                    "every time you open OcuSense. Recalibrate if lighting, glasses or your position change.")
         elif self.monitor.calibration:
             text = "Calibrated. Recalibrate if lighting, glasses or your position change."
         else:
-            text = "Not calibrated yet — your first session starts with a 30-second calibration."
+            text = "Not calibrated yet — your first session starts with a short calibration (about 25 s), saved for next time."
         can = bool(self.monitor.calibration) and self.state in ("ready", "monitoring")
         if not can and self.monitor.calibration and self.state == "paused":
             text += " Resume or stop the session to recalibrate."
@@ -616,7 +641,7 @@ class MainWindow(QMainWindow):
             self.status.set("ready", "Ready")
             self.study.graph_caption.setText("")
             first = not self.monitor.calibration
-            self.study.graph.clear("Press Start. Your first session begins with a 30-second calibration." if first
+            self.study.graph.clear("Press Start. The first time, a short calibration (about 25 s) comes first; it is saved for next time." if first
                                    else "Press Start to begin a new session.")
             self.study.set_blinks(0)
             self.study.clear_measurements()

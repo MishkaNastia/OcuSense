@@ -32,7 +32,8 @@ export default function PrivacyPage() {
           <dd>
             Frames are analysed in memory on your Mac and thrown away; images are never saved or uploaded. The app
             saves the raw Eye Aspect Ratio of each frame (numbers only, with a time stamp) to files on your Mac, which
-            you can switch off in its settings. Session statistics are kept only until you quit the app.
+            you can switch off in its settings, and your personal calibration (a few numbers) so you only calibrate
+            once. Session statistics are kept only until you quit the app.
           </dd>
         </dl>
       </section>
