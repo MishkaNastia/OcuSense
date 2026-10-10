@@ -23,6 +23,7 @@ from . import theme
 from .widgets.artwork import LogoMark
 from .widgets.common import label, rule
 from .widgets.icons import draw_chevron, draw_icon
+from .widgets.painter_character import PainterCharacter
 from .widgets.status_indicator import StatusIndicator
 
 SIDEBAR_WIDTH = 224
@@ -171,6 +172,9 @@ class Sidebar(QWidget):
                           ("patterns", "Understanding your patterns")):
             self._add(layout, SidebarItem(key, text, level=1))
         layout.addStretch(1)
+        self.painter = PainterCharacter()  # a little Miró painter at his easel, just above Settings
+        layout.addWidget(self.painter)
+        layout.addSpacing(6)
         layout.addWidget(rule(1, "hairline"))
         layout.addSpacing(8)
         self._add(layout, SidebarItem("settings", "Settings", "settings"))

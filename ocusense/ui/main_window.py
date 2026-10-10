@@ -154,6 +154,8 @@ class MainWindow(QMainWindow):
         self.settings_page = SettingsPage()
         self.account_page = AccountPage()
         self.pomodoro_page = PomodoroPage(self.preferences)
+        self.pomodoro_page.checks["animations"].toggled.connect(lambda _on: self._apply_painter_animations())
+        self._apply_painter_animations()
         self.games_page = GamesPage(self)
         self.page_for = {"study": self.study, "current": self.current_page, "all_time": self.stats_page,
                          "patterns": self.patterns_page, "settings": self.settings_page, "account": self.account_page,
@@ -522,6 +524,10 @@ class MainWindow(QMainWindow):
         if not on:
             self._eye_rest_waiting = False
             self.eye_rest_card.setVisible(False)
+
+    def _apply_painter_animations(self) -> None:
+        """The sidebar painter follows the Animations switch and macOS Reduce motion, like the Pomodoro dial."""
+        self.sidebar.painter.set_animations(self.preferences.animations and not self.pomodoro_page.reduce_motion)
 
     def _pomodoro_state_changed(self, phase: str, state: str) -> None:
         """Focus round running → monitor; break or Pomodoro paused → pause monitoring (camera off, eyes rest)."""

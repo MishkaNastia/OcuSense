@@ -91,6 +91,11 @@ and the reminders that came up.
 **Menu bar.** The OcuSense eye in the macOS menu bar shows the monitoring and
 Pomodoro status and offers Start/Pause/Resume, Stop, the Pomodoro, Open and Quit.
 
+**The little painter.** Above Settings in the sidebar, a Miró-style painter in a
+beret dabs a circle, a dot, a star, a crescent and a curve onto his canvas, then
+starts a new painting. He is only decoration: he stands still when the Pomodoro
+page's Animations switch is off or macOS Reduce motion is on.
+
 **Distance reminder.** Calibration asks you to sit about an arm's length away. If
 your face later looks 1.6× as big for 3 s, OcuSense shows "Trying to lick the
 screen? Go easy on your eyes and move back a little." in the window, and as a macOS
