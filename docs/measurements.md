@@ -557,10 +557,11 @@ blink or squint. Dividing by the image width makes it independent of camera reso
 **Where it appears.** Always as a card at the top of the OcuSense window, in the OcuSense
 alert style (paper card, ink border, a Miró mark: an eye pressed against the screen with a
 vermilion tongue). When OcuSense is in the background, also as a **macOS notification** in
-Notification Centre, with the same title and text — macOS draws those in its own style, with
-the OcuSense name and icon. macOS asks for permission the first time monitoring starts;
-without permission only the in-window card appears. System notifications work in the
-packaged OcuSense.app (not when running `python -m ocusense`). No sound is played.
+Notification Centre, with the same title and text. It is sent with the app's shared
+`ocusense/notifications.py` (macOS's built-in `osascript`, like the break reminders), so it
+works both in OcuSense.app and when running `python -m ocusense`; macOS shows it under
+"Script Editor" and draws it in its own style. If macOS asks whether Script Editor may send
+notifications, allow it once. No sound is played.
 
 **Limits.** It is relative to your calibration, not centimetres: calibrating while already
 very close makes it less useful. Leaning or turning the head changes the apparent size a
