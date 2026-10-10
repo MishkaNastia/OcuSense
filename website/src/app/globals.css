@@ -206,3 +206,17 @@ p { margin: 0; text-wrap: pretty; }
   .three-col > div, .three-col > div + div { padding: 16px 0; border-left: 0; border-bottom: 1px solid var(--rule); }
   .def { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* A gentle, occasional blink for decorative eyes (off when reduced motion is requested). */
+.blink {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: blink 5s ease-in-out infinite;
+}
+@keyframes blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .blink { animation: none; }
+}

@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { AlertGallery } from "@/components/alerts/Alerts";
 import { HeroArt, LocalArt, QuietArt, StepMark } from "@/components/art/Art";
-import { SamplePreview } from "@/components/SamplePreview";
+import { SCIENCE_HIGHLIGHTS } from "@/content/science";
 import { team } from "@/content/team";
 
 import styles from "./home.module.css";
@@ -20,11 +20,11 @@ export default function Home() {
     <>
       <section className={`container ${styles.hero}`}>
         <div className={styles.heroText}>
-          <p className="eyebrow">A study companion · hackathon prototype</p>
-          <h1>Notice how your eyes change while you study.</h1>
+          <h1>Big Brother watches you. OcuSense looks out for you.</h1>
           <p className="lead">
-            OcuSense measures your blinking and eye openness with a webcam — calibrated to your own eyes — so you
-            can spot changes, take a break that suits you, and look back on what helped.
+            OcuSense monitors your blinking and eye patterns in real time through your webcam, offering personalised
+            check-ins and break suggestions to help you stay mindful of eye dryness and fatigue during long hours at
+            your computer.
           </p>
           <div className={styles.ctas}>
             <Link href="/demo" className="btn btn-primary">Try the demo</Link>
@@ -35,18 +35,18 @@ export default function Home() {
         <HeroArt className={styles.heroArt} />
       </section>
 
-      <section className={`container ${styles.section}`} aria-labelledby="preview-title">
-        <div className={styles.sectionHead}>
-          <div>
-            <p className="eyebrow">Product preview</p>
-            <h2 id="preview-title">What you see while studying</h2>
-          </div>
-          <span className="tag">Sample data — a simulated person, not a measurement of you</span>
+      <section className={`container ${styles.section}`} aria-labelledby="science-title">
+        <p className="eyebrow">The science behind it</p>
+        <h2 id="science-title">Why blinking is worth watching</h2>
+        <div className="three-col">
+          {SCIENCE_HIGHLIGHTS.map((h) => (
+            <div key={h.title}>
+              <h3>{h.title}</h3>
+              <p>{h.text}</p>
+            </div>
+          ))}
         </div>
-        <div className={styles.previewFrame}>
-          <SamplePreview />
-        </div>
-        <p className="muted">Want it to move? The <Link href="/demo/sample">sample session</Link> plays the simulation; the <Link href="/demo/camera">camera demo</Link> measures you, in your browser.</p>
+        <Link href="/science" className="btn btn-secondary" style={{ alignSelf: "flex-start" }}>Learn more about the science</Link>
       </section>
 
       <section className={`container ${styles.section}`} aria-labelledby="how-title">
@@ -67,7 +67,7 @@ export default function Home() {
       </section>
 
       <section className={`container ${styles.split}`} aria-labelledby="local-title">
-        <LocalArt className={styles.localArt} />
+        <LocalArt className={styles.localArt} blinking />
         <div className={styles.splitText}>
           <p className="eyebrow">Calibration and privacy</p>
           <h2 id="local-title">Measured against your eyes, processed on your device.</h2>

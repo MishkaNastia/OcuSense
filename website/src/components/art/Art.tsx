@@ -94,13 +94,15 @@ export function StepMark({ step, size = 72 }: { step: "calibrate" | "study" | "n
 }
 
 /** "Stays on your device": an eye inside a device outline, with a line that stops at its edge. */
-export function LocalArt({ className }: { className?: string }) {
+export function LocalArt({ className, blinking = false }: { className?: string; blinking?: boolean }) {
   return (
     <svg className={className} viewBox="0 0 280 200" aria-hidden="true" focusable="false">
       <rect x="20" y="24" width="168" height="120" rx="12" fill="var(--paper-light)" stroke={INK} strokeWidth={3} />
       <path d="M4 168 H204" stroke={INK} strokeWidth={3} strokeLinecap="round" />
-      <path d="M52 86 C 72 58, 136 54, 158 80 C 136 106, 74 110, 60 96" fill="none" stroke={INK} strokeWidth={3.5} strokeLinecap="round" />
-      <circle cx="106" cy="83" r="13" fill="var(--cobalt)" />
+      <g className={blinking ? "blink" : undefined}>
+        <path d="M52 86 C 72 58, 136 54, 158 80 C 136 106, 74 110, 60 96" fill="none" stroke={INK} strokeWidth={3.5} strokeLinecap="round" />
+        <circle cx="106" cy="83" r="13" fill="var(--cobalt)" />
+      </g>
       <path d="M200 84 H244" stroke={INK} strokeWidth={2.4} strokeDasharray="4 6" strokeLinecap="round" />
       <path d="M252 70 L272 98 M272 70 L252 98" stroke="var(--vermilion)" strokeWidth={3} strokeLinecap="round" />
       <Star x={232} y={30} r={10} />

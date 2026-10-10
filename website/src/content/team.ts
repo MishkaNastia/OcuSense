@@ -16,7 +16,7 @@ export interface TeamMember {
 
 export const team = {
   intro:
-    "We are a team of healthcare and life sciences engineering students building OcuSense for a hackathon " +
+    "We are a team of computer science engineering, life sciences engineering and data science students building OcuSense for a hackathon " +
     "on student and campus life.",
   why: [
     {

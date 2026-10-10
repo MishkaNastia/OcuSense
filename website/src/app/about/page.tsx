@@ -61,7 +61,7 @@ export default function AboutPage() {
           </ul>
         ) : (
           <p className="prose">
-            We’re a small team of healthcare and life sciences engineering students. Individual introductions will
+            We’re a small team of computer science engineering, life sciences engineering and data science students. Individual introductions will
             appear here soon.
           </p>
         )}

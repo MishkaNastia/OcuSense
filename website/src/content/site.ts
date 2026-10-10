@@ -23,6 +23,7 @@ export const mainNav = [
 ];
 
 export const footerNav = [
+  { href: "/science", label: "The science" },
   { href: "/privacy", label: "Privacy" },
   { href: "/accessibility", label: "Accessibility" },
   { href: "/credits", label: "Credits & licences" },
