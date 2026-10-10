@@ -1,0 +1,9 @@
+.options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 2px solid var(--ink); }
+.option { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; padding: 28px 32px 8px 0; }
+.option + .option { padding-left: 32px; border-left: 1px solid var(--rule); }
+.option ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 760px) {
+  .options { grid-template-columns: minmax(0, 1fr); }
+  .option, .option + .option { padding: 24px 0; border-left: 0; }
+  .option + .option { border-top: 1px solid var(--rule); }
+}

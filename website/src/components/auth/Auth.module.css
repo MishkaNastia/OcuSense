@@ -1,0 +1,11 @@
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 48px; align-items: start; padding-top: clamp(40px, 6vw, 80px); }
+.intro { display: flex; flex-direction: column; gap: 16px; }
+.intro svg { width: 100%; max-width: 300px; height: auto; }
+.form { display: flex; flex-direction: column; gap: 18px; border: 2px solid var(--ink); border-radius: var(--radius-card); padding: 24px; background: var(--paper-light); }
+.links { font-size: 0.95rem; }
+.error { border-left: 4px solid var(--vermilion); padding: 8px 12px; background: #fdf0ec; font-weight: 600; }
+.success { border: 2px solid var(--green); border-radius: var(--radius); padding: 14px 16px; background: #eef6f0; font-weight: 600; }
+@media (max-width: 760px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .intro svg { max-width: 200px; }
+}

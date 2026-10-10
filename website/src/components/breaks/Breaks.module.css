@@ -1,0 +1,39 @@
+.flow { display: flex; flex-direction: column; gap: 22px; }
+.flowTitle { font-size: clamp(1.6rem, 3vw, 2.2rem); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.choice { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.choice legend, .scale legend { font-weight: 700; margin-bottom: 10px; padding: 0; }
+.activities { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.activity {
+  font: inherit; text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 14px; min-height: 64px;
+  border: 2px solid var(--rule); border-radius: var(--radius); background: var(--paper-light); color: var(--ink);
+}
+.activity span { font-size: 0.85rem; color: var(--graphite); }
+.activity:hover { border-color: var(--ink); }
+.activity[aria-pressed="true"] { border-color: var(--ink); background: var(--paper-deep); box-shadow: inset 0 0 0 1px var(--ink); }
+.chip {
+  font: inherit; cursor: pointer; min-height: 42px; padding: 0 16px; border-radius: 999px;
+  border: 2px solid var(--ink); background: transparent; color: var(--ink); font-weight: 600;
+}
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.scales { display: flex; flex-wrap: wrap; gap: 28px 48px; }
+.scale { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.scaleButtons { display: flex; gap: 8px; }
+.scaleButton {
+  font: inherit; font-weight: 700; cursor: pointer; width: 48px; min-height: 46px;
+  border: 2px solid var(--ink); border-radius: var(--radius); background: transparent; color: var(--ink);
+}
+.scaleButton[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.anchors { display: flex; justify-content: space-between; width: 272px; font-size: 0.8rem; color: var(--graphite); }
+.selected { font-size: 0.85rem; color: var(--graphite); min-height: 1.3em; }
+.check { display: flex; align-items: flex-start; gap: 10px; }
+.check input { width: 20px; height: 20px; accent-color: var(--cobalt); margin-top: 3px; }
+.duringHead { display: flex; align-items: center; gap: 18px; }
+.countdown { font-size: clamp(3rem, 9vw, 5rem); line-height: 1; color: var(--cobalt); margin: 0; }
+.facts { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 400px) {
+  .scaleButton { width: 44px; }
+  .anchors { width: 252px; }
+}

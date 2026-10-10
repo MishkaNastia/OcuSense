@@ -45,6 +45,15 @@ your own Mac (ad-hoc). Sharing it with others needs an Apple Developer ID and
 notarisation. The first time it opens the camera, macOS asks for permission
 for OcuSense itself.
 
+## Website
+
+The public website (information pages, a sample-session demo and a browser camera demo)
+is in [`website/`](website/README.md). It is separate from the desktop app:
+
+```bash
+cd website && npm install && npm run dev   # open http://localhost:3000, Ctrl+C to stop
+```
+
 ## Run the OpenCV prototype
 
 ```
