@@ -44,6 +44,7 @@ QWidget#Root {{ background: {PAPER}; }}
 QLabel {{ color: {INK}; background: transparent; }}
 QLabel[role="secondary"] {{ color: {GRAPHITE}; }}
 QLabel[role="eyebrow"] {{ color: {GRAPHITE}; font-weight: 700; }}
+QLabel[role="error"] {{ color: {VERMILION}; font-weight: 600; }}
 QFrame[role="rule"] {{ background: {INK}; border: none; }}
 QFrame[role="hairline"] {{ background: {RULE}; border: none; }}
 
@@ -104,6 +105,12 @@ QSpinBox {{
     background: {PAPER}; color: {INK}; font-size: 14px; font-weight: 600;
 }}
 QSpinBox:focus {{ border-color: {COBALT}; }}
+QLineEdit {{
+    min-height: 38px; padding: 0 12px; border: 2px solid {INK}; border-radius: 10px;
+    background: {PAPER}; color: {INK}; font-size: 15px; selection-background-color: {COBALT};
+}}
+QLineEdit:focus {{ border-color: {COBALT}; }}
+QLineEdit:disabled {{ color: {GRAPHITE}; border-color: {RULE}; }}
 QSpinBox::up-button, QSpinBox::down-button {{ width: 0; border: none; }}  /* − / + buttons sit beside it */
 QSpinBox::up-arrow, QSpinBox::down-arrow {{ image: none; width: 0; height: 0; }}
 QPushButton[kind="step"] {{

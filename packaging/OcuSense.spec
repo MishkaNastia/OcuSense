@@ -18,7 +18,9 @@ a = Analysis(
     [str(ROOT / "packaging" / "run_ocusense.py")],
     pathex=[str(ROOT)],
     binaries=[mediapipe_lib],
-    datas=[(str(ROOT / "models" / "face_landmarker.task"), "models")],
+    datas=[(str(ROOT / "models" / "face_landmarker.task"), "models")]
+    # The Supabase project for accounts, when one is set up (see docs/accounts.md).
+    + ([(str(ROOT / "ocusense" / "supabase.json"), "ocusense")] if (ROOT / "ocusense" / "supabase.json").exists() else []),
     hiddenimports=collect_submodules("mediapipe.tasks.python") + ["mediapipe.tasks.c"],
     excludes=["tkinter", "IPython", "pytest"],  # matplotlib stays: MediaPipe vision imports it
     noarchive=False,

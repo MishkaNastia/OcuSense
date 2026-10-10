@@ -17,6 +17,8 @@ PREFERENCES_FILE = os.path.join(RECORDINGS, "preferences.json")
 os.environ["OCUSENSE_PREFERENCES_FILE"] = PREFERENCES_FILE  # never change the person's real Settings choices
 CALIBRATION_FILE = os.path.join(RECORDINGS, "calibration.json")
 os.environ["OCUSENSE_CALIBRATION_FILE"] = CALIBRATION_FILE  # never read or replace the person's real calibration
+os.environ["OCUSENSE_ACCOUNT_FILE"] = os.path.join(RECORDINGS, "account.json")  # never the real sign-in or Keychain
+os.environ["OCUSENSE_NO_ACCOUNTS"] = "1"  # never reach a real Supabase project
 
 from PySide6.QtGui import QColor, QImage  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
@@ -407,13 +409,13 @@ class SidebarNavigationTest(unittest.TestCase):
         self.assertEqual(w.state, "calibrating")
         self.assertIs(w.pages.currentWidget(), w.calibration)
 
-    def test_account_is_honestly_unavailable(self):
+    def test_account_says_when_it_is_not_set_up(self):
         w = self.window
         w.show_page("account")
         self.assertEqual(w.sidebar.items["account"].text(), "Log in")
-        self.assertFalse(w.account_page.login_button.isEnabled())
-        self.assertFalse(w.account_page.create_button.isEnabled())
-        self.assertEqual(w.account_page.tag.text(), "Not available yet")
+        self.assertFalse(w.account_page.unconfigured.isHidden())
+        self.assertTrue(w.account_page.signed_out.isHidden())
+        self.assertEqual(w.account_page.tag.text(), "Not set up")
 
 
 @unittest.skipUnless(MODEL_PATH.exists(), "model file missing - run download_model.py")

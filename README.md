@@ -53,7 +53,9 @@ The sidebar on the left switches pages without interrupting monitoring:
   measurement means; no personal findings until check-ins exist).
 - **Settings** — recalibration, measurement details, and data & privacy
   (including clearing the session history).
-- **Log in** — accounts aren't available in the app yet; it says so.
+- **Log in** — optional OcuSense accounts (the same as on the website): log in, create an
+  account with a username for the coming game leaderboards, reset a password, log out.
+  Set-up: [docs/accounts.md](docs/accounts.md).
 
 **Raw EAR recording.** While the camera is on, the app saves the left and right
 Eye Aspect Ratio of every frame to CSV files in
@@ -251,9 +253,11 @@ ocusense/
     pomodoro_page.py   Pomodoro (timer logic in core/pomodoro.py)
     games_page.py      Games: Blink Code (Morse logic in core/morse.py)
     settings_page.py   Settings
-    account_page.py    Log in (not available yet)
+    account_page.py    Log in / Create account / your account (Supabase calls in accounts.py,
+                       background running in account_service.py)
     theme.py           colours, fonts, style sheet
     widgets/           drawing-only pieces (graph, chart, artwork, status, icons, page)
+supabase/schema.sql    profiles, game scores and leaderboard for the accounts' Supabase project
 prototype/             original OpenCV window (python -m prototype)
 packaging/             Mac build script, PyInstaller recipe, icon generator
 tests/                 one test file per area, plus structure guards

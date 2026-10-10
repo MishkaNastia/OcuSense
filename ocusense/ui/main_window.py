@@ -50,6 +50,7 @@ from ocusense.recording import EarRecording
 from ocusense.storage import SessionStore
 
 from .account_page import AccountPage
+from .account_service import AccountService
 from .all_time_page import AllTimePage
 from .calibration_view import CalibrationView
 from .current_session_page import CurrentSessionPage
@@ -152,7 +153,12 @@ class MainWindow(QMainWindow):
         self.stats_page = AllTimePage()
         self.patterns_page = PatternsPage()
         self.settings_page = SettingsPage()
-        self.account_page = AccountPage()
+        self.account_service = AccountService()
+        self.account_page = AccountPage(self.account_service)
+        self.account_service.changed.connect(
+            lambda account: self.sidebar.set_account_label(AccountPage.sidebar_label(account)))
+        self.sidebar.set_account_label(AccountPage.sidebar_label(self.account_service.account))
+        self.account_service.restore()  # renews a saved sign-in in the background
         self.pomodoro_page = PomodoroPage(self.preferences)
         self.pomodoro_page.checks["animations"].toggled.connect(lambda _on: self._apply_painter_animations())
         self._apply_painter_animations()

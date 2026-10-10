@@ -228,3 +228,6 @@ packaging/OcuSense-icon-1024.png
 
 # macOS Finder files
 .DS_Store
+
+# The Supabase project for accounts (public values, but set per copy; see docs/accounts.md)
+ocusense/supabase.json
