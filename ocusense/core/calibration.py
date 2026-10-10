@@ -45,14 +45,31 @@ def robust_reference(samples: list[float]) -> tuple[float, float]:
 
 @dataclass(frozen=True)
 class EyeReference:
+    """One eye's validated references: comfortably open EAR and gently closed EAR."""
     open_ear: float
     closed_ear: float
 
+    def __post_init__(self):
+        # Never allow a reference that can't separate open from closed
+        # (build_eye_reference applies the stricter calibration checks).
+        if not self.open_ear > self.closed_ear >= 0:
+            raise ValueError(f"invalid eye reference: open {self.open_ear}, closed {self.closed_ear}")
+
+    def raw_openness(self, ear: float) -> float:
+        """Unclamped personal openness: 0 = calibrated closed, 1 = calibrated open.
+
+        Can be below 0 or above 1 (eye squeezed or opened wider than during
+        calibration). Kept for diagnostics; displays clamp it.
+        """
+        return (ear - self.closed_ear) / (self.open_ear - self.closed_ear)
+
     def openness(self, ear: float) -> float:
-        value = (ear - self.closed_ear) / (self.open_ear - self.closed_ear)
-        # Clip to 0..1 so one eye squeezed extra hard (or opened extra
-        # wide) can't dominate when the two eyes are combined.
-        return min(1.0, max(0.0, value))
+        """Clipped to 0..1 — the value the blink detector uses (unchanged behaviour).
+
+        Clipping stops one eye squeezed extra hard (or opened extra wide)
+        from dominating when the two eyes are combined.
+        """
+        return min(1.0, max(0.0, self.raw_openness(ear)))
 
 
 def build_eye_reference(eye_name: str, open_samples: list[float], closed_samples: list[float]) -> "EyeReference":
@@ -101,6 +118,10 @@ class PersonalCalibration:
         left = self.left.openness(ears["left"])
         right = self.right.openness(ears["right"])
         return left, right, combine(left, right)
+
+    def raw_openness(self, ears: dict[str, float]) -> tuple[float, float]:
+        """Unclamped (left, right) personal openness, for diagnostics and display."""
+        return self.left.raw_openness(ears["left"]), self.right.raw_openness(ears["right"])
 
 
 def count_blinks(openness_values: list[float | None]) -> int:

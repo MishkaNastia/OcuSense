@@ -163,6 +163,7 @@ class MainWindow(QMainWindow):
             self.recorder.pause(time.monotonic())
         self._stop_clock()
         self._stop_camera()
+        self.monitor.interrupt()  # after the worker stopped: no blink may span the pause
         self._set_state("paused")
 
     def resume(self) -> None:
@@ -202,7 +203,8 @@ class MainWindow(QMainWindow):
         now = time.monotonic()
         self.running_since = now
         if self.recorder is None:
-            self.recorder = SessionRecorder(now)
+            self.recorder = SessionRecorder(now, calibration=self.monitor.calibration_info)
+            self.study.clear_measurements()
         else:
             self.recorder.resume(now)
         self._set_state("monitoring")
@@ -244,7 +246,8 @@ class MainWindow(QMainWindow):
         if self.state != "monitoring":
             return
         if self.recorder:
-            self.recorder.add_frame(update.now, update.openness[2] if update.openness else None, update.blinked)
+            self.recorder.add_observation(update.observation)
+        self.study.set_live_openness(update.observation)
         self.study.set_blinks(update.blinks)
         if not update.face_found:
             self.status.set("warning", "Face not tracked")
@@ -276,8 +279,16 @@ class MainWindow(QMainWindow):
         running = time.monotonic() - self.running_since if self.running_since is not None else 0.0
         self.study.set_time(self.elapsed + running)
         self._ticks += 1
+        if self.state == "monitoring" and self.recorder and self._ticks % 2 == 0:
+            self._refresh_measurements()  # twice per second
         if self.view == "stats" and self.state == "monitoring" and self._ticks % 8 == 0:
             self._refresh_stats()  # every 2 seconds while a session is running
+
+    def _refresh_measurements(self) -> None:
+        snapshot = self.recorder.live(time.monotonic())
+        self.study.set_rolling(snapshot)
+        if self.study.details_button.isChecked():
+            self.study.set_details(self.recorder.latest, snapshot, self.recorder.calibration)
 
     # ------------------------------------------------------------- navigation
     def show_study(self) -> None:
@@ -326,6 +337,7 @@ class MainWindow(QMainWindow):
             self.study.graph.clear("Press Start. Your first session begins with a 30-second calibration." if first
                                    else "Press Start to begin a new session.")
             self.study.set_blinks(0)
+            self.study.clear_measurements()
             self.study.start_button.setFocus()
         elif state == "error":
             self.status.set("warning", "Camera unavailable")
@@ -333,6 +345,7 @@ class MainWindow(QMainWindow):
         elif state == "paused":
             self.status.set("paused", "Paused")
             self.study.graph_caption.setText("Paused — the camera is off")
+            self.study.set_live_openness(None)
             if self.last_update:
                 self.study.graph.set_data(self.last_update.samples, self.last_update.now, dimmed=True)
         elif state == "calibrating":

@@ -1,6 +1,9 @@
 """Shared data structures for measurements and session summaries.
 
-Units: all durations are in seconds. Display code converts (e.g. to ms).
+Units: all durations are in seconds, times are time.monotonic() seconds unless
+named *_at (wall clock, only to identify sessions). Openness values are
+fractions (1 = calibrated open, 0 = calibrated closed). Display code converts
+(to %, ms, …).
 """
 
 import statistics
@@ -10,13 +13,64 @@ from datetime import datetime
 from ocusense.config import MIN_TRACKED_PER_MINUTE
 
 
+@dataclass(frozen=True)
+class FrameObservation:
+    """Input to the measurements: one processed camera frame, already calibrated.
+
+    valid is True only when both eyes were measured reliably with a calibration;
+    invalid frames are missing observation and never enter any denominator.
+    The detector fields describe the existing blink detector's bilateral state
+    (both-eyes openness) on this frame; measurements only read them.
+    """
+    t: float  # time.monotonic() seconds when the frame was taken
+    valid: bool
+    left_raw: float | None = None  # unclamped personal openness fractions
+    right_raw: float | None = None
+    left_ear: float | None = None  # raw EAR values (diagnostics only)
+    right_ear: float | None = None
+    detector_closed: bool = False  # detector is in its CLOSED state after this frame
+    closing_started: bool = False  # detector went OPEN → CLOSED on this frame
+    blink_completed: bool = False  # detector went CLOSED → OPEN on this frame (a counted blink)
+
+
+@dataclass(frozen=True)
+class CalibrationInfo:
+    """Which calibration and settings produced a session's numbers."""
+    calibrated_at: datetime
+    left_open_ear: float
+    left_closed_ear: float
+    right_open_ear: float
+    right_closed_ear: float
+    close_below: float
+    reopen_above: float
+    measurement_version: str
+
+
+@dataclass(frozen=True)
+class RollingSnapshot:
+    """The live interface's "last 60 seconds" numbers. None = not available."""
+    window_seconds: float
+    running_seconds: float  # time monitoring was running inside the window (pauses excluded)
+    valid_seconds: float  # valid observation time inside the window
+    coverage: float | None  # valid / running, 0–1
+    enough_data: bool  # valid_seconds >= the configured minimum
+    blinks: int  # completed bilateral blinks inside the window
+    blink_rate: float | None  # blinks per minute of valid observation
+    closure_count: int  # completed closure events with a measured duration
+    median_closure: float | None  # seconds
+    closed_seconds: float
+    closed_percent: float | None  # % of valid observation in the detector's closed state
+    processing_rate: float | None  # frames processed per second (valid or not)
+
+
 @dataclass
 class MinuteBin:
+    """Per-minute summary for session history (numbers only)."""
     start: datetime
-    tracked: float = 0.0
+    tracked: float = 0.0  # valid observation seconds
     blinks: int = 0
-    closures: list = field(default_factory=list)  # seconds below the closing threshold, per blink
-    closed: float = 0.0  # seconds below the closing threshold
+    closures: list = field(default_factory=list)  # seconds, detector closing → reopening, per completed event
+    closed: float = 0.0  # seconds in the detector's closed state
 
     def value(self, metric: str) -> float | None:
         """Blink rate (blinks/min), median closure (seconds) or time closed (%) for this minute."""
@@ -34,14 +88,15 @@ class SessionSummary:
     started_at: datetime
     ended_at: datetime
     study_seconds: float  # time the session was running (pauses excluded)
-    tracked_seconds: float  # time with reliable tracking
+    tracked_seconds: float  # valid observation time
     blinks: int
     closure_seconds: list
     closed_seconds: float
     segments: list  # [(start, end)] running periods
-    untracked: list  # [(start, end)] periods without tracking
+    untracked: list  # [(start, end)] periods without valid observation
     minutes: list  # [MinuteBin]
     in_progress: bool = False
+    calibration: CalibrationInfo | None = None
 
     @property
     def coverage(self) -> float | None:

@@ -14,7 +14,9 @@ from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from ocusense.monitoring.pipeline import CALIBRATION_DONE, CALIBRATION_FAILED, MODEL_PATH  # noqa: E402
 from ocusense.monitoring.camera_worker import MonitorUpdate  # noqa: E402
+from ocusense.core.models import FrameObservation  # noqa: E402
 from ocusense.core.session import SessionRecorder  # noqa: E402
+from tests.helpers import Observer  # noqa: E402
 
 app = QApplication.instance() or QApplication([])
 
@@ -44,6 +46,11 @@ def update(**changes):
                   cal_step=0, cal_measuring=False, cal_seconds_left=2.4, cal_error="",
                   samples=[], preview=preview)
     values.update(changes)
+    if "observation" not in changes:  # what the pipeline would send for this frame
+        o = values["openness"]
+        values["observation"] = FrameObservation(
+            t=values["now"], valid=o is not None,
+            left_raw=o[0] if o else None, right_raw=o[1] if o else None, blink_completed=values["blinked"])
     return MonitorUpdate(**values)
 
 
@@ -142,12 +149,43 @@ class WindowTest(unittest.TestCase):
         w = self.window
         t0 = time.monotonic() - seconds  # frames end "now", on the same clock the app uses
         w.recorder = SessionRecorder(t0)
+        observe = Observer()  # the real detector decides closing and reopening
         for i in range(int(seconds * 30)):
             t = t0 + i / 30
-            closed = blink_every and 1.0 <= t % blink_every < 1.2
-            reopened = blink_every and abs(t % blink_every - 1.2) < 1 / 60
-            value = 0.05 if closed else 0.9
-            w._on_update(update(now=t, openness=(value, value, value), blinked=bool(reopened)))
+            value = 0.05 if blink_every and 1.0 <= t % blink_every < 1.2 else 0.9
+            obs = observe(t, value)
+            w._on_update(update(now=t, openness=(value, value, value), blinked=obs.blink_completed, observation=obs))
+
+    def test_live_openness_shows_dash_not_zero_when_face_lost(self):
+        w = self.window
+        w.monitor.calibration = object()
+        w.start()
+        w._on_update(update(openness=(0.8, 0.6, 0.7)))
+        self.assertEqual(w.study.openness_value.text(), "70%")
+        w._on_update(update(face_found=False, openness=None))
+        self.assertEqual(w.study.openness_value.text(), "—")
+
+    def test_last_60_seconds_collects_data_then_shows_values(self):
+        w = self.window
+        w.monitor.calibration = object()
+        w.start()
+        self._run_session(10)
+        w._refresh_measurements()
+        self.assertEqual(w.study.stat_values["rate"].text(), "Collecting data")
+        self.assertEqual(w.study.stat_values["closed"].text(), "Collecting data")
+        self._run_session(40)
+        w._refresh_measurements()
+        self.assertTrue(w.study.stat_values["rate"].text().endswith("blinks/min"))
+        self.assertTrue(w.study.stat_values["closure"].text().endswith("ms"))
+        self.assertTrue(w.study.stat_values["closed"].text().endswith("%"))
+
+    def test_pause_tells_the_detector_tracking_stopped(self):
+        w = self.window
+        w.monitor.calibration = object()
+        w.start()
+        w.monitor.counter.state = w.monitor.counter.CLOSED  # paused mid-blink
+        w.pause()
+        self.assertEqual(w.monitor.counter.state, w.monitor.counter.UNKNOWN)  # can't complete across the pause
 
     def test_stopped_session_appears_in_statistics(self):
         w = self.window

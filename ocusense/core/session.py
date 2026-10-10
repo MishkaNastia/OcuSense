@@ -1,84 +1,86 @@
-"""Records one study session as numbers (never images) for the Statistics page.
+"""Records one study session as numbers (never images or landmarks).
 
-Fed once per processed frame with the "both eyes" personal openness (or None
-when measurement is paused) and whether that frame completed a blink.
-It does not change how blinks are detected; it only measures around them.
+Fed once per processed frame with a FrameObservation. It does not change how
+blinks are detected; it only measures around the detector, using the single
+implementation in measurements.py for both:
+  * the rolling "last 60 seconds" window shown live, and
+  * small per-minute summaries kept for the session history (Statistics).
+
+A new session (or a recalibration, which starts a new session) gets a new
+recorder, so rolling measurements reset. A pause creates a gap but keeps
+everything recorded so far.
 """
 
 from datetime import datetime, timedelta
 
-from ocusense.config import CLOSE_BELOW, MAX_FRAME_GAP, UNTRACKED_MIN
+from ocusense.config import UNTRACKED_MIN
 
-from .models import MinuteBin, SessionSummary
+from .measurements import MeasurementTracker, RollingWindow
+from .models import CalibrationInfo, FrameObservation, MinuteBin, RollingSnapshot, SessionSummary
 
 
 class SessionRecorder:
-    def __init__(self, now: float, wall_clock: datetime | None = None):
-        """now: time.monotonic() at the start; wall_clock: the matching datetime."""
+    def __init__(self, now: float, wall_clock: datetime | None = None, calibration: CalibrationInfo | None = None):
+        """now: time.monotonic() at the start; wall_clock: the matching datetime (identifies the session)."""
         self._mono0 = now
         self._wall0 = wall_clock or datetime.now()
+        self.calibration = calibration
         self.running = True
         self.finished = False
         self._segment_start = now
         self._segments = []
         self._untracked = []
-        self._untracked_since = None
+        self._untracked_since: float | None = None
+        self._last_valid_t: float | None = None
         self.tracked = 0.0
         self.closed = 0.0
         self.blinks = 0
         self.closures = []
         self._bins = {}
-        self._last_t = None
-        self._last_value = None
-        self._below_since = None
-        self._last_span = None
+        self._tracker = MeasurementTracker()
+        self.window = RollingWindow(now)
+        self.latest: FrameObservation | None = None  # last frame, for the live openness display
 
     def wall(self, t: float) -> datetime:
         return self._wall0 + timedelta(seconds=t - self._mono0)
 
-    def _bin(self, t):
+    def _bin(self, t: float) -> MinuteBin:
         index = int((t - self._mono0) // 60)
         if index not in self._bins:
             self._bins[index] = MinuteBin(self.wall(self._mono0 + index * 60))
         return self._bins[index]
 
-    def add_frame(self, t: float, openness: float | None, blinked: bool) -> None:
-        """t: time.monotonic() seconds; openness: both-eyes personal openness, None when paused."""
+    def add_observation(self, obs: FrameObservation) -> None:
         if not self.running:
             return
-        if openness is None:
+        self.latest = obs
+        step = self._tracker.add(obs)
+        self.window.add(step)
+        if not obs.valid:
             if self._untracked_since is None:
-                self._untracked_since = t
-            self._last_t = None
-            self._below_since = None
-            self._last_span = None
+                self._untracked_since = obs.t
             return
-        self._close_untracked(t)
-        minute = self._bin(t)
-        if self._last_t is not None and t - self._last_t <= MAX_FRAME_GAP:
-            dt = t - self._last_t
+        if step.interval is None and self._untracked_since is None and self._last_valid_t is not None:
+            self._untracked_since = self._last_valid_t  # a long gap between valid frames is also missing time
+        self._close_untracked(obs.t)
+        minute = self._bin(obs.t)
+        if step.interval:
+            start, end, is_closed = step.interval
+            dt = end - start
             self.tracked += dt
             minute.tracked += dt
-            if self._last_value < CLOSE_BELOW:
+            if is_closed:
                 self.closed += dt
                 minute.closed += dt
-        if openness < CLOSE_BELOW:
-            if self._below_since is None:
-                self._below_since = t
-        elif self._below_since is not None:
-            self._last_span = t - self._below_since
-            self._below_since = None
-        if blinked:
+        if step.blink:
             self.blinks += 1
             minute.blinks += 1
-            if self._last_span is not None:
-                self.closures.append(self._last_span)
-                minute.closures.append(self._last_span)
-                self._last_span = None
-        self._last_t = t
-        self._last_value = openness
+        if step.closure is not None:
+            self.closures.append(step.closure)
+            minute.closures.append(step.closure)
+        self._last_valid_t = obs.t
 
-    def _close_untracked(self, t):
+    def _close_untracked(self, t: float) -> None:
         if self._untracked_since is not None:
             if t - self._untracked_since >= UNTRACKED_MIN:
                 self._untracked.append((self._untracked_since, t))
@@ -90,17 +92,23 @@ class SessionRecorder:
         self._close_untracked(t)
         self._segments.append((self._segment_start, t))
         self.running = False
-        self._last_t = None
-        self._below_since = None
+        self._tracker.interrupt()  # an unfinished closure is discarded
+        self.window.pause(t)
+        self._last_valid_t = None
 
     def resume(self, t: float) -> None:
         if self.running:
             return
         self.running = True
         self._segment_start = t
+        self.window.resume(t)
+
+    def live(self, now: float) -> RollingSnapshot:
+        """The rolling last-60-seconds measurements."""
+        return self.window.snapshot(now)
 
     def summary(self, t: float) -> SessionSummary:
-        """A snapshot; if still running, the open period counts up to t."""
+        """A snapshot of the whole session; if still running, the open period counts up to t."""
         segments = list(self._segments)
         untracked = list(self._untracked)
         if self.running:
@@ -120,6 +128,7 @@ class SessionRecorder:
             untracked=[(self.wall(a), self.wall(b)) for a, b in untracked],
             minutes=[self._bins[k] for k in sorted(self._bins)],
             in_progress=not self.finished,
+            calibration=self.calibration,
         )
 
     def finish(self, t: float) -> SessionSummary:

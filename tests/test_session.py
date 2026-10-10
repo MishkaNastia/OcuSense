@@ -7,22 +7,29 @@ from ocusense.core.session import SessionRecorder
 from ocusense.storage import SessionStore
 from ocusense.core.stats import combined_metric, format_duration, format_metric, hour_range, period_days, period_stats
 
+from tests.helpers import Observer
+
 FPS = 30
 START = datetime(2026, 10, 10, 9, 0, 0)
 
 
+def observer_for(recorder):
+    """One real detector per recorder, so state carries across feed() calls like in the app."""
+    if not hasattr(recorder, "_test_observer"):
+        recorder._test_observer = Observer()
+    return recorder._test_observer
+
+
 def feed(recorder, t0, seconds, blink_every=None, closed_for=0.2, openness=0.9):
-    """Simulate `seconds` of frames from t0; a blink of `closed_for` s every `blink_every` s."""
+    """Simulate `seconds` of frames from t0; a closure of `closed_for` s every `blink_every` s."""
+    observe = observer_for(recorder)
     n = int(seconds * FPS)
-    was_closed = False
     for i in range(n + 1):
         t = t0 + i / FPS
         value = openness
-        if blink_every and 1.0 <= (t - t0) % blink_every < 1.0 + closed_for:
+        if blink_every and 1.0 <= (t - t0) % blink_every < 1.0 + closed_for - 1e-9:
             value = 0.05
-        closed = value < 0.35
-        recorder.add_frame(t, value, was_closed and not closed)  # blink completes on reopening
-        was_closed = closed
+        recorder.add_observation(observe(t, value))
     return t0 + n / FPS
 
 
@@ -51,8 +58,9 @@ class RecorderTest(unittest.TestCase):
     def test_lost_tracking_is_a_gap_not_zero(self):
         r = SessionRecorder(0.0, START)
         feed(r, 0.0, 10)
+        observe = observer_for(r)
         for i in range(int(5 * FPS)):
-            r.add_frame(10 + i / FPS, None, False)
+            r.add_observation(observe(10 + i / FPS, None))
         end = feed(r, 15.0, 10)
         s = r.finish(end)
         self.assertEqual(len(s.untracked), 1)
@@ -62,7 +70,7 @@ class RecorderTest(unittest.TestCase):
     def test_short_dropout_is_not_drawn_as_a_gap(self):
         r = SessionRecorder(0.0, START)
         feed(r, 0.0, 5)
-        r.add_frame(5.1, None, False)
+        r.add_observation(observer_for(r)(5.1, None))
         end = feed(r, 5.5, 5)
         self.assertEqual(r.finish(end).untracked, [])
 
@@ -91,7 +99,7 @@ def session(day, hour, minutes, blinks, tracked_share=1.0):
     end = feed(r, 0.0, minutes * 60 * tracked_share, blink_every=60 / max(1, blinks / minutes))
     if tracked_share < 1:
         for i in range(int(minutes * 60 * (1 - tracked_share) * FPS)):
-            r.add_frame(end + i / FPS, None, False)
+            r.add_observation(observer_for(r)(end + i / FPS, None))
         end = end + minutes * 60 * (1 - tracked_share)
     return r.finish(end)
 

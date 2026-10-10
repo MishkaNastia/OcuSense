@@ -27,10 +27,26 @@ MIN_EYE_WIDTH_RATIO = 0.6  # one eye much narrower than the other: head turned
 
 # --- Live graph and session recording ---
 GRAPH_SECONDS = 10.0  # history shown in the live eye-openness graph
-MAX_FRAME_GAP = 0.5  # seconds; frames further apart are not joined or counted as tracked time
-UNTRACKED_MIN = 2.0  # seconds without tracking before it is shown as a gap
-MIN_TRACKED_PER_MINUTE = 20.0  # seconds of tracking needed to show a per-minute value
+# ENGINEERING CHOICE: two valid frames further apart than this are treated as a
+# gap (missing observation), not as observed time. At ~30 frames/s, normal frames
+# are ~0.033 s apart; 0.5 s allows brief hiccups but never bridges real dropouts.
+MAX_FRAME_GAP = 0.5
+UNTRACKED_MIN = 2.0  # seconds without tracking before it is drawn as a gap on the timeline
+MIN_TRACKED_PER_MINUTE = 20.0  # seconds of valid observation needed to show a per-minute value
 MIN_SESSION_SECONDS = 10.0  # shorter sessions are not kept for Statistics
+
+# --- Rolling "last 60 seconds" measurements ---
+ROLLING_WINDOW_SECONDS = 60.0
+# ENGINEERING CHOICE (MVP): blink rate and time classified as closed are shown only
+# after this much VALID observation inside the window; before that: "Collecting data".
+# Not a clinical standard — chosen so a few blinks don't produce a misleading rate.
+MIN_VALID_SECONDS_FOR_RATE = 30.0
+PROCESSING_RATE_WINDOW = 5.0  # seconds used to measure the actual frames-per-second
+
+# Changes whenever a measurement definition changes, so later analysis can tell
+# sessions apart. v2: closure duration and closed time use the detector's own
+# closing/reopening transitions (v1 used time below the closing threshold).
+MEASUREMENT_VERSION = "ear-personal-v2"
 
 # --- Camera ---
 CAMERA_INDEX = 0  # 0 = the built-in webcam

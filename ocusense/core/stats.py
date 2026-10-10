@@ -41,8 +41,8 @@ def format_metric(name: str, value: float | None, with_unit: bool = True) -> str
 
 
 def format_duration(seconds: float) -> str:
-    if seconds < 60:
-        return f"{int(seconds)} s"
+    if seconds < 59.5:
+        return f"{round(seconds)} s"
     minutes = int(round(seconds / 60))
     if minutes < 60:
         return f"{minutes} min"

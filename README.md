@@ -82,6 +82,42 @@ Personal eye openness is relative to your own calibration only. It is not
 a fatigue or health measure, and accuracy has not been established for
 everyone - see [EVALUATION_CHECKLIST.md](EVALUATION_CHECKLIST.md).
 
+## Measurements (live study screen)
+
+All durations use monotonic timestamps of camera frames (never frame counts)
+and are only as precise as the frame interval (about ±33 ms at 30 frames/s).
+Definitions live in `ocusense/core/measurements.py`; defaults in `ocusense/config.py`.
+
+- **Personal eye openness (0–100 %, live)** — per eye:
+  `100 × (EAR − closed reference) / (open reference − closed reference)`,
+  using that eye's validated calibration. Shown clamped to 0–100 %; the
+  unclamped value is kept for diagnostics. The both-eyes value is the mean of
+  the two separately normalised eyes and is shown only when both are valid
+  ("—" otherwise, never 0 %). Relative to your calibration: not a fatigue
+  score or an anatomical percentage.
+- **Valid observation** — time between consecutive valid frames at most
+  `MAX_FRAME_GAP` (0.5 s) apart. Face lost, measurement paused, long frame
+  gaps and pauses are excluded. Tracking coverage = valid ÷ monitored time.
+- **Bilateral blink event** (unchanged detector) — both-eyes openness (mean
+  of the two clipped eyes) falls below 35 % → *closing*; it later rises above
+  65 % → *reopening* = one counted blink. Winks keep the mean around 50 % and
+  are not counted. Losing tracking or pausing forgets a half-finished blink.
+- **Blink rate (last 60 s)** — completed bilateral blinks ÷ valid observation
+  seconds × 60. Shown after 30 s of valid observation ("Collecting data" before).
+- **Median closure duration (last 60 s)** — median time from the closing to
+  the reopening transition of completed events that finished in the window.
+  This is the threshold-defined closed interval, not the whole blink movement.
+  Events interrupted by tracking loss, a frame gap or a pause are discarded.
+- **Time classified as closed (last 60 s)** — valid time spent in the
+  detector's closed state ÷ valid observation × 100, including ongoing and
+  long closures. Intervals crossing the window edge count only partly.
+  Not PERCLOS: calibrated EAR thresholds don't measure anatomical closure.
+
+**Engineering choices (not clinical standards):** the 30 s minimum before
+showing rate/closed time, the 0.5 s frame-gap limit, the 60 s window, and the
+35 %/65 % detector thresholds. `MEASUREMENT_VERSION` in `config.py` is stored
+with each session so later analysis can tell settings apart.
+
 ## Project structure
 
 ```

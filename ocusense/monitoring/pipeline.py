@@ -7,6 +7,7 @@ Frames are analysed in memory and never stored.
 
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 import cv2
@@ -14,11 +15,12 @@ import mediapipe as mp
 import numpy as np
 from mediapipe.tasks.python import BaseOptions, vision
 
-from ocusense.config import MODEL_PATH
+from ocusense.config import MEASUREMENT_VERSION, MODEL_PATH
 from ocusense.core.blink_counter import BlinkCounter
 from ocusense.core.calibration import GuidedCalibration
 from ocusense.core.eye_metrics import measure_eyes
 from ocusense.core.history import ScoreHistory
+from ocusense.core.models import CalibrationInfo, FrameObservation
 
 
 # Events that process() can report, so the interface can react to them.
@@ -41,9 +43,10 @@ class FrameResult:
     frame: object  # the mirrored camera frame (BGR), as it should be shown
     landmarks: object  # MediaPipe face landmarks, or None if no face
     measurement: object  # EyeMeasurement, or None if no face
-    openness: tuple = None  # (left, right, both) personal eye openness, or None
+    openness: tuple = None  # (left, right, both) clipped personal openness used by the detector, or None
     blinked: bool = False  # True if this frame completed a blink
     events: list = field(default_factory=list)
+    observation: FrameObservation = None  # timestamped input for the measurements
 
 
 class EyeMonitor:
@@ -54,6 +57,7 @@ class EyeMonitor:
         self.eye_counters = {"left": BlinkCounter(), "right": BlinkCounter()}
         self.calibrator = GuidedCalibration()
         self.calibration = None  # PersonalCalibration once calibrated
+        self.calibration_info: CalibrationInfo | None = None  # what produced the current calibration
         self.history = ScoreHistory()  # last few seconds of openness, for the graph
         self.landmarker = create_landmarker(model_path)
         self._start = time.monotonic()
@@ -65,8 +69,19 @@ class EyeMonitor:
         self.eye_counters = {"left": BlinkCounter(), "right": BlinkCounter()}
         self.history.clear()
 
+    def interrupt(self) -> None:
+        """Monitoring paused: treat it like lost tracking, so no blink can span the pause.
+
+        Uses the detector's existing rule (None = forget a half-finished blink).
+        Call only while no frame is being processed (the camera worker is stopped).
+        """
+        self.counter.update(None)
+        for counter in self.eye_counters.values():
+            counter.update(None)
+
     def start_calibration(self, now: float) -> None:
         self.calibration = None  # forget the old one; never mix old and new
+        self.calibration_info = None
         self.history.clear()
         self.calibrator.start(now)
 
@@ -93,7 +108,8 @@ class EyeMonitor:
 
         # --- calibration or counting ---
         calibrator = self.calibrator
-        if calibrator.status == GuidedCalibration.RUNNING:
+        was_calibrating = calibrator.status == GuidedCalibration.RUNNING
+        if was_calibrating:
             step_before = calibrator.step.name
             calibrator.update(now, reliable_ears)
             if calibrator.step is None or calibrator.step.name != step_before:
@@ -101,15 +117,39 @@ class EyeMonitor:
                     result.events.append(CLOSED_STEP_FINISHED)
             if calibrator.status == GuidedCalibration.DONE:
                 self.calibration = calibrator.result
+                self.calibration_info = CalibrationInfo(
+                    calibrated_at=datetime.now(),
+                    left_open_ear=self.calibration.left.open_ear, left_closed_ear=self.calibration.left.closed_ear,
+                    right_open_ear=self.calibration.right.open_ear, right_closed_ear=self.calibration.right.closed_ear,
+                    close_below=self.counter.close_below, reopen_above=self.counter.reopen_above,
+                    measurement_version=MEASUREMENT_VERSION,
+                )
                 result.events.append(CALIBRATION_DONE)
             elif calibrator.status == GuidedCalibration.FAILED:
                 result.events.append(CALIBRATION_FAILED)
-        elif self.calibration is not None and reliable_ears is not None:
+        raw = None
+        if not was_calibrating and self.calibration is not None and reliable_ears is not None:
             result.openness = self.calibration.openness(reliable_ears)
+            raw = self.calibration.raw_openness(reliable_ears)
 
         # None = calibrating or paused: resets any half-finished blink.
+        # The detector is unchanged; we only read its state before and after.
         openness = result.openness
+        state_before = self.counter.state
         result.blinked = self.counter.update(openness[2] if openness else None)
+        state_after = self.counter.state
+        ears = measurement.ears if measurement else {}
+        result.observation = FrameObservation(
+            t=now,
+            valid=openness is not None,
+            left_raw=raw[0] if raw else None,
+            right_raw=raw[1] if raw else None,
+            left_ear=ears.get("left"),
+            right_ear=ears.get("right"),
+            detector_closed=state_after == BlinkCounter.CLOSED,
+            closing_started=state_before == BlinkCounter.OPEN and state_after == BlinkCounter.CLOSED,
+            blink_completed=result.blinked,
+        )
         if self.calibration is not None:
             self.history.add(now, openness, result.blinked)
         self.eye_counters["left"].update(openness[0] if openness else None)

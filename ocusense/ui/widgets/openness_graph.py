@@ -1,4 +1,4 @@
-"""The live graph of personal eye openness (both eyes), drawn with QPainter.
+"""The live graph of personal eye openness (both eyes, 0–100 %), drawn with QPainter.
 
 Exact data only: a straight line between real samples, gaps where
 measurement was paused, a dot at the lowest point of each counted blink.
@@ -55,8 +55,8 @@ class OpennessGraph(QWidget):
         small = theme.number_font(12)
         p.setFont(small)
         p.setPen(theme.color(theme.GRAPHITE))
-        p.drawText(QRectF(0, plot.top() - 2, self.LEFT - 10, 16), Qt.AlignmentFlag.AlignRight, "open")
-        p.drawText(QRectF(0, plot.bottom() - 14, self.LEFT - 10, 16), Qt.AlignmentFlag.AlignRight, "closed")
+        p.drawText(QRectF(0, plot.top() - 2, self.LEFT - 10, 16), Qt.AlignmentFlag.AlignRight, "100%")
+        p.drawText(QRectF(0, plot.bottom() - 14, self.LEFT - 10, 16), Qt.AlignmentFlag.AlignRight, "0%")
         for seconds_ago, text in ((GRAPH_SECONDS, f"−{GRAPH_SECONDS:.0f} s"), (GRAPH_SECONDS / 2, f"−{GRAPH_SECONDS / 2:.0f} s"), (0, "now")):
             x = plot.left() + plot.width() * (1 - seconds_ago / GRAPH_SECONDS)
             align = Qt.AlignmentFlag.AlignLeft if seconds_ago == GRAPH_SECONDS else (
@@ -71,7 +71,7 @@ class OpennessGraph(QWidget):
         # Thresholds (dashed, labelled outside the plot so they never cover data)
         dash = QPen(theme.color(theme.GRAPHITE), 1.25, Qt.PenStyle.DashLine)
         p.setPen(dash)
-        for value, label in ((REOPEN_ABOVE, f"reopens · {REOPEN_ABOVE}"), (CLOSE_BELOW, f"closes · {CLOSE_BELOW}")):
+        for value, label in ((REOPEN_ABOVE, f"reopens · {REOPEN_ABOVE:.0%}"), (CLOSE_BELOW, f"closes · {CLOSE_BELOW:.0%}")):
             y = y_of(value)
             p.drawLine(QPointF(plot.left(), y), QPointF(plot.right(), y))
             p.save()
