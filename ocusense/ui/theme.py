@@ -99,5 +99,20 @@ QSlider::handle:horizontal {{ width: 18px; height: 18px; margin: -8px 0; border-
 QSlider:focus {{ outline: none; }}
 QSlider::handle:horizontal:focus {{ border-color: {COBALT}; background: {PAPER}; }}
 
+QSpinBox {{
+    min-height: 36px; padding: 0 8px 0 12px; border: 2px solid {INK}; border-radius: 10px;
+    background: {PAPER}; color: {INK}; font-size: 14px; font-weight: 600;
+}}
+QSpinBox:focus {{ border-color: {COBALT}; }}
+QSpinBox::up-button, QSpinBox::down-button {{ width: 0; border: none; }}  /* − / + buttons sit beside it */
+QSpinBox::up-arrow, QSpinBox::down-arrow {{ image: none; width: 0; height: 0; }}
+QPushButton[kind="step"] {{
+    min-height: 36px; min-width: 36px; max-width: 36px; padding: 0; border-radius: 18px;
+    border: 2px solid {INK}; background: transparent; color: {INK}; font-size: 18px; font-weight: 700;
+}}
+QPushButton[kind="step"]:hover {{ background: {PAPER_DEEP}; }}
+QPushButton[kind="step"]:pressed {{ background: {INK}; color: {PAPER}; }}
+QPushButton[kind="step"]:focus {{ border-color: {COBALT}; }}
+
 QToolTip {{ background: {PAPER}; color: {INK}; border: 1px solid {INK}; padding: 4px; }}
 """

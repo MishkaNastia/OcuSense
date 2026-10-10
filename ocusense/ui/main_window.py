@@ -52,11 +52,17 @@ from .current_session_page import CurrentSessionPage
 from .patterns_page import PatternsPage
 from .settings_page import SettingsPage
 from .sidebar import STATISTICS_PAGES, Sidebar
+from .pomodoro_page import PomodoroPage
 from .study_page import StudyPage
 from .widgets.alert_banner import AlertBanner, TooCloseMark
 from .widgets.common import vline
 
 BREAK_MESSAGE = "Hey, you should take a break, else your eyes will become drier than the Sahara desert."
+POMODORO_MESSAGES = {  # next phase → (title, message)
+    "short_break": ("Focus round done", "Time for a short break — look into the distance and rest your eyes."),
+    "long_break": ("Focus rounds complete", "Time for a long break — step away from the screen for a while."),
+    "focus": ("Break over", "Ready for the next focus round."),
+}
 DISTANCE_TITLE = "Trying to lick the screen?"
 DISTANCE_BODY = "Go easy on your eyes and move back a little."
 
@@ -130,11 +136,13 @@ class MainWindow(QMainWindow):
         self.patterns_page = PatternsPage()
         self.settings_page = SettingsPage()
         self.account_page = AccountPage()
+        self.pomodoro_page = PomodoroPage(self.preferences)
         self.page_for = {"study": self.study, "current": self.current_page, "all_time": self.stats_page,
-                         "patterns": self.patterns_page, "settings": self.settings_page, "account": self.account_page}
+                         "patterns": self.patterns_page, "settings": self.settings_page, "account": self.account_page,
+                         "pomodoro": self.pomodoro_page}
         self.pages = QStackedWidget()
         for page in (self.study, self.calibration, self.current_page, self.stats_page, self.patterns_page,
-                     self.settings_page, self.account_page):
+                     self.settings_page, self.account_page, self.pomodoro_page):
             self.pages.addWidget(page)
         content = QWidget()
         column = QVBoxLayout(content)
@@ -171,6 +179,8 @@ class MainWindow(QMainWindow):
         self.settings_page.set_distance_interval(self.preferences.distance_reminder_interval)
         self.settings_page.distance.toggled.connect(self._set_distance_reminder)
         self.settings_page.distance_interval_changed.connect(self._set_distance_interval)
+        self.pomodoro_page.status_text.connect(self.sidebar.set_pomodoro_status)
+        self.pomodoro_page.phase_ended.connect(self._pomodoro_phase_ended)
         self.settings_page.details.toggled.connect(self.study.details_button.setChecked)
         self.study.details_button.toggled.connect(self.settings_page.details.setChecked)
 
@@ -420,6 +430,23 @@ class MainWindow(QMainWindow):
             self._reminder = BreakReminder()
             self.study.hide_reminder()
         return self._drift[1]
+
+    def _pomodoro_phase_ended(self, ended) -> None:
+        """A Pomodoro phase finished: a Mac notification if OcuSense isn't in view, and an optional sound."""
+        prefs = self.preferences
+        if prefs.pomodoro_sound:
+            QApplication.beep()
+        if not prefs.pomodoro_notify:
+            return
+        app = QApplication.instance()
+        in_view = (app.applicationState() == Qt.ApplicationState.ApplicationActive and self.isActiveWindow()
+                   and self.view == "pomodoro")
+        if in_view:
+            return  # the page itself shows the change
+        title, message = POMODORO_MESSAGES[ended.next_phase]
+        if not ended.started_automatically:
+            message += " Press Start in OcuSense when you’re ready."
+        self.notify(message, title)
 
     def _remind(self) -> None:
         """Blinking less often than in the reference, confirmed: suggest a break (notification + Study page)."""

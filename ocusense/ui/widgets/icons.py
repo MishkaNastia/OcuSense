@@ -46,7 +46,17 @@ def _account(p):  # head and shoulders
     p.drawPath(shoulders)
 
 
-ICONS = {"study": _study, "statistics": _statistics, "settings": _settings, "account": _account}
+def _pomodoro(p):  # a tomato: round body, stem and leaf
+    p.drawEllipse(QPointF(10, 11.5), 6.8, 6.3)
+    p.drawLine(QPointF(10, 5.2), QPointF(10, 2.5))
+    leaf = QPainterPath(QPointF(10, 5.2))
+    leaf.cubicTo(11.5, 3.2, 14.5, 3.4, 15.5, 4.8)
+    leaf.cubicTo(13.8, 5.8, 11.8, 6.0, 10, 5.2)
+    p.drawPath(leaf)
+
+
+ICONS = {"study": _study, "pomodoro": _pomodoro, "statistics": _statistics, "settings": _settings,
+         "account": _account}
 
 
 def draw_icon(painter, name: str, rect: QRectF, color, background) -> None:

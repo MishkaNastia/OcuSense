@@ -329,6 +329,8 @@ class SidebarNavigationTest(unittest.TestCase):
         bar = w.sidebar
         bar.items["study"].setFocus()
         QTest.keyClick(bar.items["study"], Qt.Key.Key_Down)
+        self.assertTrue(bar.items["pomodoro"].hasFocus())
+        QTest.keyClick(bar.items["pomodoro"], Qt.Key.Key_Down)
         self.assertTrue(bar.items["statistics"].hasFocus())
         QTest.keyClick(bar.items["statistics"], Qt.Key.Key_Right)
         self.assertFalse(bar.items["current"].isHidden())

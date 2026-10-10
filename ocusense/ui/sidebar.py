@@ -1,6 +1,7 @@
 """The vertical sidebar: logo, monitoring status, and navigation.
 
   Study
+  Pomodoro (shows the time left while it runs)
   Statistics ›  Current session / All time / Understanding your patterns
   ...
   Settings
@@ -162,6 +163,7 @@ class Sidebar(QWidget):
 
         self.items: dict[str, SidebarItem] = {}
         self._add(layout, SidebarItem("study", "Study", "study"))
+        self._add(layout, SidebarItem("pomodoro", "Pomodoro", "pomodoro"))
         self._add(layout, SidebarItem("statistics", "Statistics", "statistics", expandable=True))
         for key, text in (("current", "Current session"), ("all_time", "All time"),
                           ("patterns", "Understanding your patterns")):
@@ -203,6 +205,10 @@ class Sidebar(QWidget):
         if key in STATISTICS_PAGES and not self.expanded:
             self.set_expanded(True)
         self._paint_state()
+
+    def set_pomodoro_status(self, status: str) -> None:
+        """e.g. "18:42" while a Pomodoro phase runs, "" when it isn't."""
+        self.items["pomodoro"].set_text(f"Pomodoro · {status}" if status else "Pomodoro")
 
     def set_account_label(self, text: str) -> None:
         self.items["account"].set_text(text)

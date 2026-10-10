@@ -2,8 +2,8 @@
 
     ~/Library/Application Support/OcuSense/preferences.json
 
-Only reminder choices for now. Unknown or invalid values fall back to the
-defaults, so a damaged file never stops the app.
+Reminder choices and the Pomodoro settings. Unknown or invalid values fall back
+to the defaults, so a damaged file never stops the app.
 """
 
 import json
@@ -12,6 +12,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from ocusense.config import PROXIMITY_COOLDOWN_CHOICES, PROXIMITY_COOLDOWN_SECONDS
+from ocusense.core.pomodoro import LIMITS, PomodoroSettings
 
 
 def default_path() -> Path:
@@ -24,6 +25,26 @@ def default_path() -> Path:
 class Preferences:
     distance_reminder: bool = True
     distance_reminder_interval: float = PROXIMITY_COOLDOWN_SECONDS  # seconds, one of PROXIMITY_COOLDOWN_CHOICES
+    # Pomodoro
+    focus_minutes: int = 25
+    short_break_minutes: int = 5
+    long_break_minutes: int = 15
+    rounds_before_long_break: int = 4
+    auto_start_breaks: bool = True
+    auto_start_focus: bool = False
+    pomodoro_notify: bool = True  # a Mac notification when a phase ends (while OcuSense isn't in view)
+    pomodoro_sound: bool = False
+    animations: bool = True  # also off when macOS "Reduce motion" is on
+
+    def pomodoro(self) -> PomodoroSettings:
+        return PomodoroSettings(self.focus_minutes, self.short_break_minutes, self.long_break_minutes,
+                                self.rounds_before_long_break, self.auto_start_breaks, self.auto_start_focus)
+
+    def set_pomodoro(self, s: PomodoroSettings) -> None:
+        s = s.clamped()
+        self.focus_minutes, self.short_break_minutes = s.focus_minutes, s.short_break_minutes
+        self.long_break_minutes, self.rounds_before_long_break = s.long_break_minutes, s.rounds_before_long_break
+        self.auto_start_breaks, self.auto_start_focus = s.auto_start_breaks, s.auto_start_focus
 
     @classmethod
     def load(cls, path: Path | None = None) -> "Preferences":
@@ -36,6 +57,13 @@ class Preferences:
             prefs.distance_reminder = values["distance_reminder"]
         if values.get("distance_reminder_interval") in PROXIMITY_COOLDOWN_CHOICES:
             prefs.distance_reminder_interval = float(values["distance_reminder_interval"])
+        for name, (low, high) in LIMITS.items():
+            value = values.get(name)
+            if isinstance(value, int) and not isinstance(value, bool) and low <= value <= high:
+                setattr(prefs, name, value)
+        for name in ("auto_start_breaks", "auto_start_focus", "pomodoro_notify", "pomodoro_sound", "animations"):
+            if isinstance(values.get(name), bool):
+                setattr(prefs, name, values[name])
         return prefs
 
     def save(self, path: Path | None = None) -> bool:

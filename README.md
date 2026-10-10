@@ -33,6 +33,10 @@ graph. Pause turns the camera off; Stop ends the session (calibration is kept).
 The sidebar on the left switches pages without interrupting monitoring:
 
 - **Study** — timer, controls, calibration and the live graph.
+- **Pomodoro** — a customisable focus timer (focus, short and long breaks, presets,
+  auto-start, Mac notification and optional sound when a phase ends) with animated
+  Miró pictures; the sidebar shows the time left. Animations follow macOS
+  "Reduce motion". Separate from eye monitoring.
 - **Statistics** (expands) — **Current session** (the running session's time,
   coverage and measurements), **All time** (totals, a date filter, a timeline
   with blink rate, median closure duration or time classified as closed, and
@@ -213,6 +217,7 @@ ocusense/
     patterns_page.py   Statistics › Understanding your patterns
     distributions_panel.py  the "Blink distributions" histograms (live and imported)
     recordings_section.py   All time: import, choose and inspect recordings (background loading)
+    pomodoro_page.py   Pomodoro (timer logic in core/pomodoro.py)
     settings_page.py   Settings
     account_page.py    Log in (not available yet)
     theme.py           colours, fonts, style sheet
