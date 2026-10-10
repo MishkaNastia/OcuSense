@@ -6,6 +6,9 @@ calibration. All video is processed locally in memory: camera images are never
 saved or uploaded. The only thing written to disk is the raw EAR recording (see
 below).
 
+For how every measurement and graph works (methods, time windows, histograms,
+saved files), see [docs/measurements.md](docs/measurements.md).
+
 ## Setup (once)
 
 ```
