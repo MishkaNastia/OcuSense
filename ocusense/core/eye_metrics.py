@@ -55,21 +55,27 @@ class EyeMeasurement:
     ears: dict  # {"left": EAR, "right": EAR}
     reliable: bool
     reason: str  # why it's unreliable ("" when reliable)
+    # Distance between the two eye centres ÷ frame width: grows as the face comes closer.
+    # Used only for the distance reminder; None when the eyes weren't both in the picture.
+    face_scale: float | None = None
 
 
 def measure_eyes(landmarks, frame_width: int, frame_height: int) -> "EyeMeasurement":
     """Compute both EARs and decide whether this frame is trustworthy."""
     ears = {}
     widths = {}
+    centres = {}
     for name, indices in EYE_LANDMARKS.items():
         if any(not (0 <= landmarks[i].x <= 1 and 0 <= landmarks[i].y <= 1) for i in indices):
             return EyeMeasurement({}, False, "eye outside the picture")
         points = eye_points_px(landmarks, indices, frame_width, frame_height)
         widths[name] = distance(points[0], points[3])
         ears[name] = eye_aspect_ratio(points)
+        centres[name] = ((points[0][0] + points[3][0]) / 2, (points[0][1] + points[3][1]) / 2)  # between the corners
+    scale = distance(centres["left"], centres["right"]) / frame_width
 
     if min(widths.values()) < MIN_EYE_WIDTH_PX:
-        return EyeMeasurement(ears, False, "face too small - move closer")
+        return EyeMeasurement(ears, False, "face too small - move closer", scale)
     if min(widths.values()) / max(widths.values()) < MIN_EYE_WIDTH_RATIO:
-        return EyeMeasurement(ears, False, "head turned - face the camera")
-    return EyeMeasurement(ears, True, "")
+        return EyeMeasurement(ears, False, "head turned - face the camera", scale)
+    return EyeMeasurement(ears, True, "", scale)

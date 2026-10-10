@@ -40,6 +40,7 @@ class MonitorUpdate:
     source: object = None  # the CameraWorker (camera run) that produced it
     observation: object = None  # core.models.FrameObservation for the measurements
     calibration_info: object = None  # core.models.CalibrationInfo in use for this frame, or None
+    closeness: float = None  # face size now ÷ at calibration, for the distance reminder
 
 
 def open_camera(index: int = CAMERA_INDEX) -> cv2.VideoCapture | None:
@@ -81,6 +82,7 @@ def snapshot(monitor: EyeMonitor, result: FrameResult, now: float) -> MonitorUpd
         preview=to_qimage(result.frame),
         observation=result.observation,
         calibration_info=monitor.calibration_info,
+        closeness=result.closeness,
     )
 
 

@@ -48,6 +48,15 @@ PROCESSING_RATE_WINDOW = 5.0  # seconds used to measure the actual frames-per-se
 # closing/reopening transitions (v1 used time below the closing threshold).
 MEASUREMENT_VERSION = "ear-personal-v2"
 
+# --- Distance reminder (ocusense/core/proximity.py) ---
+# The face looks bigger the closer it is (apparent size ∝ 1 / distance). "Closeness" is the
+# distance between the eye centres now ÷ the same distance during calibration, where the
+# person sits about an arm's length away. 1.6 ≈ at 60 % of the calibration distance.
+PROXIMITY_WARN_RATIO = 1.6  # remind when this much closer than at calibration…
+PROXIMITY_SUSTAIN_SECONDS = 3.0  # …for this long (a quick lean forward doesn't count)
+PROXIMITY_CLEAR_RATIO = 1.3  # back below this = moved back (two levels stop on/off flicker)
+PROXIMITY_COOLDOWN_SECONDS = 300.0  # at most one reminder every 5 minutes
+
 # --- Raw EAR recording (ocusense/recording.py) ---
 RECORDING_CHUNK_SECONDS = 600.0  # a new CSV file every 10 minutes (and on pause, stop and quit)
 

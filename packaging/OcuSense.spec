@@ -55,7 +55,7 @@ app = BUNDLE(
         # without it macOS closes the app as soon as it opens the camera.
         "NSCameraUsageDescription": (
             "OcuSense uses the camera to measure eye openness and count blinks. "
-            "Images are processed on this Mac and never recorded or uploaded."
+            "Images are processed on this Mac and never saved or uploaded."
         ),
     },
 )

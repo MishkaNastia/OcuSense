@@ -60,6 +60,12 @@ recalibration starts a new one. Numbers only, no images. Settings › Data &
 privacy can switch it off and open the folder. About 1 MB per 10 minutes at 30
 frames per second.
 
+**Distance reminder.** Calibration asks you to sit about an arm's length away. If
+your face later looks 1.6× as big for 3 s, OcuSense shows "Trying to lick the
+screen? Go easy on your eyes and move back a little." in the window, and as a macOS
+notification while it's in the background (packaged app; macOS asks permission
+once). At most every 5 minutes; Settings › Reminders switches it off.
+
 **Blink distributions.** Statistics › Current session shows live histograms
 (closure duration by default; also time between blinks, blink rate per minute,
 frequency per blink and personal eye openness; both frequency views can be shown

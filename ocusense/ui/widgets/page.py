@@ -2,7 +2,7 @@
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
 from .. import theme
 from .common import label, rule
@@ -34,6 +34,24 @@ class Page(QScrollArea):
             self.body.addWidget(label(intro, "secondary", theme.ui_font(16), wrap=True))
         self.body.addSpacing(8)
 
+    def fit_height(self) -> None:
+        """Give the content the height its wrapped text needs at the current width.
+
+        QScrollArea doesn't pass height-for-width to its content, so rows with
+        wrapped labels would otherwise be squeezed to their bare minimum.
+        """
+        layout = self.widget().layout()
+        if layout is not None and layout.hasHeightForWidth():
+            self.widget().setMinimumHeight(layout.heightForWidth(self.viewport().width()))
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self.fit_height()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        self.fit_height()
+
     def set_tag(self, text: str, tooltip: str = "") -> None:
         self.tag.setText(text)
         self.tag.setToolTip(tooltip)
@@ -57,8 +75,19 @@ def tag_label(text: str):
     return tag
 
 
+class _Paragraph(QLabel):
+    """A wrapped label with a readable line length whose height is computed at that capped width."""
+
+    def heightForWidth(self, width: int) -> int:
+        return super().heightForWidth(min(width, self.maximumWidth()))
+
+
 def paragraph(text: str, size: int = 15, secondary: bool = False, rich: bool = False):
-    widget = label(text, "secondary" if secondary else None, theme.ui_font(size), wrap=True)
+    widget = _Paragraph(text)
+    if secondary:
+        widget.setProperty("role", "secondary")
+    widget.setFont(theme.ui_font(size))
+    widget.setWordWrap(True)
     if rich:
         widget.setTextFormat(Qt.TextFormat.RichText)
     widget.setMaximumWidth(760)

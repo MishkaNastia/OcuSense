@@ -14,7 +14,8 @@ from .widgets.common import button, label
 
 # What to tell the person in each calibration step (same order as core.calibration.STEPS).
 STEP_TEXT = [
-    ("Eyes comfortably open", "Look at the screen with your eyes comfortably open."),
+    ("Eyes comfortably open", "Sit about an arm’s length from the screen and look at it with your eyes "
+                              "comfortably open."),
     ("Gently close your eyes", "When the countdown ends, close your eyes gently and slowly count to 5. "
                                "A sound tells you when to open them."),
     ("A few natural blinks", "Blink naturally, about 5 times."),
@@ -89,7 +90,7 @@ class CalibrationView(QScrollArea):
         """Shown while the camera starts, before the first step."""
         self.eyebrow.setText("CALIBRATION")
         self.title.setText("Starting the camera…")
-        self.detail.setText("Sit comfortably, facing the screen, with light on your face.")
+        self.detail.setText("Sit comfortably, about an arm’s length from the screen, facing it, with light on your face.")
         for widget in (self.countdown, self.phase, self.face, self.error):
             widget.setText("")
         self.try_again_button.setVisible(False)

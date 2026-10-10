@@ -19,8 +19,9 @@ Contents
 10. [Graphs and numbers, page by page](#10-graphs-and-numbers-page-by-page)
 11. [Blink distributions (histograms)](#11-blink-distributions-histograms)
 12. [Saved recordings](#12-saved-recordings)
-13. [Precision and limitations](#13-precision-and-limitations)
-14. [Where it lives in the code](#14-where-it-lives-in-the-code)
+13. [Distance reminder](#13-distance-reminder)
+14. [Precision and limitations](#14-precision-and-limitations)
+15. [Where it lives in the code](#15-where-it-lives-in-the-code)
 
 ---
 
@@ -77,6 +78,10 @@ calibration values are measured, not set.
 | `MIN_VALID_SECONDS_FOR_RATE` | 30 s | valid observation needed before a rate or closed time is shown (rolling window and 60 s distribution windows) |
 | `PROCESSING_RATE_WINDOW` | 5 s | period used to measure the actual frames per second |
 | `RECORDING_CHUNK_SECONDS` | 600 s | a new recording file every 10 minutes |
+| `PROXIMITY_WARN_RATIO` | 1.6 | distance reminder when the face looks 1.6× as big as at calibration… |
+| `PROXIMITY_SUSTAIN_SECONDS` | 3 s | …for this long |
+| `PROXIMITY_CLEAR_RATIO` | 1.3 | below this the person counts as moved back |
+| `PROXIMITY_COOLDOWN_SECONDS` | 300 s | at most one distance reminder every 5 minutes |
 | `MEASUREMENT_VERSION` | `ear-personal-v2` | changes whenever a definition changes |
 
 The 0.5 s gap, the 30 s minimum and the 20 s per-minute minimum are **engineering
@@ -131,7 +136,7 @@ session (and whenever you press Recalibrate) and takes **23.5 seconds**:
 
 | Step | Instruction | Get ready | Measuring | Frames used |
 | --- | --- | --- | --- | --- |
-| 1. Open | eyes comfortably open, look at the screen | 3 s | 3 s | 0.5–3.0 s into measuring |
+| 1. Open | sit about an arm's length from the screen, eyes comfortably open, look at the screen | 3 s | 3 s | 0.5–3.0 s into measuring |
 | 2. Closed | close gently, count slowly to 5 (a sound says when to open) | 4 s | 4.5 s | 1.0–3.5 s into measuring |
 | 3. Blinks | blink naturally about 5 times | 3 s | 6 s | all 6 s |
 
@@ -149,8 +154,11 @@ a few odd frames, such as an accidental blink during the open step.
    deviation, comparable to a standard deviation) is at most **25 %** of the open–closed gap;
 4. in step 3, using the new references, the normal blink detector finds at least **3 blinks**.
 
+During the open step OcuSense also stores the **reference face size** (median distance between
+the eye centres ÷ image width) for the distance reminder (section 13).
+
 Each calibration is stored with: the four reference EARs, the two detector thresholds, the
-time it was made and the measurement version (see [12](#12-saved-recordings)).
+reference face size, the time it was made and the measurement version (see [12](#12-saved-recordings)).
 
 ---
 
@@ -509,7 +517,54 @@ No camera images and no face landmarks are ever saved.
 
 ---
 
-## 13. Precision and limitations
+## 13. Distance reminder
+
+A gentle reminder when someone has moved much closer to the screen than during calibration:
+
+> **Trying to lick the screen?**
+> Go easy on your eyes and move back a little.
+
+**Method.** The camera can't measure centimetres, but a face looks bigger the closer it is
+(apparent size ∝ 1 ÷ distance). For every reliable frame:
+
+```
+face size  = distance between the two eye centres (midpoint of each eye's corners) ÷ image width
+closeness  = face size now ÷ reference face size (median during calibration step 1, at about an arm's length)
+```
+
+| Closeness | Roughly | If calibrated at 60 cm |
+| --- | --- | --- |
+| 1.0 | where you calibrated | 60 cm |
+| 1.3 | 77 % of that distance | ~46 cm |
+| 1.6 | 62 % of that distance | ~37 cm |
+| 2.0 | half the distance | 30 cm |
+
+The eye-centre distance is used rather than eye width because it doesn't change when you
+blink or squint. Dividing by the image width makes it independent of camera resolution.
+
+**Rules.**
+1. Closeness at or above **1.6** for **3 seconds** without interruption → a reminder (a quick
+   lean forward doesn't count; an unreliable frame restarts the 3 s).
+2. The reminder stays until closeness falls below **1.3** (two levels, like the blink detector,
+   so it doesn't flicker), or until you press **Got it**.
+3. At most **one reminder every 5 minutes**.
+4. Pausing, stopping or recalibrating clears it. Settings › Reminders › Distance reminder
+   switches it off.
+
+**Where it appears.** Always as a card at the top of the OcuSense window, in the OcuSense
+alert style (paper card, ink border, a Miró mark: an eye pressed against the screen with a
+vermilion tongue). When OcuSense is in the background, also as a **macOS notification** in
+Notification Centre, with the same title and text — macOS draws those in its own style, with
+the OcuSense name and icon. macOS asks for permission the first time monitoring starts;
+without permission only the in-window card appears. System notifications work in the
+packaged OcuSense.app (not when running `python -m ocusense`). No sound is played.
+
+**Limits.** It is relative to your calibration, not centimetres: calibrating while already
+very close makes it less useful. Leaning or turning the head changes the apparent size a
+little; the thresholds leave room for that. It never affects blink detection — EAR is a ratio
+and barely changes with distance.
+
+## 14. Precision and limitations
 
 - **Frame timing**: durations are accurate to about one frame interval (±33 ms at 30 fps;
   coarser in dim light, when cameras slow down).
@@ -530,7 +585,7 @@ No camera images and no face landmarks are ever saved.
 
 ---
 
-## 14. Where it lives in the code
+## 15. Where it lives in the code
 
 | Topic | File |
 | --- | --- |
@@ -546,4 +601,6 @@ No camera images and no face landmarks are ever saved.
 | Replaying saved recordings | `ocusense/core/replay.py`, `ocusense/recording_files.py` |
 | Saving recordings | `ocusense/recording.py` |
 | Exports | `ocusense/exports.py` |
+| Distance reminder rules | `ocusense/core/proximity.py` (face size in `core/eye_metrics.py`) |
+| Reminder card and macOS notifications | `ocusense/ui/widgets/alert_banner.py`, `ocusense/ui/notifications.py` |
 | Frame processing per camera frame | `ocusense/monitoring/pipeline.py` |

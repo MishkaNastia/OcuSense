@@ -112,6 +112,9 @@ def combine(left_openness: float, right_openness: float) -> float:
 class PersonalCalibration:
     left: EyeReference
     right: EyeReference
+    # Median eye-centre distance ÷ frame width during the "open" step, at about an arm's
+    # length: the reference for the distance reminder (None if it wasn't measured).
+    face_scale: float | None = None
 
     def openness(self, ears: dict[str, float]) -> tuple[float, float, float]:
         """Return (left, right, combined) personal eye openness."""
@@ -173,6 +176,7 @@ class GuidedCalibration:
         self.error = ""
         self._samples = {"open": {"left": [], "right": []}, "closed": {"left": [], "right": []}}
         self._blink_openness = []
+        self._face_scales = []
         self._candidate = None
         self._step_index = 0
         self._step_start = now
@@ -194,7 +198,8 @@ class GuidedCalibration:
             return step.get_ready_seconds - elapsed
         return step.get_ready_seconds + step.measure_seconds - elapsed
 
-    def update(self, now: float, ears: dict[str, float] | None) -> None:
+    def update(self, now: float, ears: dict[str, float] | None, face_scale: float | None = None) -> None:
+        """face_scale: the frame's eye-centre distance ÷ frame width (reliable frames only), for the distance reference."""
         step = self.step
         if step is None:
             return
@@ -208,6 +213,8 @@ class GuidedCalibration:
             elif ears is not None:
                 for eye in ("left", "right"):
                     self._samples[step.name][eye].append(ears[eye])
+                if step.name == "open" and face_scale is not None:
+                    self._face_scales.append(face_scale)
 
         if t >= step.measure_seconds:
             self._finish_step(step, now)
@@ -220,6 +227,7 @@ class GuidedCalibration:
                         "left", self._samples["open"]["left"], self._samples["closed"]["left"]),
                     right=build_eye_reference(
                         "right", self._samples["open"]["right"], self._samples["closed"]["right"]),
+                    face_scale=statistics.median(self._face_scales) if self._face_scales else None,
                 )
             elif step.name == "blinks":
                 found = count_blinks(self._blink_openness)

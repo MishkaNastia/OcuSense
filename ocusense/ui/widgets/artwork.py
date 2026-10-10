@@ -16,7 +16,7 @@ def _pen(hex_value, width):
     return pen
 
 
-def _star(painter, cx, cy, r, hex_value, width):
+def draw_star(painter, cx, cy, r, hex_value, width):
     painter.setPen(_pen(hex_value, width))
     d = r * 0.7
     painter.drawLine(QPointF(cx, cy - r), QPointF(cx, cy + r))
@@ -39,7 +39,7 @@ def paint_logo(painter, size, monochrome=None):
     painter.setPen(Qt.PenStyle.NoPen)
     painter.setBrush(QBrush(theme.color(monochrome or theme.COBALT)))
     painter.drawEllipse(QPointF(33, 31), 8.5, 8.5)
-    _star(painter, 53, 9, 6, monochrome or theme.VERMILION, 3.4 if monochrome else 2.6)
+    draw_star(painter, 53, 9, 6, monochrome or theme.VERMILION, 3.4 if monochrome else 2.6)
     painter.restore()
 
 
@@ -92,4 +92,4 @@ class Composition(QWidget):
         p.setBrush(QBrush(theme.color(theme.GREEN)))
         p.drawEllipse(QPointF(252, 214), 5, 5)
 
-        _star(p, 104, 35, 13, theme.INK, 2.2)
+        draw_star(p, 104, 35, 13, theme.INK, 2.2)

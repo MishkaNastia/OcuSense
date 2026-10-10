@@ -52,10 +52,13 @@ class RecordedCalibration:
     reopen_above: float
     calibrated_at: str
     measurement_version: str
+    reference_face_scale: float | None = None  # only in recordings made after the distance reminder was added
 
     @classmethod
     def from_json(cls, values: dict) -> "RecordedCalibration":
-        return cls(**{name: values[name] for name in cls.__dataclass_fields__})
+        optional = {"reference_face_scale"}
+        return cls(**{name: values.get(name) if name in optional else values[name]
+                      for name in cls.__dataclass_fields__})
 
     def personal(self) -> PersonalCalibration:
         return PersonalCalibration(EyeReference(self.left_open_ear, self.left_closed_ear),

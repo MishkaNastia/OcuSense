@@ -8,6 +8,7 @@ It connects the pieces and holds no layouts of its own pages:
   CameraWorker (monitoring/camera_worker.py)     — frames in, structured results out
   SessionRecorder + SessionStore                 — numbers kept for Statistics
   EarRecording (recording.py)                    — raw EAR of every frame, saved as CSV files
+  ProximityMonitor + AlertBanner                 — the distance reminder (banner + macOS notification)
 
 Navigation only swaps the visible page: it never starts, stops or restarts the
 camera worker, so monitoring carries on while you look at other pages.
@@ -24,13 +25,16 @@ import time
 from dataclasses import asdict
 from datetime import datetime
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QKeySequence, QPixmap, QShortcut
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QMessageBox, QStackedWidget, QWidget
+from PySide6.QtWidgets import (
+    QApplication, QHBoxLayout, QMainWindow, QMessageBox, QStackedWidget, QVBoxLayout, QWidget,
+)
 
 from ocusense.config import CLOSE_BELOW, MIN_SESSION_SECONDS, MODEL_PATH, REOPEN_ABOVE
 from ocusense.core.baseline_drift import BreakReminder, LiveDrift
 from ocusense.core.calibration import GuidedCalibration
+from ocusense.core.proximity import ProximityMonitor
 from ocusense.core.session import SessionRecorder
 from ocusense.demo_data import demo_sessions
 from ocusense.monitoring.camera_worker import CameraWorker, MonitorUpdate, open_camera
@@ -48,9 +52,12 @@ from .patterns_page import PatternsPage
 from .settings_page import SettingsPage
 from .sidebar import STATISTICS_PAGES, Sidebar
 from .study_page import StudyPage
+from .widgets.alert_banner import AlertBanner, TooCloseMark
 from .widgets.common import vline
 
 BREAK_MESSAGE = "Hey, you should take a break, else your eyes will become drier than the Sahara desert."
+DISTANCE_TITLE = "Trying to lick the screen?"
+DISTANCE_BODY = "Go easy on your eyes and move back a little."
 
 CAMERA_HELP = ("Could not open the camera. On a Mac: System Settings › Privacy & Security › Camera, "
                "allow this app (or Terminal / VS Code when running from there), then reopen it.")
@@ -94,6 +101,8 @@ class MainWindow(QMainWindow):
         except reference_file.ReferenceFileError as error:
             self.reference_error = str(error)  # never overwritten automatically
         self.ear_log = EarRecording()  # raw EAR per frame, written every 10 minutes
+        self.proximity = ProximityMonitor()  # distance reminder
+        self.distance_reminder = True  # Settings › Reminders
         self._ticks = 0
 
         root = QWidget()
@@ -125,7 +134,23 @@ class MainWindow(QMainWindow):
         for page in (self.study, self.calibration, self.current_page, self.stats_page, self.patterns_page,
                      self.settings_page, self.account_page):
             self.pages.addWidget(page)
-        outer.addWidget(self.pages, 1)
+        content = QWidget()
+        column = QVBoxLayout(content)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(0)
+        self.distance_banner = AlertBanner(DISTANCE_TITLE, DISTANCE_BODY, ("Got it", "Reminder settings"),
+                                           TooCloseMark())
+        self.distance_banner.action.connect(self._banner_action)
+        self.distance_banner.setVisible(False)
+        holder = QWidget()  # gives the card some room from the window edges
+        holder_row = QVBoxLayout(holder)
+        holder_row.setContentsMargins(40, 16, 40, 0)
+        holder_row.addWidget(self.distance_banner)
+        self.banner_holder = holder
+        holder.setVisible(False)
+        column.addWidget(holder)
+        column.addWidget(self.pages, 1)
+        outer.addWidget(content, 1)
 
         self.study.start_button.clicked.connect(self.start)
         self.study.pause_button.clicked.connect(self.pause)
@@ -140,6 +165,7 @@ class MainWindow(QMainWindow):
         self.settings_page.clear_history_requested.connect(self.clear_history)
         self.settings_page.new_reference_requested.connect(self.make_new_reference)
         self.settings_page.record.toggled.connect(self._set_recording)
+        self.settings_page.distance.toggled.connect(self._set_distance_reminder)
         self.settings_page.details.toggled.connect(self.study.details_button.setChecked)
         self.study.details_button.toggled.connect(self.settings_page.details.setChecked)
 
@@ -194,6 +220,7 @@ class MainWindow(QMainWindow):
         self._stop_camera()
         self.monitor.interrupt()  # after the worker stopped: no blink may span the pause
         self._save_recording()
+        self._clear_distance_reminder()
         self._set_state("paused")
 
     def resume(self) -> None:
@@ -207,6 +234,7 @@ class MainWindow(QMainWindow):
         self._stop_clock()
         self._stop_camera()
         self._save_recording()
+        self._clear_distance_reminder()
         saved = self._finish_session()
         self.monitor.reset_session()
         self.elapsed = 0.0
@@ -228,6 +256,7 @@ class MainWindow(QMainWindow):
         self._set_state("ready", "Calibration cancelled. Press Start to calibrate again.")
 
     def _begin_calibration(self) -> None:
+        self._clear_distance_reminder()  # a new calibration sets a new reference distance
         self.thread.request_calibration()
         self._set_state("calibrating")
 
@@ -265,6 +294,7 @@ class MainWindow(QMainWindow):
         self._stop_clock()
         self._stop_camera()
         self._save_recording()
+        self._clear_distance_reminder()
         self._set_state("error", message)
 
     def _on_update(self, update: MonitorUpdate) -> None:
@@ -285,6 +315,7 @@ class MainWindow(QMainWindow):
             return
         if self.recorder:
             self.recorder.add_observation(update.observation)
+        self._check_distance(update.now, update.closeness)
         self.study.set_live_openness(update.observation)
         self.study.set_blinks(update.blinks)
         if not update.face_found:
@@ -455,6 +486,36 @@ class MainWindow(QMainWindow):
         self.settings_page.show_state(text, can, completed)
         self.settings_page.show_recording(self.ear_log)
         self.settings_page.show_reference(self.reference, self.reference_error, self.reference_path)
+        has_reference = bool(getattr(self.monitor.calibration, "face_scale", None))
+        self.settings_page.show_distance(self.distance_reminder, has_reference or not self.monitor.calibration)
+
+    # ------------------------------------------------------- distance reminder
+    def _check_distance(self, now: float, closeness: float | None) -> None:
+        if not self.distance_reminder:
+            return
+        if self.proximity.update(now, closeness):
+            self.banner_holder.setVisible(True)
+            self.distance_banner.setVisible(True)
+            app = QApplication.instance()
+            if app.applicationState() != Qt.ApplicationState.ApplicationActive or not self.isActiveWindow():
+                self.notify(DISTANCE_BODY, DISTANCE_TITLE)  # OcuSense is in the background (notifications.post)
+        elif not self.proximity.too_close and not self.banner_holder.isHidden():
+            self.banner_holder.setVisible(False)  # moved back: the reminder goes away by itself
+
+    def _clear_distance_reminder(self) -> None:
+        self.proximity.reset()
+        self.banner_holder.setVisible(False)
+
+    def _banner_action(self, name: str) -> None:
+        self.banner_holder.setVisible(False)
+        if name == "Reminder settings":
+            self.show_page("settings")
+
+    def _set_distance_reminder(self, on: bool) -> None:
+        self.distance_reminder = on
+        if not on:
+            self._clear_distance_reminder()
+        self._refresh_settings()
 
     def _save_recording(self) -> None:
         """Write buffered EAR rows to a CSV file; a failure is reported, and the rows are kept for the next try."""

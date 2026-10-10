@@ -44,6 +44,7 @@ class CalibrationInfo:
     close_below: float
     reopen_above: float
     measurement_version: str
+    reference_face_scale: float | None = None  # eye-centre distance ÷ frame width at calibration (distance reminder)
 
 
 @dataclass(frozen=True)

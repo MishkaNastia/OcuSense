@@ -11,7 +11,9 @@ from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QFont
 from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QPushButton, QVBoxLayout, QWidget
 
-from ocusense.config import CAMERA_INDEX, RECORDING_CHUNK_SECONDS
+from ocusense.config import (
+    CAMERA_INDEX, PROXIMITY_COOLDOWN_SECONDS, PROXIMITY_SUSTAIN_SECONDS, PROXIMITY_WARN_RATIO, RECORDING_CHUNK_SECONDS,
+)
 
 from . import theme
 from .widgets.common import label
@@ -40,7 +42,6 @@ def setting_row(title: str, detail: str, control: QWidget | None = None, tag: st
         layout.addWidget(control, 0, Qt.AlignmentFlag.AlignVCenter)
     if tag:
         layout.addWidget(tag_label(tag), 0, Qt.AlignmentFlag.AlignVCenter)
-    row.setMaximumWidth(860)
     return row
 
 
@@ -88,6 +89,17 @@ class SettingsPage(Page):
             "reference for several minutes: 3 five-minute windows in a row below p = 0.01 with longer intervals. "
             "At most one per slow stretch and one every 20 minutes. Faster blinking never triggers one.",
             self.reminders))
+        self.distance = QCheckBox("On")
+        self.distance.setChecked(True)
+        self.distance.setAccessibleName("Distance reminder")
+        self.distance_detail = label("", "secondary", theme.ui_font(14), wrap=True)
+        self.body.addWidget(setting_row(
+            "Distance reminder",
+            f"“Trying to lick the screen?” — when your face looks {PROXIMITY_WARN_RATIO:g}× as big as during "
+            f"calibration (roughly {100 / PROXIMITY_WARN_RATIO:.0f} % of the distance) for "
+            f"{PROXIMITY_SUSTAIN_SECONDS:g} s; at most once every {PROXIMITY_COOLDOWN_SECONDS / 60:.0f} minutes. "
+            "Shown in the window, and as a Mac notification while OcuSense is in the background.",
+            self.distance, extra=(self.distance_detail,)))
         self.body.addWidget(setting_row("Check-ins",
                                         "Not in the Mac app yet. The planned gentle prompts can be tried in the "
                                         "sample session on the OcuSense website.", tag="Not available yet"))
@@ -138,6 +150,16 @@ class SettingsPage(Page):
         self.body.addWidget(setting_row("Session history", "", self.clear_button, extra=(self.history_detail,)))
         self.finish()
 
+    def show_distance(self, enabled: bool, has_reference: bool) -> None:
+        if not enabled:
+            text = "Off."
+        elif not has_reference:
+            text = "Recalibrate to use it: the current calibration has no reference distance."
+        else:
+            text = "On."
+        self.distance_detail.setText(text)
+        self.fit_height()
+
     def show_recording(self, log) -> None:
         """log: the window's EarRecording."""
         self.folder = log.directory
@@ -153,6 +175,7 @@ class SettingsPage(Page):
         folder = str(log.directory)
         shown = "~" + folder[len(home):] if folder.startswith(home) else folder
         self.recording_detail.setText(f"{status} Folder: {shown}")
+        self.fit_height()
 
     def show_reference(self, reference, error: str, path: Path) -> None:
         """reference: the saved ocusense.reference.Reference, or None."""
@@ -181,3 +204,4 @@ class SettingsPage(Page):
             "Clearing removes them from Statistics; a running session is not affected."
             if completed_sessions else "No completed sessions yet.")
         self.clear_button.setEnabled(completed_sessions > 0)
+        self.fit_height()

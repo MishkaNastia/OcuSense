@@ -8,6 +8,7 @@ import time
 import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+os.environ["OCUSENSE_NO_NOTIFICATIONS"] = "1"  # never show a real notification from the tests
 import tempfile  # noqa: E402
 
 RECORDINGS = tempfile.mkdtemp(prefix="ocusense-test-recordings-")
@@ -577,6 +578,68 @@ class DistributionsUiTest(unittest.TestCase):
         self.assertIn("frequency per blink median", summary)
         self.assertIn("blinks/s", summary)
         self.assertTrue((target / "blink_events.csv").exists())
+
+
+@unittest.skipUnless(MODEL_PATH.exists(), "model file missing - run download_model.py")
+class DistanceReminderTest(unittest.TestCase):
+    def setUp(self):
+        from ocusense.ui.main_window import MainWindow
+        self.window = MainWindow()
+        self.thread = FakeThread()
+        self.window._start_camera = lambda: (setattr(self.window, "thread", self.thread), True)[1]
+        self.sent = []  # (title, message) of every Mac notification
+        self.window.notify = lambda message, title: self.sent.append((title, message))
+        self.window.monitor.calibration = object()
+        self.window.start()
+
+    def tearDown(self):
+        self.window.close()
+
+    def feed(self, seconds, closeness, start=None):
+        t0 = time.monotonic() if start is None else start
+        for i in range(int(seconds * 30)):
+            self.window._on_update(update(now=t0 + i / 30, closeness=closeness))
+        return t0 + seconds
+
+    def test_banner_and_notification_after_three_seconds_close(self):
+        from ocusense.ui.main_window import DISTANCE_BODY, DISTANCE_TITLE
+        w = self.window
+        t = self.feed(2, 1.8)
+        self.assertTrue(w.banner_holder.isHidden())
+        self.feed(2, 1.8, start=t)
+        self.assertFalse(w.banner_holder.isHidden())
+        self.assertEqual(w.distance_banner.title.text(), "Trying to lick the screen?")
+        self.assertEqual(w.distance_banner.body.text(), "Go easy on your eyes and move back a little.")
+        self.assertEqual(self.sent, [(DISTANCE_TITLE, DISTANCE_BODY)])  # the window isn't active in tests
+        self.assertEqual(w.state, "monitoring")  # the reminder never interrupts monitoring
+
+    def test_banner_goes_away_when_moving_back(self):
+        w = self.window
+        t = self.feed(4, 1.8)
+        self.feed(1, 1.1, start=t)
+        self.assertTrue(w.banner_holder.isHidden())
+
+    def test_got_it_and_reminder_settings(self):
+        w = self.window
+        self.feed(4, 1.8)
+        w.distance_banner.buttons["Reminder settings"].click()
+        self.assertTrue(w.banner_holder.isHidden())
+        self.assertIs(w.pages.currentWidget(), w.settings_page)
+        self.assertIn("Recalibrate", w.settings_page.distance_detail.text())  # this calibration has no reference
+
+    def test_switched_off_in_settings(self):
+        w = self.window
+        w.settings_page.distance.setChecked(False)
+        self.feed(5, 1.8)
+        self.assertTrue(w.banner_holder.isHidden())
+        self.assertEqual(self.sent, [])
+
+    def test_pause_clears_the_reminder(self):
+        w = self.window
+        self.feed(4, 1.8)
+        w.pause()
+        self.assertTrue(w.banner_holder.isHidden())
+        self.assertFalse(w.proximity.too_close)
 
 
 if __name__ == "__main__":

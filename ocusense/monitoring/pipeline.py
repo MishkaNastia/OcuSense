@@ -47,6 +47,7 @@ class FrameResult:
     blinked: bool = False  # True if this frame completed a blink
     events: list = field(default_factory=list)
     observation: FrameObservation = None  # timestamped input for the measurements
+    closeness: float = None  # face size now ÷ at calibration (distance reminder), or None
 
 
 class EyeMonitor:
@@ -111,7 +112,7 @@ class EyeMonitor:
         was_calibrating = calibrator.status == GuidedCalibration.RUNNING
         if was_calibrating:
             step_before = calibrator.step.name
-            calibrator.update(now, reliable_ears)
+            calibrator.update(now, reliable_ears, measurement.face_scale if reliable_ears else None)
             if calibrator.step is None or calibrator.step.name != step_before:
                 if step_before == "closed":
                     result.events.append(CLOSED_STEP_FINISHED)
@@ -123,6 +124,7 @@ class EyeMonitor:
                     right_open_ear=self.calibration.right.open_ear, right_closed_ear=self.calibration.right.closed_ear,
                     close_below=self.counter.close_below, reopen_above=self.counter.reopen_above,
                     measurement_version=MEASUREMENT_VERSION,
+                    reference_face_scale=self.calibration.face_scale,
                 )
                 result.events.append(CALIBRATION_DONE)
             elif calibrator.status == GuidedCalibration.FAILED:
@@ -131,6 +133,9 @@ class EyeMonitor:
         if not was_calibrating and self.calibration is not None and reliable_ears is not None:
             result.openness = self.calibration.openness(reliable_ears)
             raw = self.calibration.raw_openness(reliable_ears)
+            reference = getattr(self.calibration, "face_scale", None)
+            if reference and measurement.face_scale:
+                result.closeness = measurement.face_scale / reference
 
         # None = calibrating or paused: resets any half-finished blink.
         # The detector is unchanged; we only read its state before and after.
