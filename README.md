@@ -39,7 +39,8 @@ labelled demo sessions: `python -m ocusense --demo-history`.
 ./packaging/build_mac.sh
 ```
 
-The app appears in `dist/OcuSense.app` (about 380 MB). It is signed only for
+The script builds `dist/OcuSense.app` (about 380 MB), checks it, and replaces
+`~/Desktop/OcuSense.app` (quit OcuSense first; use `--no-install` to skip that). It is signed only for
 your own Mac (ad-hoc). Sharing it with others needs an Apple Developer ID and
 notarisation. The first time it opens the camera, macOS asks for permission
 for OcuSense itself.

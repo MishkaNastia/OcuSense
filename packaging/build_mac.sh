@@ -1,5 +1,7 @@
 #!/bin/zsh
-# Build OcuSense.app into dist/. Run from anywhere:  ./packaging/build_mac.sh
+# Build OcuSense.app and replace the copy on your Desktop.
+# Run from anywhere:  ./packaging/build_mac.sh
+# Add --no-install to only build into dist/ without touching the Desktop.
 set -e
 cd "$(dirname "$0")/.."
 
@@ -10,3 +12,17 @@ cd "$(dirname "$0")/.."
 QT_QPA_PLATFORM=offscreen dist/OcuSense.app/Contents/MacOS/OcuSense --self-test
 
 echo "Built: $(pwd)/dist/OcuSense.app"
+
+if [[ "$1" == "--no-install" ]]; then
+  exit 0
+fi
+
+DESKTOP_APP="$HOME/Desktop/OcuSense.app"
+if pgrep -f "OcuSense.app/Contents/MacOS/OcuSense" > /dev/null; then
+  echo "OcuSense is open — quit it (⌘Q) and run this script again to replace $DESKTOP_APP."
+  exit 1
+fi
+rm -rf "$DESKTOP_APP"
+ditto dist/OcuSense.app "$DESKTOP_APP"
+codesign --verify --deep "$DESKTOP_APP"
+echo "Replaced: $DESKTOP_APP"
