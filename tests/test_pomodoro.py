@@ -106,13 +106,21 @@ class PreferencesTest(unittest.TestCase):
 
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-from tests.test_main_window import MODEL_PATH, PREFERENCES_FILE, FakeThread, app  # noqa: E402
+from tests.test_main_window import MODEL_PATH, FakeThread, app  # noqa: E402  (also points files at a temp folder)
+
+
+def _settings_files():
+    """The files the app uses right now (the test helpers may have been loaded twice under different names)."""
+    return [os.environ[k] for k in ("OCUSENSE_PREFERENCES_FILE", "OCUSENSE_CALIBRATION_FILE") if k in os.environ]
 
 
 @unittest.skipUnless(MODEL_PATH.exists(), "model file missing - run download_model.py")
 class PomodoroPageTest(unittest.TestCase):
     def setUp(self):
         from ocusense.ui.main_window import MainWindow
+        for path in _settings_files():  # every test starts from the defaults
+            if os.path.exists(path):
+                os.remove(path)
         self.window = MainWindow()
         self.page = self.window.pomodoro_page
         self.clock = [1000.0]
@@ -124,8 +132,9 @@ class PomodoroPageTest(unittest.TestCase):
 
     def tearDown(self):
         self.window.close()
-        if os.path.exists(PREFERENCES_FILE):
-            os.remove(PREFERENCES_FILE)
+        for path in _settings_files():
+            if os.path.exists(path):
+                os.remove(path)
 
     def advance(self, seconds):
         self.clock[0] += seconds
