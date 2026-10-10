@@ -19,6 +19,8 @@ Definitions (times in seconds; openness as fractions, 1 = calibrated open):
   blinks per minute — one value per consecutive pair of blinks. Same exclusions
   as the intervals; much noisier than the per-minute rate (one long pause gives
   one very low value).
+* Per second: both frequency measures can also be shown in blinks per second
+  (the per-minute value ÷ 60), with their own fixed bins.
 * Blink rate windows: non-overlapping 60 s windows from the start of the data.
   Rate = completed blinks / valid minutes inside the window. A window is
   eligible only with at least MIN_VALID_SECONDS_FOR_RATE of valid observation
@@ -63,7 +65,7 @@ class Binning:
     @property
     def edges(self) -> list[float]:
         n = round((self.high - self.low) / self.width)
-        return [self.low + i * self.width for i in range(n + 1)]
+        return [round(self.low + i * self.width, 10) for i in range(n + 1)]
 
     def index(self, value: float) -> int:
         """Bin position: 0 is the underflow bin if enabled, then the regular bins, then overflow."""
@@ -73,7 +75,8 @@ class Binning:
             return 0 if self.underflow else offset  # without underflow, clamp into the first bin
         if value >= self.high:
             return offset + n if self.overflow else offset + n - 1
-        return offset + min(n - 1, int((value - self.low) // self.width))
+        # the small tolerance keeps values on an edge (e.g. 0.15 with 0.05 bins) in the bin they start
+        return offset + min(n - 1, math.floor((value - self.low) / self.width + 1e-9))
 
     @property
     def size(self) -> int:
@@ -91,8 +94,12 @@ CLOSURE_BINS = Binning("closure", 0, 1000, 50, "ms")  # last bin: ≥ 1000 ms (p
 INTERVAL_BINS = Binning("interval", 0, 30, 1, "s")  # last bin: ≥ 30 s
 RATE_BINS = Binning("rate", 0, 40, 2, "blinks/min")  # last bin: ≥ 40
 INSTANT_BINS = Binning("instant", 0, 60, 2, "blinks/min")  # last bin: ≥ 60 (intervals of 1 s or less)
+# The same two frequency measures in blinks per second (per minute ÷ 60), with readable 0.05/s bins.
+RATE_BINS_PER_SECOND = Binning("rate_per_second", 0, 0.7, 0.05, "blinks/s")  # last bin: ≥ 0.7 (42 per minute)
+INSTANT_BINS_PER_SECOND = Binning("instant_per_second", 0, 1.0, 0.05, "blinks/s")  # last bin: ≥ 1 (60 per minute)
 OPENNESS_BINS = Binning("openness", 0, 100, 5, "%", underflow=True, overflow=True)  # < 0 % and ≥ 100 %
-BINNINGS = {b.key: b for b in (CLOSURE_BINS, INTERVAL_BINS, RATE_BINS, INSTANT_BINS, OPENNESS_BINS)}
+BINNINGS = {b.key: b for b in (CLOSURE_BINS, INTERVAL_BINS, RATE_BINS, INSTANT_BINS, RATE_BINS_PER_SECOND,
+                                INSTANT_BINS_PER_SECOND, OPENNESS_BINS)}
 
 
 def histogram(values, binning: Binning, weights=None) -> list[float]:

@@ -218,6 +218,17 @@ Completed blinks (closed → reopened, see [6](#6-the-blink-detector)) in the se
 ```
 blink rate = completed blinks ÷ (valid observation seconds ÷ 60)
 ```
+Blink frequency can also be written **per second**: `blinks per second = blinks per minute ÷ 60`.
+Both say the same thing; per minute gives friendlier numbers:
+
+| Per minute | Per second | One blink every |
+| --- | --- | --- |
+| 6 | 0.1 | 10 s |
+| 12 | 0.2 | 5 s |
+| 15 | 0.25 | 4 s |
+| 20 | 0.333 | 3 s |
+| 30 | 0.5 | 2 s |
+| 60 | 1 | 1 s |
 
 ### 8.3 Closure duration (one per blink)
 From the frame where the detector went **open → closed** (below 35 %) to the frame where it
@@ -347,6 +358,8 @@ invalid frame, a longer gap, a pause, a recalibration or the end of the data end
   Eligible and excluded windows are both reported.
 - Fewer than **3** eligible windows → a message instead of a histogram.
 - **Axes**: blinks per minute × number of windows. **Bins**: 2 per minute, 0–40, plus "40 or more".
+- **Per second** (switch under the tabs): the same windows ÷ 60, in blinks per second.
+  **Bins**: 0.05 per second (= 3 per minute), 0–0.7, plus "0.7 or more" (42 per minute).
 - This is the **main blink-frequency measure**: one independent value per minute, comparable
   between sessions.
 
@@ -361,6 +374,9 @@ invalid frame, a longer gap, a pause, a recalibration or the end of the data end
 - **Axes**: blinks per minute × number of values. **Shown**: count, median, interquartile range.
 - **Bins**: 2 per minute from 0 to 60, plus **"60 or more"** (blinks 1 s apart or closer), so
   very short intervals stay visible.
+- **Per second** (switch under the tabs): `1 ÷ time between blinks`, in blinks per second —
+  for example 3 s between blinks = 0.333 per second. **Bins**: 0.05 per second (= 3 per minute),
+  0–1, plus **"1 or more"** (blinks 1 s apart or closer).
 
 ### 11.5 Personal eye openness
 - Left eye, right eye, or both (mean of the two **unclipped** values; only when both are valid).
@@ -374,7 +390,17 @@ invalid frame, a longer gap, a pause, a recalibration or the end of the data end
 
 ### 11.6 Common rules
 - **Fixed bins**: the edges never change between refreshes or sessions, so histograms can be
-  compared directly. Widths are never finer than the frame timing allows.
+  compared directly — compare per-minute charts with per-minute charts and per-second charts
+  with per-second charts, since the two units use different bins. Widths are never finer than
+  the frame timing allows.
+
+  | Histogram | Bin width | Range | Extra bars |
+  | --- | --- | --- | --- |
+  | Closure duration | 50 ms | 0–1000 ms | ≥ 1000 ms |
+  | Time between blinks | 1 s | 0–30 s | ≥ 30 s |
+  | Blink rate per minute | 2 /min (0.05 /s) | 0–40 /min (0–0.7 /s) | ≥ 40 /min (≥ 0.7 /s) |
+  | Frequency per blink | 2 /min (0.05 /s) | 0–60 /min (0–1 /s) | ≥ 60 /min (≥ 1 /s) |
+  | Personal eye openness | 5 % | 0–100 % | < 0 %, ≥ 100 % |
 - **Tooltips**: hover a bar for its range and its count or share of time.
 - **Small samples**: with fewer than 10 events the histogram is shown with a note that the
   shape isn't reliable yet.
@@ -385,8 +411,8 @@ invalid frame, a longer gap, a pause, a recalibration or the end of the data end
   closures (pale bands), counted blinks (red dots) and tracking gaps (hatched). Use it to
   check the detection before trusting the histograms.
 - **Export results…** writes, to a new folder you choose: `blink_events.csv` (one row per
-  event), `windows.csv` (each 60 s window and why it was or wasn't eligible), `summary.csv`
-  (counts, medians, quartiles, exclusions), `analysis_settings.json` (definitions, bins,
+  event), `windows.csv` (each 60 s window, its rate per minute and per second, and why it was or wasn't eligible), `summary.csv`
+  (counts, medians, quartiles, exclusions; both frequency measures in per minute and per second), `analysis_settings.json` (definitions, bins,
   thresholds, calibration, source files, exclusions) and `histogram.png`.
 
 ---

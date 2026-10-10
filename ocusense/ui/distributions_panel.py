@@ -13,7 +13,8 @@ from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QPushButton, QVBoxLayout
 
 from ocusense.config import MIN_VALID_SECONDS_FOR_RATE
 from ocusense.core.distributions import (
-    CLOSURE_BINS, INSTANT_BINS, INTERVAL_BINS, OPENNESS_BINS, RATE_BINS, WINDOW_SECONDS, Distributions, histogram, quartiles,
+    CLOSURE_BINS, INSTANT_BINS, INSTANT_BINS_PER_SECOND, INTERVAL_BINS, OPENNESS_BINS, RATE_BINS,
+    RATE_BINS_PER_SECOND, WINDOW_SECONDS, Distributions, histogram, quartiles,
 )
 from ocusense.exports import export_analysis
 
@@ -29,6 +30,7 @@ METRICS = (("closure", "Closure duration"), ("interval", "Time between blinks"),
            ("rate", "Blink rate per minute"), ("instant", "Frequency per blink"),
            ("openness", "Personal eye openness"))
 EYES = (("left", "Left eye"), ("right", "Right eye"), ("both", "Both eyes"))
+UNITS = (("minute", "Per minute"), ("second", "Per second"))  # for the two frequency measures
 
 EXPLAIN = {
     "closure": "Time between the detector’s closing and reopening thresholds — not the full blink movement. "
@@ -38,9 +40,9 @@ EXPLAIN = {
                 "uninterrupted tracking — never across a gap, pause or recalibration.",
     "rate": f"Completed blinks per minute of valid tracking, in separate {WINDOW_SECONDS:.0f}-second windows. "
             f"A window counts only if it is finished and has at least {MIN_VALID_SECONDS_FOR_RATE:.0f} s of valid "
-            "tracking.",
-    "instant": "60 ÷ the time between two consecutive blinks, in blinks per minute — one value per pair of "
-               "blinks, so it appears after a short recording. Much noisier than the per-minute rate: a single "
+            "tracking. Per second = per minute ÷ 60.",
+    "instant": "60 ÷ the time between two consecutive blinks, in blinks per minute (per second: 1 ÷ that time) — "
+               "one value per pair of blinks, so it appears after a short recording. Much noisier than the per-minute rate: a single "
                "long pause gives one very low value, a quick double blink a very high one.",
     "openness": "Relative to your calibrated eye positions. Not a fatigue score or literal percentage of "
                 "anatomical eye opening. Bars show the share of valid observed time, weighted by time between "
@@ -61,7 +63,7 @@ def _iqr_text(values: list[float], unit: str, decimals: int) -> str:
 class DistributionsPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.metric, self.eye = "closure", "left"
+        self.metric, self.eye, self.unit = "closure", "left", "minute"
         self.data: Distributions | None = None
         self.thresholds: tuple[float, float] | None = None  # (close_below, reopen_above) as fractions
         self.context: dict = {}
@@ -77,6 +79,9 @@ class DistributionsPanel(QWidget):
         self.eye_switch = Segmented(EYES, self.eye, "Eye")
         self.eye_switch.changed.connect(self._set_eye)
         layout.addWidget(self.eye_switch, 0, Qt.AlignmentFlag.AlignLeft)
+        self.unit_switch = Segmented(UNITS, self.unit, "Unit")
+        self.unit_switch.changed.connect(self._set_unit)
+        layout.addWidget(self.unit_switch, 0, Qt.AlignmentFlag.AlignLeft)
         self.summary = label("", font=theme.ui_font(15, QFont.Weight.DemiBold), wrap=True)
         layout.addWidget(self.summary)
         self.note = label("", "secondary", theme.ui_font(13), wrap=True)
@@ -114,11 +119,24 @@ class DistributionsPanel(QWidget):
         self.eye = key
         self.render()
 
+    def _set_unit(self, key: str) -> None:
+        self.unit = key
+        self.render()
+
+    def _per_unit(self, per_minute: list[float]) -> tuple[list[float], object, str, int]:
+        """Values, bins, unit text and decimals in the chosen unit (per second = per minute ÷ 60)."""
+        if self.unit == "second":
+            bins = RATE_BINS_PER_SECOND if self.metric == "rate" else INSTANT_BINS_PER_SECOND
+            return [v / 60 for v in per_minute], bins, "blinks/s", 3
+        return per_minute, RATE_BINS if self.metric == "rate" else INSTANT_BINS, "blinks/min", 1
+
     # ----------------------------------------------------------- output
     def render(self) -> None:
         self.metric_switch.set_current(self.metric)
         self.eye_switch.set_current(self.eye)
         self.eye_switch.setVisible(self.metric == "openness")
+        self.unit_switch.set_current(self.unit)
+        self.unit_switch.setVisible(self.metric in ("rate", "instant"))
         self.explain.setText(EXPLAIN[self.metric])
         d = self.data
         self.export_button.setEnabled(d is not None and d.valid_seconds > 0)
@@ -144,10 +162,11 @@ class DistributionsPanel(QWidget):
                      "kept in the last bar.")
 
     def _render_instant(self, d: Distributions) -> None:
-        values = d.frequency_per_blink()
-        self._events(values, INSTANT_BINS, "values", "values", 1,
+        values, bins, unit, decimals = self._per_unit(d.frequency_per_blink())
+        top = "60 per minute" if self.unit == "minute" else "1 per second"
+        self._events(values, bins, "values", "values", decimals,
                      f"From {len(values)} intervals between consecutive blinks (the same as Time between blinks). "
-                     "Values of 60 per minute or more (blinks 1 s apart or closer) are kept in the last bar.")
+                     f"Values of {top} or more (blinks 1 s apart or closer) are kept in the last bar.")
 
     def _events(self, values, binning, noun, short, decimals, note) -> None:
         unit = binning.unit
@@ -178,8 +197,9 @@ class DistributionsPanel(QWidget):
                              f"({len(rates)} so far). Each window needs {MIN_VALID_SECONDS_FOR_RATE:.0f} s of valid "
                              "tracking.")
             return
-        self.summary.setText(f"{len(rates)} windows · {_iqr_text(rates, 'blinks/min', 1)}")
-        self.chart.set_data(histogram(rates, RATE_BINS), RATE_BINS, "number of windows",
+        values, bins, unit, decimals = self._per_unit(rates)
+        self.summary.setText(f"{len(values)} windows · {_iqr_text(values, unit, decimals)}")
+        self.chart.set_data(histogram(values, bins), bins, "number of windows",
                             value_text=lambda c: f"{c:.0f} window{'s' if c != 1 else ''}")
 
     def _render_openness(self, d: Distributions) -> None:

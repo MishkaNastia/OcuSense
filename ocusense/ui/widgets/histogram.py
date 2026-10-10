@@ -178,8 +178,8 @@ def _ticks(binning) -> list[float]:
     for k in range(1, 1000):
         step = binning.width * k
         if span / step <= 8 and _is_round(step):
-            count = int(round(span / step))
-            return [binning.low + i * step for i in range(count + 1)]
+            count = math.floor(span / step + 1e-9)  # never a tick beyond the last edge
+            return [round(binning.low + i * step, 10) for i in range(count + 1)]
     return [binning.low, binning.high]
 
 

@@ -23,9 +23,9 @@ DEFINITIONS = {
                         "not the full blink movement. Interrupted events are excluded and counted.",
     "time_between_blinks": "Onset-to-onset time of consecutive completed events within one valid segment.",
     "frequency_per_blink": "60 / time between blinks, for every interval above (blinks per minute, one value "
-                           "per pair of consecutive blinks).",
+                           "per pair of consecutive blinks). Per second = 1 / time between blinks.",
     "blink_rate": f"Completed blinks / valid minutes in non-overlapping {WINDOW_SECONDS:.0f} s windows; eligible "
-                  f"with at least {MIN_VALID_SECONDS_FOR_RATE:.0f} s of valid observation.",
+                  f"with at least {MIN_VALID_SECONDS_FOR_RATE:.0f} s of valid observation. Per second = per minute / 60.",
     "personal_openness": "Share of valid observed time per bin, weighted by the time to the next valid frame; "
                          "unclipped (below 0 % and above 100 % kept).",
     "valid_observation": f"Reliable frames with both eyes measured; gaps longer than {MAX_FRAME_GAP} s are unobserved.",
@@ -57,12 +57,14 @@ def export_analysis(folder: Path, title: str, d: Distributions, context: dict) -
 
     with (target / "windows.csv").open("w", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow(["window", "start_s", "end_s", "valid_s", "blinks", "eligible", "rate_per_min", "status"])
+        writer.writerow(["window", "start_s", "end_s", "valid_s", "blinks", "eligible", "rate_per_min", "rate_per_s",
+                         "status"])
         for i, w in enumerate(d.windows, 1):
             status = ("in progress" if not w.complete else "eligible" if w.eligible
                       else f"excluded: under {MIN_VALID_SECONDS_FOR_RATE:.0f} s valid")
             writer.writerow([i, f"{w.start - d.start:.1f}", f"{w.end - d.start:.1f}", f"{w.valid_seconds:.2f}",
-                             w.blinks, int(w.eligible), f"{w.rate:.2f}" if w.rate is not None else "", status])
+                             w.blinks, int(w.eligible), f"{w.rate:.2f}" if w.rate is not None else "",
+                             f"{w.rate / 60:.4f}" if w.rate is not None else "", status])
 
     rows = [["valid observation", round(d.valid_seconds, 2), "s"], ["valid segments", d.segments, ""],
             ["blinks counted", d.blinks, ""], ["completed closure events", len(d.events), ""],
@@ -71,7 +73,9 @@ def export_analysis(folder: Path, title: str, d: Distributions, context: dict) -
     rows += _stats_rows("closure duration", "ms", d.closure_ms())
     rows += _stats_rows("time between blinks", "s", d.interval_seconds())
     rows += _stats_rows("frequency per blink", "blinks/min", d.frequency_per_blink())
+    rows += _stats_rows("frequency per blink", "blinks/s", [v / 60 for v in d.frequency_per_blink()])
     rows += _stats_rows("blink rate (eligible windows)", "blinks/min", d.eligible_rates())
+    rows += _stats_rows("blink rate (eligible windows)", "blinks/s", [v / 60 for v in d.eligible_rates()])
     if d.openness.total:
         for eye in ("left", "right", "both"):
             shares = d.openness.shares(eye)

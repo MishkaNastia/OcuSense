@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ocusense.config import MIN_VALID_SECONDS_FOR_RATE
 from ocusense.core.distributions import (
-    CLOSURE_BINS, INSTANT_BINS, INTERVAL_BINS, OPENNESS_BINS, DistributionBuilder, histogram, quartiles,
+    CLOSURE_BINS, INSTANT_BINS, INSTANT_BINS_PER_SECOND, INTERVAL_BINS, RATE_BINS_PER_SECOND, OPENNESS_BINS, DistributionBuilder, histogram, quartiles,
 )
 from ocusense.core.measurements import MeasurementTracker
 from ocusense.core.models import FrameObservation
@@ -74,6 +74,12 @@ class EventTimingTest(unittest.TestCase):
         self.assertEqual(sum(counts), 3)  # every value counted
         self.assertEqual(counts[-1], 2)  # 60 and 120 per minute: the "60 or more" bar
         self.assertEqual(counts[INSTANT_BINS.index(20)], 1)
+
+    def test_per_second_bins_put_edge_values_in_the_right_bin(self):
+        self.assertEqual(INSTANT_BINS_PER_SECOND.index(0.15), 3)  # 0.15–0.20, despite 0.15 / 0.05 = 2.999…
+        self.assertEqual(INSTANT_BINS_PER_SECOND.index(1 / 3), 6)  # 20 per minute → 0.30–0.35
+        self.assertEqual(INSTANT_BINS_PER_SECOND.index(1.0), INSTANT_BINS_PER_SECOND.size - 1)  # "1 per second or more"
+        self.assertEqual(RATE_BINS_PER_SECOND.edges[-1], 0.7)
 
     def test_frequency_per_blink_never_spans_a_gap(self):
         before = rows_from(blinks(5, [1.0, 3.0]))

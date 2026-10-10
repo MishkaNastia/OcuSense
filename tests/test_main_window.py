@@ -526,6 +526,14 @@ class DistributionsUiTest(unittest.TestCase):
                 self.assertIn("windows ·", panel.summary.text())  # 3 complete minutes → a histogram
             if metric == "instant":
                 self.assertIn("values · median 15.0 blinks/min", panel.summary.text())  # a blink every 4 s
+                self.assertFalse(panel.unit_switch.isHidden())
+                panel._set_unit("second")
+                self.assertIn("median 0.250 blinks/s", panel.summary.text())  # 15 per minute ÷ 60
+                self.assertEqual(panel.chart.binning.unit, "blinks/s")
+                panel._set_metric("rate")
+                self.assertIn("blinks/s", panel.summary.text())  # the unit choice applies to both measures
+                panel._set_unit("minute")
+                panel._set_metric("instant")
         panel._set_eye("both")
         self.assertIn("Both eyes", panel.summary.text())
         self.assertEqual(w.state, "monitoring")  # looking at Statistics never touched monitoring
@@ -565,6 +573,9 @@ class DistributionsUiTest(unittest.TestCase):
         self.assertFalse(section.timeline.grab().isNull())
         target = section.panel.export_to(folder / "out")
         self.assertTrue((target / "histogram.png").exists())
+        summary = (target / "summary.csv").read_text()
+        self.assertIn("frequency per blink median", summary)
+        self.assertIn("blinks/s", summary)
         self.assertTrue((target / "blink_events.csv").exists())
 
 
