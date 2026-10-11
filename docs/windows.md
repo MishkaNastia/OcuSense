@@ -13,7 +13,7 @@ packaging in `packaging/`.
 
 | Topic | macOS | Windows |
 |---|---|---|
-| Your data (settings, calibration, recordings, collection) | `~/Library/Application Support/OcuSense` | `%LOCALAPPDATA%\OcuSense` (never inside the app folder, so replacing the app keeps it) |
+| Your data (settings, calibration, recordings, garden, time log) | `~/Library/Application Support/OcuSense` | `%LOCALAPPDATA%\OcuSense` (never inside the app folder, so replacing the app keeps it) |
 | Camera | OpenCV default (AVFoundation) | DirectShow first, then Media Foundation; a camera that "opens" but sends no picture (busy) is skipped |
 | Camera problems | System Settings › Privacy & Security › Camera | message points to Settings › Privacy & security › Camera ("Let desktop apps access your camera") and says to close Teams/Zoom/Camera, since Windows lets one app use a webcam at a time |
 | Status icon | menu bar, monochrome template icon | system tray, full-colour icon; a click opens the window |
@@ -100,7 +100,7 @@ None of these have been checked yet:
 - [ ] Display scaling at 100 %, 125 %, 150 % and 200 %, including moving the window
       between monitors with different scaling. (This was only simulated on a Mac with
       `QT_SCALE_FACTOR`.)
-- [ ] Games, Art shop and Your gallery work; the collection survives replacing the app
+- [ ] Games, the Garden and the Gallery work; garden progress survives replacing the app
       folder.
 - [ ] Data is in `%LOCALAPPDATA%\OcuSense`, and nothing is written next to the .exe.
 - [ ] How SmartScreen and antivirus react to the unsigned build.

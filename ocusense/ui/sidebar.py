@@ -170,8 +170,6 @@ class Sidebar(QWidget):
         self._add(layout, SidebarItem("time_log", "Time log", "time_log"))
         self._add(layout, SidebarItem("games", "Games", "games"))
         self._add(layout, SidebarItem("library", "Gallery", "library"))
-        self._add(layout, SidebarItem("shop", "Art shop", "shop"))
-        self._add(layout, SidebarItem("gallery", "Your gallery", "gallery"))
         self._add(layout, SidebarItem("statistics", "Statistics", "statistics", expandable=True))
         for key, text in (("current", "Current session"), ("all_time", "All time"),
                           ("patterns", "Understanding your patterns")):

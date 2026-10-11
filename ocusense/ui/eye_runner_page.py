@@ -9,16 +9,13 @@ Keys work too: Space / Up = jump (again in the air = extra jump), Down = duck, P
 """
 
 import time
-import uuid
 
 from PySide6.QtCore import QElapsedTimer, Qt, QTimer, Signal
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QWidget
 
-from ocusense.art.rewards import eye_game_coins
 from ocusense.core.runner import EyeClosures, Presses, RunnerGame, Sizes
 
 from . import theme
-from .art_collection import award_text
 from .widgets.common import label
 from .widgets.page import paragraph
 from .widgets.runner_canvas import RunnerCanvas
@@ -44,7 +41,6 @@ class EyeRunnerGame(QWidget):
         self.blinks = Presses()  # eye closures → jumps (one per blink)
         self.keys = Presses(cooldown_s=0.0)  # Space taps → jumps
         self.down = False
-        self.run_id: str | None = None
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         layout = QVBoxLayout(self)
@@ -124,7 +120,6 @@ class EyeRunnerGame(QWidget):
     def _press(self, presses: Presses, t: float) -> None:
         if presses.press(t):
             self.game.jump()
-            self._start_run_if_new()
 
     def keyPressEvent(self, event) -> None:
         key = event.key()
@@ -150,10 +145,6 @@ class EyeRunnerGame(QWidget):
         super().focusOutEvent(event)
         self.down = False
 
-    def _start_run_if_new(self) -> None:
-        if self.game.state == "play" and self.run_id is None:
-            self.run_id = uuid.uuid4().hex  # one reward per finished run, never twice
-
     def run_finished(self) -> None:
         if self.game.new_record:
             prefs = self.window.preferences
@@ -162,12 +153,6 @@ class EyeRunnerGame(QWidget):
         score = int(self.game.score)
         if self.scores is not None and score > 0:
             self.scores.record("eye_runner", score)  # every finished run goes to the leaderboards
-        coins = eye_game_coins(score)
-        if coins and self.run_id:
-            award = self.window.art.award_game(f"game:eye_game:{self.run_id}", "eye_game", coins,
-                                               f"EyeGame run: {score} points")
-            self.status.setText(award_text(award))
-        self.run_id = None
 
     def toggle_pause(self) -> None:
         if self.game.state != "play":

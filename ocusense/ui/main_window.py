@@ -56,16 +56,13 @@ from ocusense.system import COMPUTER, NOTIFICATION_NAME, camera_help
 
 from .account_page import AccountPage
 from .account_service import AccountService
-from .art_collection import ArtCollection
 from .all_time_page import AllTimePage
 from .calibration_view import CalibrationView
 from .current_session_page import CurrentSessionPage
 from .patterns_page import PatternsPage
 from .settings_page import SettingsPage
-from .shop_page import ShopPage
 from .sidebar import STATISTICS_PAGES, Sidebar
 from .eye_rest_card import BODY as EYE_REST_BODY, TITLE as EYE_REST_TITLE, EyeRestCard
-from .gallery_page import GalleryPage
 from .games_page import GamesPage
 from .library_page import LibraryPage, PaintingWall
 from .lighting_card import BODY as LIGHTING_BODY, TITLE as LIGHTING_TITLE, LightingCard
@@ -100,7 +97,7 @@ BUTTONS_FOR_STATE = {
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, demo_history: bool = False, demo_wallet: bool = False):
+    def __init__(self, demo_history: bool = False):
         super().__init__()
         self.setWindowTitle("OcuSense")
         self.resize(1280, 900)
@@ -173,26 +170,19 @@ class MainWindow(QMainWindow):
         self.pomodoro_page = PomodoroPage(self.preferences)
         self.pomodoro_page.checks["animations"].toggled.connect(lambda _on: self._apply_painter_animations())
         self._apply_painter_animations()
-        # Coins and paintings: one collection shared by the games, the Art shop and Your gallery.
-        self.art = ArtCollection(demo=demo_wallet, parent=self)
         self.games_page = GamesPage(self)
         self.library_page = LibraryPage(self.games_page.blink_garden.store)
         self.time_log_page = TimeLogPage(preferences=self.preferences)
         self.time_log_page.status_text.connect(self.sidebar.set_time_log_status)
         self.time_log_page.running_changed.connect(self._time_log_running)
-        self.shop_page = ShopPage(self.art)
-        self.gallery_page = GalleryPage(self.art, self.preferences, self.account_service)
-        self.shop_page.view_gallery.connect(self._view_in_gallery)
-        self.gallery_page.visit_shop.connect(lambda: self.show_page("shop"))
         self.page_for = {"study": self.study, "current": self.current_page, "all_time": self.stats_page,
                          "patterns": self.patterns_page, "settings": self.settings_page, "account": self.account_page,
                          "pomodoro": self.pomodoro_page, "games": self.games_page,
-                         "time_log": self.time_log_page, "library": self.library_page,
-                         "shop": self.shop_page, "gallery": self.gallery_page}
+                         "time_log": self.time_log_page, "library": self.library_page}
         self.pages = QStackedWidget()
         for page in (self.study, self.calibration, self.current_page, self.stats_page, self.patterns_page,
                      self.settings_page, self.account_page, self.pomodoro_page, self.games_page,
-                     self.time_log_page, self.library_page, self.shop_page, self.gallery_page):
+                     self.time_log_page, self.library_page):
             self.pages.addWidget(page)
         content = QWidget()
         column = QVBoxLayout(content)
@@ -540,11 +530,6 @@ class MainWindow(QMainWindow):
         elif key == "settings":
             self._refresh_settings()
         self._show_page()
-
-    def _view_in_gallery(self, artwork_id: str) -> None:
-        self.show_page("gallery")
-        if artwork_id:
-            self.gallery_page.focus_artwork(artwork_id)
 
     def show_study(self) -> None:
         self.show_page("study")

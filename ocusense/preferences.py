@@ -23,15 +23,6 @@ def default_path() -> Path:
     return Path(override) if override else user_data_dir() / "preferences.json"
 
 
-DISPLAY_NAME_MAX = 40
-
-
-def clean_display_name(text: str) -> str:
-    """A tidy local display name: no control characters, single spaces, at most 40 characters."""
-    text = "".join(ch for ch in str(text) if ch.isprintable())
-    return " ".join(text.split())[:DISPLAY_NAME_MAX].strip()
-
-
 @dataclass
 class Preferences:
     distance_reminder: bool = True
@@ -57,8 +48,6 @@ class Preferences:
     morse_dash_ms: int = 450  # Blink Code: closures at least this long are dashes
     morse_high_score: int = 0
     runner_high_score: int = 0  # EyeGame
-    # Your gallery
-    display_name: str = ""  # optional local name for "<name>’s gallery" when no account name is available
     # Posture
     posture_monitoring: bool = False  # off until ticked in Settings › Monitoring
 
@@ -103,8 +92,6 @@ class Preferences:
         best = values.get("morse_high_score")
         if isinstance(best, int) and not isinstance(best, bool) and best >= 0:
             prefs.morse_high_score = best
-        if isinstance(values.get("display_name"), str):
-            prefs.display_name = clean_display_name(values["display_name"])
         best = values.get("runner_high_score")
         if isinstance(best, int) and not isinstance(best, bool) and best >= 0:
             prefs.runner_high_score = best

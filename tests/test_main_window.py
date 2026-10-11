@@ -19,8 +19,7 @@ CALIBRATION_FILE = os.path.join(RECORDINGS, "calibration.json")
 os.environ["OCUSENSE_CALIBRATION_FILE"] = CALIBRATION_FILE  # never read or replace the person's real calibration
 os.environ["OCUSENSE_ACCOUNT_FILE"] = os.path.join(RECORDINGS, "account.json")  # never the real sign-in or Keychain
 os.environ["OCUSENSE_NO_ACCOUNTS"] = "1"  # never reach a real Supabase project
-os.environ["OCUSENSE_DATA_DIR"] = RECORDINGS  # every other file (the art collection too) stays in the temp folder
-os.environ["OCUSENSE_COLLECTION_FILE"] = os.path.join(RECORDINGS, "collection.sqlite3")
+os.environ["OCUSENSE_DATA_DIR"] = RECORDINGS  # every other file stays in the temp folder too
 
 from PySide6.QtGui import QColor, QImage  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
@@ -352,10 +351,6 @@ class SidebarNavigationTest(unittest.TestCase):
         QTest.keyClick(bar.items["library"], Qt.Key.Key_Return)
         self.assertIs(w.pages.currentWidget(), w.library_page)
         QTest.keyClick(bar.items["library"], Qt.Key.Key_Down)
-        self.assertTrue(bar.items["shop"].hasFocus())
-        QTest.keyClick(bar.items["shop"], Qt.Key.Key_Down)
-        self.assertTrue(bar.items["gallery"].hasFocus())
-        QTest.keyClick(bar.items["gallery"], Qt.Key.Key_Down)
         self.assertTrue(bar.items["statistics"].hasFocus())
         QTest.keyClick(bar.items["statistics"], Qt.Key.Key_Right)
         self.assertFalse(bar.items["current"].isHidden())

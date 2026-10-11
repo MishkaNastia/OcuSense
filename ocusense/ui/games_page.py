@@ -12,7 +12,6 @@ Every finished Blink Code challenge and EyeGame run goes to the leaderboards
 """
 
 import time
-import uuid
 
 from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QBrush, QFont, QPainter, QPainterPath, QPen, QPixmap
@@ -20,13 +19,11 @@ from PySide6.QtWidgets import (
     QCheckBox, QGridLayout, QHBoxLayout, QPushButton, QSizePolicy, QSlider, QStackedWidget, QVBoxLayout, QWidget,
 )
 
-from ocusense.art.rewards import blink_code_coins
 from ocusense.core.morse import DASH_MS, LEARN_ORDER, MORSE, ChallengeGame, LearnGame, MorseDecoder
 from ocusense.core.runner import ASSETS as RUNNER_ASSETS
 from ocusense.system import COMPUTER
 
 from . import theme
-from .art_collection import award_text
 from .eye_runner_page import EyeRunnerGame
 from .blink_garden_page import BlinkGardenGame, GardenCanvas
 from .leaderboard_view import LeaderboardView, ScoreKeeper
@@ -269,7 +266,6 @@ class BlinkCodeGame(QWidget):
         self.setFocus()
 
     def start_challenge(self) -> None:
-        self.round_id = uuid.uuid4().hex  # one reward per finished challenge, never twice
         self.decoder.reset()
         self.challenge.start(time.monotonic())
         self.canvas.word, self.canvas.position = self.challenge.word, 0
@@ -402,13 +398,6 @@ class BlinkCodeGame(QWidget):
         self.canvas.message = (f"Time! {score} points, {self.challenge.words_done} words"
                                + (" — a new high score!" if record else f" · best {prefs.morse_high_score}")
                                + ranked)
-        coins = blink_code_coins(score, self.challenge.words_done)
-        round_id = getattr(self, "round_id", None)
-        if coins and round_id:
-            award = self.window.art.award_game(f"game:blink_code:{round_id}", "blink_code", coins,
-                                               f"Blink Code challenge: {score} points, {self.challenge.words_done} words")
-            self.status.setText(award_text(award))
-        self.round_id = None
         self.challenge.started_at = None
         self.canvas.time_left = None
         self.challenge_button.setText("Start 90-second challenge")

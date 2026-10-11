@@ -2,8 +2,6 @@
 
 Options:
   --demo-history   fill Statistics with clearly labelled demo sessions
-  --demo-wallet    developer test wallet: 1000 test coins in a separate collection file, for trying the Art
-                   shop (never mixed with the real collection; also OCUSENSE_DEMO_WALLET=1)
   --self-test      check a build without a camera: model loads, one frame is analysed
   --notification-test  send one test Mac notification and quit (check name, icon and permission)
 """
@@ -73,8 +71,7 @@ def run() -> int:
         return _fail("The face model file is missing.",
                      f"Expected at: {MODEL_PATH}\nDuring development, run:  python download_model.py")
     try:
-        window = MainWindow(demo_history="--demo-history" in sys.argv,
-                            demo_wallet="--demo-wallet" in sys.argv or bool(os.environ.get("OCUSENSE_DEMO_WALLET")))
+        window = MainWindow(demo_history="--demo-history" in sys.argv)
     except Exception as error:  # e.g. MediaPipe's native library or a damaged model file
         return _fail("The eye-tracking model could not be loaded.", f"{type(error).__name__}: {error}")
 
