@@ -116,6 +116,22 @@ class PostureUiTest(unittest.TestCase):
         self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=59)
         self.assertEqual(len(self.notifications), 1)  # once per tilt
 
+    def test_poor_posture_sends_the_message_once(self):
+        self.monitoring()
+        poor = PostureStatus(tracked=True, poor=True, problems=(SLUMPED,), outside=(SLUMPED,), longest_outside=30.0,
+                             pitch_change=5.0, roll_change=0.0, centre_drop=0.1)
+        self.send(posture_cal_status=PostureCalibration.DONE, posture_status=poor)
+        self.send(posture_cal_status=PostureCalibration.DONE, posture_status=poor)
+        self.assertEqual(self.notifications,
+                         [("Posture", "Stop slouching, hunchbacks are not particularly sexy you know")])
+        self.assertIn("Stop slouching", self.window.study.message_label.text())
+
+    def test_no_posture_message_when_off(self):
+        self.monitoring()
+        poor = PostureStatus(tracked=True, poor=True, problems=(SLUMPED,), pitch_change=0.0, centre_drop=0.1)
+        self.send(posture_enabled=False, posture_status=poor)
+        self.assertEqual(self.notifications, [])
+
     def test_failed_calibration_and_lost_face(self):
         self.monitoring()
         self.send(posture_cal_status=PostureCalibration.FAILED, posture_cal_error="Your face wasn't seen clearly.")

@@ -37,7 +37,7 @@ from ocusense.calibration_store import CalibrationStore
 from ocusense.preferences import Preferences
 from ocusense.config import CLOSE_BELOW, MIN_SESSION_SECONDS, MODEL_PATH, REOPEN_ABOVE
 from ocusense.core.baseline_drift import BreakReminder, LiveDrift
-from ocusense.core.posture import PostureCalibration
+from ocusense.core.posture import PostureCalibration, PostureReminder
 from ocusense.core.calibration import GuidedCalibration
 from ocusense.core.eye_rest import EyeRestTimer
 from ocusense.core.lighting import LightingMonitor
@@ -75,6 +75,7 @@ from .widgets.alert_banner import AlertBanner, TooCloseMark
 from .widgets.common import vline
 
 TILT_MESSAGE = "You tilted your screen, recalibrating now"
+POSTURE_MESSAGE = "Stop slouching, hunchbacks are not particularly sexy you know"
 BREAK_MESSAGE = "Hey, you should take a break, else your eyes will become drier than the Sahara desert."
 POMODORO_MESSAGES = {  # next phase → (title, message)
     "short_break": ("Focus round done", "Time for a short break — look into the distance and rest your eyes."),
@@ -137,6 +138,7 @@ class MainWindow(QMainWindow):
         self.session_extras = SessionExtras()  # reminders and focus rounds in the running session
         self.summary_card: SessionSummaryCard | None = None
         self.monitor.posture_enabled = self.preferences.posture_monitoring  # Settings › Monitoring (camera not running yet)
+        self.posture_reminder = PostureReminder()  # "stop slouching…": once per poor stretch, at most every 10 min
         self._ticks = 0
 
         root = QWidget()
@@ -432,6 +434,9 @@ class MainWindow(QMainWindow):
             return
         if self.recorder:
             self.recorder.add_observation(update.observation)
+        if update.posture_enabled and self.posture_reminder.update(update.now, update.posture_status):
+            self.notify(POSTURE_MESSAGE, "Posture")
+            self.study.message_label.setText(f"{POSTURE_MESSAGE} ({datetime.now():%H:%M}).")
         if SCREEN_TILTED in update.events:
             self.notify(TILT_MESSAGE, "OcuSense")  # the posture baseline is recorded again (1 min)
             self.study.message_label.setText(f"{TILT_MESSAGE} ({datetime.now():%H:%M}).")

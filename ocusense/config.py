@@ -82,6 +82,8 @@ POSTURE_CENTRE_DROP = 0.08  # slumped: face centre this much lower in the pictur
 POSTURE_SLUMP_GROWTH = 0.10  # …AND the face this much bigger (sliding down almost always brings the head forward;
 #                              lower but not bigger is more likely the camera than the person)
 
+POSTURE_REMINDER_GAP_SECONDS = 600.0  # a message when posture turns poor: one per poor stretch, at most every 10 min
+
 # --- Screen tilt (ocusense/lid_sensor.py; built-in camera of MacBooks with a lid angle sensor) ---
 # The camera sits in the lid: tilting the screen moves the face up or down in the picture and changes
 # the measured head angle. Small tilts are corrected from the lid angle; a clear one recalibrates.

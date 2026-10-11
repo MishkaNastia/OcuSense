@@ -3,9 +3,10 @@
 import math
 import unittest
 
-from ocusense.core.models import PostureBaseline, PostureReading
+from ocusense.core.models import PostureBaseline, PostureReading, PostureStatus
 from ocusense.core.posture import (
-    HEAD_DROPPED, HEAD_TILTED, IRIS_EDGES, SLUMPED, TOO_CLOSE, PostureCalibration, PostureMonitor, TiltWatcher,
+    HEAD_DROPPED, HEAD_TILTED, IRIS_EDGES, SLUMPED, TOO_CLOSE, PostureCalibration, PostureMonitor, PostureReminder,
+    TiltWatcher,
     angle_difference, corrected_for_tilt, distance_cm, head_pose, iris_width_px, read_posture,
 )
 
@@ -287,6 +288,33 @@ class TiltWatcherTest(unittest.TestCase):
         w.set_reference(118.0)
         self.assertEqual(self.feed(w, [None] * 10), [])
 
+
+
+
+class PostureReminderTest(unittest.TestCase):
+    POOR = PostureStatus(tracked=True, poor=True, problems=(SLUMPED,))
+    GOOD = PostureStatus(tracked=True)
+    LOST = PostureStatus(tracked=False)
+
+    def test_once_per_poor_stretch(self):
+        r = PostureReminder()
+        self.assertTrue(r.update(30.0, self.POOR))
+        self.assertFalse(any(r.update(30.0 + i, self.POOR) for i in range(1, 900)))  # still poor, 15 min: no more
+
+    def test_a_new_stretch_after_the_gap(self):
+        r = PostureReminder(gap_seconds=600)
+        self.assertTrue(r.update(0.0, self.POOR))
+        r.update(60.0, self.GOOD)
+        self.assertFalse(r.update(300.0, self.POOR))  # a new stretch, but within 10 min of the last message
+        r.update(400.0, self.GOOD)
+        self.assertTrue(r.update(700.0, self.POOR))  # a new stretch, 11+ min later
+
+    def test_lost_face_doesnt_end_a_stretch(self):
+        r = PostureReminder(gap_seconds=0)
+        self.assertTrue(r.update(0.0, self.POOR))
+        r.update(1.0, self.LOST)
+        r.update(2.0, None)
+        self.assertFalse(r.update(3.0, self.POOR))  # same stretch: no second message
 
 
 if __name__ == "__main__":

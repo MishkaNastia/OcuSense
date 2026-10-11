@@ -91,6 +91,7 @@ calibration values are measured, not set.
 | `POSTURE_CLOSER_FRACTION` | 0.20 | …as does being 20 % closer than at calibration |
 | `POSTURE_CENTRE_DROP` | 0.08 | slumped: face centre 8 % of the frame height lower… |
 | `POSTURE_SLUMP_GROWTH` | 0.10 | …and the face at least 10 % bigger |
+| `POSTURE_REMINDER_GAP_SECONDS` | 600 s | the "stop slouching" message: one per poor stretch, at least 10 minutes apart |
 | `LID_RECALIBRATE_DEGREES` | 5° | screen tilted this much from the baseline… |
 | `LID_SETTLE_SECONDS` | 2 s | …and left there this long: "You tilted your screen, recalibrating now" |
 | `LID_READ_INTERVAL` | 0.5 s | time between screen angle readings |
@@ -331,6 +332,7 @@ files rotate every **10 minutes**.
 | **Live graph** | both-eyes openness (clipped) over the **last 10 s**; dashed lines at the 35 % and 65 % detector thresholds; a red dot at the lowest point of each counted blink. The line breaks where tracking was lost or frames were more than 0.5 s apart. Dimmed while paused. |
 | **Last 60 seconds** | rolling window (section 9): blink rate, median closure duration, time classified as closed, plus valid observation, monitored time and tracking coverage. Rate and closed time show "Collecting data" until 30 s of valid observation. |
 | Precision note | the measured frames per second and the resulting timing precision (8.6) |
+| Posture message | "Stop slouching, hunchbacks are not particularly sexy you know" under the buttons (with the time) when posture turns poor — see [14](#14-posture) |
 | Screen tilted | "You tilted your screen, recalibrating now" under the buttons (with the time) after a clear screen tilt — see [14](#14-posture) |
 | Break reminder | a note under the buttons (with the time) when a break reminder was given, until dismissed — see [11.7](#117-compared-with-your-reference) |
 | Show details (or Settings › Measurement details) | raw EAR of both eyes, unclipped openness, whether the frame is valid and closed, processing rate, number of blinks and timed closures in the window, and the calibration in use |
@@ -657,6 +659,11 @@ in a row**:
 
 "Slumped" needs both, because sliding down in a chair almost always brings the head forward
 too, while a face that is only lower is more often the camera (a tilted screen) than the person.
+
+**Message.** When posture turns poor, a Mac notification (title "Posture") says **"Stop
+slouching, hunchbacks are not particularly sexy you know"**, and the same note appears under the
+Study page buttons. At most one per poor stretch (it ends when posture is good again; a lost
+face doesn't end it) and at least **10 minutes** apart (`POSTURE_REMINDER_GAP_SECONDS`).
 
 Each limit has its own timer. Back within a limit for a single frame → that timer starts
 again, so glancing down at your phone or stretching for a few seconds never counts. A frame

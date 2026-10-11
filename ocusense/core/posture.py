@@ -31,8 +31,8 @@ import statistics
 from ocusense.config import (
     FOCAL_LENGTH_PER_FRAME_WIDTH, IRIS_DIAMETER_MM, LID_RECALIBRATE_DEGREES, LID_SETTLE_SECONDS,
     POSTURE_CALIBRATION_SECONDS, POSTURE_CENTRE_DROP, POSTURE_CLOSER_FRACTION, POSTURE_MAX_PITCH_SPREAD,
-    POSTURE_MIN_DISTANCE_CM, POSTURE_MIN_SAMPLES, POSTURE_PITCH_DROP_DEGREES, POSTURE_ROLL_DEGREES,
-    POSTURE_SLUMP_GROWTH, POSTURE_SUSTAIN_SECONDS,
+    POSTURE_MIN_DISTANCE_CM, POSTURE_MIN_SAMPLES, POSTURE_PITCH_DROP_DEGREES, POSTURE_REMINDER_GAP_SECONDS,
+    POSTURE_ROLL_DEGREES, POSTURE_SLUMP_GROWTH, POSTURE_SUSTAIN_SECONDS,
 )
 
 from .models import PostureBaseline, PostureReading, PostureStatus
@@ -280,4 +280,35 @@ class TiltWatcher:
         if now - self._since < self.settle_seconds:
             return False
         self.set_reference(angle)
+        return True
+
+
+# ------------------------------------------------------------------ reminder
+class PostureReminder:
+    """When to say something about posture: once per poor stretch, at most every `gap_seconds`.
+
+    A stretch starts when the status turns poor (a limit exceeded for POSTURE_SUSTAIN_SECONDS)
+    and ends when posture is judged good again. Frames without a face or before the baseline
+    don't end it (the monitor already restarts its timers then), so tracking dropouts can't
+    cause a burst of messages.
+    """
+
+    def __init__(self, gap_seconds: float = POSTURE_REMINDER_GAP_SECONDS):
+        self.gap_seconds = gap_seconds
+        self.in_stretch = False
+        self.last: float | None = None
+
+    def update(self, now: float, status: PostureStatus | None) -> bool:
+        """True when a message is due with this frame's status."""
+        if status is None or not status.tracked:
+            return False
+        if not status.poor:
+            self.in_stretch = False
+            return False
+        if self.in_stretch:
+            return False
+        self.in_stretch = True  # one per stretch, even if the gap suppresses this one
+        if self.last is not None and now - self.last < self.gap_seconds:
+            return False
+        self.last = now
         return True
