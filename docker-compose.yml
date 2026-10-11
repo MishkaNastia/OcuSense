@@ -1,0 +1,14 @@
+# Runs the OcuSense website on port 8080 (the VIScon managed address forwards there).
+#   docker compose up -d --build
+services:
+  website:
+    build:
+      context: .
+      dockerfile: website/Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: https://smlgkbopjcebzjyuksyb.supabase.co
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_Oa0lPwp2XAQCqwxzuACWAg_rxWzM7mu
+        NEXT_PUBLIC_SITE_URL: ${SITE_URL:-}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
