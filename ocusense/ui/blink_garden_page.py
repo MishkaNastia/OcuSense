@@ -192,7 +192,7 @@ class BlinkGardenGame(QWidget):
         index = self.active_plot
         if self.store.change(lambda g: g.water(index, time.time())):
             self.cards[index].celebrate('water')
-            self.status.setText('Exercise complete! Your plant is watered. Take your time — it will grow while you are away.')
+            self.status.setText('Exercise complete! Your plant is watered. Take your time, it keeps growing while you’re away.')
         else:
             self.status.setText(self.store.error)
         self.refresh()

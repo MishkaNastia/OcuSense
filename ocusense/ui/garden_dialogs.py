@@ -73,7 +73,7 @@ class EyeExerciseDialog(QDialog):
             self.rows.append(row)
         self.bar = QProgressBar()
         self.bar.setRange(0, 100)
-        self.bar.setAccessibleName('Current two-second hold progress')
+        self.bar.setAccessibleName('Current hold progress (two seconds)')
         layout.addWidget(self.bar)
         self.status = label('Use the camera to verify each eye exercise step.', wrap=True)
         layout.addWidget(self.status)

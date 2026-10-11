@@ -111,7 +111,7 @@ class CurrentSessionPage(Page):
         body.addWidget(self.graph_caption)
         self.graph = OpennessGraph()
         body.addWidget(self.graph)
-        body.addWidget(label("Compared with your own open and closed eyes. Not a tiredness score.",
+        body.addWidget(label("Compared with your own open and closed eyes from calibration.",
                              "secondary", theme.ui_font(13), wrap=True))
 
         self.section("Posture", body)
@@ -139,21 +139,20 @@ class CurrentSessionPage(Page):
                              f"{POSTURE_SUSTAIN_SECONDS:.0f} seconds in a row to count, so "
                              "glancing away doesn't. On MacBooks that report the screen angle, small screen tilts "
                              f"are corrected and a tilt of {LID_RECALIBRATE_DEGREES:.0f}° or more records a new "
-                             "baseline. Shown live only and never saved. Not a health assessment.",
+                             "baseline. Shown live only and never saved.",
                              "secondary", theme.ui_font(13), wrap=True))
 
         self.section("Blink distributions", body)
-        body.addWidget(label("How your blinks vary in this session. It describes, it doesn’t judge, and it’s not a "
-                             "tiredness test. Updates every few seconds.", "secondary", theme.ui_font(14), wrap=True))
+        body.addWidget(label("How your blinks vary in this session. Updates every few seconds.", "secondary", theme.ui_font(14), wrap=True))
         self.distributions = DistributionsPanel()
         body.addWidget(self.distributions)
 
         self.section("Compared with your reference", body)
         body.addWidget(label("Are the gaps between your blinks still like in your reference (the first 10 "
                              "minutes of one session, saved in Settings › Data & privacy)? Every 30 seconds "
-                             "the last 5 minutes are compared with it (likelihood-ratio test on log-normal fits); 3 windows in a "
+                             "the last 5 minutes are compared with it (a likelihood ratio test on lognormal fits); 3 windows in a "
                              "row below p = 0.01 count as different. "
-                             "A statistical comparison of timing, not a fatigue assessment.",
+                             "It compares timing only.",
                              "secondary", theme.ui_font(14), wrap=True))
         self.drift_baseline = paragraph("")
         self.drift_latest = paragraph("")

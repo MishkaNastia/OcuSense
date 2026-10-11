@@ -70,7 +70,7 @@ class Histogram(QWidget):
             return f"below {_number(high)}{sep}{unit}"
         if high is None:
             return f"{_number(low)}{sep}{unit} or more"
-        return f"{_number(low)}–{_number(high)}{sep}{unit}"
+        return f"{_number(low)} to {_number(high)}{sep}{unit}"
 
     def _x_of(self, value: float) -> float:
         """x position of a value on the regular-bin scale (open-ended bins take one bin width each)."""

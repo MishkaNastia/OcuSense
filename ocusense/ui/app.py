@@ -89,7 +89,7 @@ def run() -> int:
     try:
         window = MainWindow(demo_history="--demo-history" in sys.argv)
     except Exception as error:  # e.g. MediaPipe's native library or a damaged model file
-        return _fail("The eye-tracking model could not be loaded.", f"{type(error).__name__}: {error}")
+        return _fail("The eye tracking model couldn’t be loaded.", f"{type(error).__name__}: {error}")
 
     if "--self-test" in sys.argv:
         code = _self_test(window)

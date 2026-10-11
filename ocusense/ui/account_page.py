@@ -125,7 +125,7 @@ class AccountPage(Page):
         self.offline_note = _message("secondary")
         box.addWidget(self.offline_note)
         self.section("Leaderboard name", box)
-        box.addWidget(paragraph("Shown next to your scores on the game leaderboards. 3–20 letters, numbers or "
+        box.addWidget(paragraph("Shown next to your scores on the game leaderboards. 3 to 20 letters, numbers or "
                                 "underscores.", 13, secondary=True))
         row = QHBoxLayout()
         row.setSpacing(10)
@@ -144,7 +144,7 @@ class AccountPage(Page):
         self.friends = FriendsPanel(self.service)
         box.addWidget(self.friends)
         box.addWidget(paragraph(
-            "The leaderboards are in Games. Only your username and game scores are shared — never eye "
+            "The leaderboards are in Games. Only your username and game scores are shared, never eye "
             "measurements, recordings or calibration.", 13, secondary=True))
         box.addSpacing(8)
         self.logout_button = button("Log out", "secondary")
@@ -180,7 +180,7 @@ class AccountPage(Page):
         self.email_label.setText(f"Signed in as {account.email}")
         if not self.username_field.hasFocus():
             self.username_field.setText(account.username)
-        _show(self.offline_note, f"Offline — you’re still signed in on this {COMPUTER}; OcuSense will reconnect next time."
+        _show(self.offline_note, f"Offline for now. You’re still signed in on this {COMPUTER}, and OcuSense reconnects next time."
               if self.service.offline else "", "secondary")
         self.set_tag("Offline" if self.service.offline else "Signed in")
         if not account.username:
@@ -262,7 +262,7 @@ class AccountPage(Page):
             self._clear_passwords()
             self.set_mode("login")
             self.fields["email"].setText(email)
-            _show(self.status, "Almost there — we’ve sent a confirmation link to that address. Open it to activate "
+            _show(self.status, "Almost there! We’ve sent a confirmation link to that address. Open it to activate "
                   "your account, then log in here.", "secondary")
         else:
             self._clear_passwords()

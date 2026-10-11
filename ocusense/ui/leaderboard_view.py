@@ -211,7 +211,7 @@ class LeaderboardView(QWidget):
                      bool(account and e.username and e.username == account.username))
                     for i, e in enumerate(entries)])
         waiting = len(self.keeper.book.pending_for(account.user_id)) if account else 0
-        text = ("No scores yet — play a game and your best ones appear here." if not entries
+        text = ("No scores yet. Play a game and your best ones show up here." if not entries
                 else f"Your top {len(entries)} on this Mac.")
         if waiting:
             text += f" {waiting} score{'s' if waiting != 1 else ''} waiting to go online."
@@ -251,5 +251,5 @@ class LeaderboardView(QWidget):
                 self._rows([])
                 self.status.setText(str(value))
             else:
-                self.status.setText(f"Showing the last scores fetched — {value}")
+                self.status.setText(f"Showing the last scores we fetched ({value})")
         self.service.leaderboard(*key, done)

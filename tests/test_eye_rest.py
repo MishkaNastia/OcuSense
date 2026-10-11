@@ -77,7 +77,7 @@ class EyeRestWindowTest(unittest.TestCase):
         w._check_eye_rest(1000.25)
         card = w.eye_rest_card
         self.assertFalse(card.isHidden())
-        self.assertEqual(self.sent[0][0], "Time for a 20-second eye rest")  # the window isn't active in tests
+        self.assertEqual(self.sent[0][0], "Time to rest your eyes for 20 seconds")  # the window isn't active in tests
         card.banner.buttons["Start 20 s"].click()
         self.assertIn("20", card.banner.title.text())
         for _ in range(20):

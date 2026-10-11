@@ -22,7 +22,7 @@ from .widgets.openness_graph import OpennessGraph
 
 PREVIEW_INSET = QSize(4, 4)  # keeps the preview image inside its 2 px border
 COLLECTING = "Collecting data"
-UNAVAILABLE = "—"
+UNAVAILABLE = "not yet"
 
 
 def scaled_preview(pixmap: QPixmap, target: QLabel) -> QPixmap:
@@ -112,8 +112,8 @@ class StudyPage(QScrollArea):
         self.openness_value.setMinimumWidth(130)
         self.openness_value.setAccessibleName("Personal eye openness, both eyes")
         readout.addWidget(self.openness_value, 0, Qt.AlignmentFlag.AlignVCenter)
-        readout.addWidget(label("Compared with your own open and closed eyes from calibration. "
-                                "Not a tiredness score, and not a ruler for your eyelids.",
+        readout.addWidget(label("Compared with your own open and closed eyes from calibration, so 100% is "
+                                "you wide awake and relaxed.",
                                 "secondary", theme.ui_font(14), wrap=True), 1, Qt.AlignmentFlag.AlignVCenter)
         layout.addLayout(readout)
         self.graph = OpennessGraph()

@@ -158,7 +158,7 @@ class RecordingsSection(QWidget):
             self.choice.setCurrentIndex(self.recordings.index(new[-1]))
         parts = [f"Imported {len(new)} recording{'s' if len(new) != 1 else ''}."]
         if self.excluded:
-            parts.append("Not analysed: " + " ".join(f"{name} — {reason}" for name, reason in self.excluded))
+            parts.append("Not analysed: " + " ".join(f"{name} ({reason})." for name, reason in self.excluded))
         self.status.setText(" ".join(parts))
         self._show_selected()
 
@@ -212,4 +212,4 @@ class RecordingsSection(QWidget):
         self.slider.blockSignals(False)
         start = float(self.slider.value())
         self.timeline.set_range(start, span)
-        self.range_label.setText(f"{start:.0f}–{start + span:.0f} s of {length:.0f} s" if recording else "")
+        self.range_label.setText(f"{start:.0f} to {start + span:.0f} s of {length:.0f} s" if recording else "")

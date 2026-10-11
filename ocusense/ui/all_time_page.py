@@ -11,6 +11,7 @@ from PySide6.QtCore import QRectF, Qt, Signal
 from PySide6.QtGui import QBrush, QFont, QPainter, QPen
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
+from ocusense.config import CLOSE_BELOW, MIN_VALID_SECONDS_FOR_RATE, REOPEN_ABOVE, ROLLING_WINDOW_SECONDS
 from ocusense.core.models import SessionSummary
 from ocusense.core.stats import METRICS, combined_metric, format_duration, format_metric, period_stats
 
@@ -107,6 +108,8 @@ class AllTimePage(QScrollArea):
         outer.addSpacing(30)
         self.recordings = RecordingsSection()  # works without any session in memory
         outer.addWidget(self.recordings)
+        outer.addSpacing(30)
+        outer.addWidget(self._meanings())
         outer.addStretch(1)
 
         summary = QWidget()
@@ -120,7 +123,7 @@ class AllTimePage(QScrollArea):
             col = QVBoxLayout(cell)
             col.setContentsMargins(0 if i == 0 else 24, 18, 24, 18)
             col.addWidget(_label(text, "secondary", theme.ui_font(14)))
-            value = _label("—", font=theme.number_font(36))
+            value = _label("0", font=theme.number_font(36))
             value.setAccessibleName(text)
             self.summary_values[key] = value
             col.addWidget(value)
@@ -169,8 +172,8 @@ class AllTimePage(QScrollArea):
         self.details.setTextFormat(Qt.TextFormat.RichText)
         body.addWidget(_rule(1, "hairline"))
         body.addWidget(self.details)
-        body.addWidget(_label("Measured relative to your own calibration. These describe what the camera saw, "
-                              "not a tiredness or health score.", "secondary", theme.ui_font(13), wrap=True))
+        body.addWidget(_label("Measured against your own calibration. What each number means is explained at "
+                              "the bottom of this page.", "secondary", theme.ui_font(13), wrap=True))
         body.addSpacing(30)
 
         # Sessions in the selected period, each expandable to its summary
@@ -179,6 +182,37 @@ class AllTimePage(QScrollArea):
         self.session_box = QVBoxLayout()
         self.session_box.setSpacing(0)
         body.addLayout(self.session_box)
+
+    def _meanings(self) -> QWidget:
+        """What every number on the Statistics pages means, in plain words (once, here)."""
+        box = QWidget()
+        column = QVBoxLayout(box)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(10)
+        column.addWidget(_label("What these numbers mean", font=theme.ui_font(28, QFont.Weight.Bold)))
+        column.addWidget(_rule())
+        entries = [
+            ("Eye openness", "Calibration teaches OcuSense what your eyes look like comfortably open and gently "
+             "closed. 100% means as open as during calibration and 0% means as closed, so everything is relative "
+             "to you. Lighting, glasses, the camera angle and how you sit all change it, so recalibrate when "
+             "those change."),
+            *[(METRICS[key]["name"], METRICS[key]["explain"]) for key in ("rate", "closure", "closed")],
+            ("How a blink is counted", f"A blink counts when your eye openness drops below {CLOSE_BELOW:.0%} and "
+             f"comes back above {REOPEN_ABOVE:.0%}. Two lines instead of one stop small wobbles from counting twice."),
+            ("Tracking coverage", "The share of study time when both eyes were measured clearly. When the camera "
+             "loses your face, that time is left out: it never counts as zero blinks or closed eyes. On the "
+             f"Study page, blink rate and time closed show up after {MIN_VALID_SECONDS_FOR_RATE:.0f} seconds of "
+             f"tracking within the last {ROLLING_WINDOW_SECONDS:.0f} seconds, so a handful of blinks can’t produce "
+             "a silly number."),
+            ("What OcuSense can’t tell you", "OcuSense isn’t a medical device. It doesn’t diagnose tiredness, dry "
+             "eye or anything else, and it doesn’t give health scores. It tells you what the camera saw; how you "
+             "feel is up to you. Compare your numbers with your own earlier sessions, not with other people’s."),
+        ]
+        for title, text in entries:
+            column.addSpacing(6)
+            column.addWidget(_label(title, font=theme.ui_font(17, QFont.Weight.Bold)))
+            column.addWidget(_label(text, font=theme.ui_font(15), wrap=True))
+        return box
 
     def _legend(self):
         legend = QWidget()
@@ -220,8 +254,8 @@ class AllTimePage(QScrollArea):
         self.tag.setToolTip("" if self.demo else "Sessions are kept in memory only and forgotten when OcuSense quits.")
         self.memory_note.setText(
             "Clearly labelled demo sessions, plus any you record now. Statistics aren’t saved to disk." if self.demo else
-            "Sessions from this run of OcuSense. They are kept in memory only — when you quit, they are gone, "
-            "and earlier runs are not shown. (The raw EAR recording is saved separately; see Settings.)")
+            "Sessions from this run of OcuSense. They live in memory, so they’re gone when you quit and earlier "
+            "runs don’t show up here. (The raw EAR recording is saved separately; see Settings.)")
         has_any = bool(everything)
         self.empty.setVisible(not has_any)
         self.body.setVisible(has_any)
@@ -231,12 +265,12 @@ class AllTimePage(QScrollArea):
             return
 
         total = sum(s.study_seconds for s in everything)
-        self.summary_values["study"].setText(format_duration(total) if total else "—")
+        self.summary_values["study"].setText(format_duration(total) if total else "none yet")
         self.summary_values["sessions"].setText(str(sum(1 for s in everything if not s.in_progress)))
 
         stats = period_stats(everything, self.period, today)
         completed = [s for s in stats.sessions if not s.in_progress]
-        coverage = f"{stats.coverage * 100:.0f}%" if stats.coverage is not None else "—"
+        coverage = f"{stats.coverage * 100:.0f}%" if stats.coverage is not None else "not measured"
         self.period_summary.setText(
             f"{format_duration(stats.study_seconds) if stats.study_seconds else 'No'} study · "
             f"{len(completed)} completed session{'s' if len(completed) != 1 else ''} · tracking coverage {coverage}")
@@ -248,12 +282,12 @@ class AllTimePage(QScrollArea):
 
         values = [s.metric(self.metric_key) for s in stats.sessions if s.metric(self.metric_key) is not None]
         not_tracked = stats.study_seconds - stats.tracked_seconds
-        rng = (f"{format_metric(self.metric_key, min(values))} – {format_metric(self.metric_key, max(values))}"
-               if values else "—")
+        rng = (f"{format_metric(self.metric_key, min(values))} to {format_metric(self.metric_key, max(values))}"
+               if values else "not yet")
         self.details.setText(
             f"<span style='color:{theme.GRAPHITE}'>Average</span>&nbsp; <b>{format_metric(self.metric_key, combined_metric(stats.sessions, self.metric_key))}</b>"
             f"&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:{theme.GRAPHITE}'>Range across sessions</span>&nbsp; <b>{rng}</b>"
-            f"&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:{theme.GRAPHITE}'>Not tracked</span>&nbsp; <b>{format_duration(max(0, not_tracked)) if stats.study_seconds else '—'}</b>"
+            f"&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:{theme.GRAPHITE}'>Not tracked</span>&nbsp; <b>{format_duration(max(0, not_tracked)) if stats.study_seconds else 'none'}</b>"
         )
 
         while self.session_box.count():
@@ -269,7 +303,7 @@ class AllTimePage(QScrollArea):
                 "now" if s.in_progress else s.ended_at.strftime("%H:%M"))
             subtitle = ("In progress · " if s.in_progress else "") + f"{format_duration(s.study_seconds)} study · {s.blinks} blinks"
             paused = (s.ended_at - s.started_at).total_seconds() - s.study_seconds
-            coverage = f"{s.coverage * 100:.0f}%" if s.coverage is not None else "—"
+            coverage = f"{s.coverage * 100:.0f}%" if s.coverage is not None else "not measured"
             details = (
                 f"<span style='color:{theme.GRAPHITE}'>Duration</span>&nbsp; {format_duration(s.study_seconds)} study"
                 + (f", {format_duration(paused)} paused" if paused >= 60 else "") + "<br>"

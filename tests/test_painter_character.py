@@ -53,7 +53,7 @@ class PainterInSidebarTest(unittest.TestCase):
         layout = sidebar.layout()
         index = [layout.itemAt(i).widget() for i in range(layout.count())]
         self.assertLess(index.index(sidebar.painter), index.index(sidebar.items["settings"]))
-        self.assertGreater(index.index(sidebar.painter), index.index(sidebar.items["patterns"]))
+        self.assertGreater(index.index(sidebar.painter), index.index(sidebar.items["all_time"]))
         box = self.window.pomodoro_page.checks["animations"]
         box.setChecked(True)
         on = not self.window.pomodoro_page.reduce_motion

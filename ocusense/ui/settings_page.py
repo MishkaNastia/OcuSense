@@ -83,7 +83,7 @@ class SettingsPage(Page):
         self.body.addWidget(setting_row(
             "Posture monitoring",
             "Watches your head angle, distance from the screen and slumping, compared with the first 2 minutes "
-            "after each eye calibration (Statistics › Current session). Shown live only; nothing posture-related is saved. Remembered between launches.", self.posture))
+            "after each eye calibration (Statistics › Current session). Shown live only; nothing about your posture is saved. Remembered between launches.", self.posture))
         self.body.addWidget(setting_row("Calibration sound",
                                         "A short system sound tells you when to open your eyes after the “gently "
                                         "closed” step. It is always on, because your eyes are closed then."))
@@ -92,7 +92,7 @@ class SettingsPage(Page):
         self.body.addWidget(setting_row("Measurement details",
                                         "Raw values, data quality and the calibration in use, below the "
                                         "measurements on the Study page.", self.details))
-        self.body.addWidget(setting_row("Camera", f"Built-in camera (camera {CAMERA_INDEX}). Images are analysed on "
+        self.body.addWidget(setting_row("Camera", f"Your computer’s own camera (camera {CAMERA_INDEX}). Images are analysed on "
                                                   f"this {COMPUTER} and never saved or uploaded."))
 
         # Reminders
@@ -103,7 +103,7 @@ class SettingsPage(Page):
         self.body.addWidget(setting_row(
             "Break reminders",
             f"A {NOTIFICATION_NAME} (and a note on the Study page) when you have been blinking less often than in your "
-            "reference for several minutes: 3 five-minute windows in a row below p = 0.01 with longer intervals. "
+            "reference for several minutes: 3 windows of five minutes in a row below p = 0.01 with longer intervals. "
             "At most one per slow stretch and one every 20 minutes. Faster blinking never triggers one.",
             self.reminders))
         self.distance = QCheckBox("On")
@@ -130,9 +130,9 @@ class SettingsPage(Page):
                                         extra=(self.distance_explain, self.distance_detail)))
         self.set_distance_interval(PROXIMITY_COOLDOWN_SECONDS)
         self.eye_rest = QCheckBox("On")
-        self.eye_rest.setAccessibleName("20-20-20 eye rest")
+        self.eye_rest.setAccessibleName("Eye rest every 20 minutes")
         self.body.addWidget(setting_row(
-            "20-20-20 eye rest",
+            "Eye rest every 20 minutes",
             "Off unless you switch it on. Then, after 20 minutes of monitored screen time, a card asks you to look "
             "about 6 metres (20 feet) away for 20 seconds, with a countdown. A pause of 20 s or more (like a "
             "Pomodoro break) starts the count again.", self.eye_rest))
@@ -177,7 +177,7 @@ class SettingsPage(Page):
             "Raw EAR recording",
             f"While the camera is on, the left and right Eye Aspect Ratio of every frame is saved with its time "
             "and your calibrated openness, as a CSV file (plus the calibration used) every "
-            f"{RECORDING_CHUNK_SECONDS / 60:.0f} minutes and when you pause, stop or quit. Numbers only — no images.", controls, extra=(self.recording_detail,)))
+            f"{RECORDING_CHUNK_SECONDS / 60:.0f} minutes and when you pause, stop or quit. Numbers only, no images.", controls, extra=(self.recording_detail,)))
         self.folder = None
         self.reference_button = _button("Make a new reference…", "secondary")
         self.reference_button.clicked.connect(self.new_reference_requested.emit)
@@ -216,7 +216,7 @@ class SettingsPage(Page):
     def _explain_distance(self) -> None:
         every = interval_text(self.interval.currentData())
         self.distance_explain.setText(
-            f"“Trying to lick the screen?” — when your face looks {PROXIMITY_WARN_RATIO:g}× as big as during "
+            f"“Trying to lick the screen?” appears when your face looks {PROXIMITY_WARN_RATIO:g}× as big as during "
             f"calibration (roughly {100 / PROXIMITY_WARN_RATIO:.0f} % of the distance) for "
             f"{PROXIMITY_SUSTAIN_SECONDS:g} s; again every {every} while you stay that close, and never more often "
             f"than that. Shown in the window, and as a {NOTIFICATION_NAME} while OcuSense is in the background.")

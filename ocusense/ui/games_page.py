@@ -161,7 +161,7 @@ class BlinkCodeGame(QWidget):
         actions.addStretch(1)
         self.camera_button = _button("Start camera", "primary")
         self.camera_button.clicked.connect(self.toggle_camera)
-        self.challenge_button = _button("Start 90-second challenge", "secondary")
+        self.challenge_button = _button("Start a 90 s challenge", "secondary")
         self.challenge_button.clicked.connect(self.start_challenge)
         actions.addWidget(self.camera_button)
         actions.addWidget(self.challenge_button)
@@ -227,7 +227,7 @@ class BlinkCodeGame(QWidget):
         else:
             self.canvas.typed = ""
             self.canvas.score = self.letters_blinked
-            self.canvas.message = "Blink anything — a short pause ends a letter, a longer one adds a space."
+            self.canvas.message = "Blink anything you like. A short pause ends a letter, a longer one adds a space."
         self.challenge_button.setVisible(mode == "challenge")
         self.setFocus()
         self.canvas.update()
@@ -261,7 +261,7 @@ class BlinkCodeGame(QWidget):
             self.status.setText("Camera off.")
         else:
             problem = self.window.start_game_camera()
-            self.status.setText(problem or "Camera on — blink! Short = dot, long = dash.")
+            self.status.setText(problem or "Camera on. Blink! Short = dot, long = dash.")
         self._update_camera_button()
         self.setFocus()
 
@@ -348,11 +348,11 @@ class BlinkCodeGame(QWidget):
             else:
                 self.canvas.wobble()
                 self.canvas.message = (f"That was {pretty(code)} ({shown}). "
-                                       f"{self.learn.target} is {pretty(MORSE[self.learn.target])} — try again.")
+                                       f"{self.learn.target} is {pretty(MORSE[self.learn.target])}. Try again!")
             self._show_learn()
         elif self.mode == "challenge":
             if self.challenge.started_at is None:
-                self.canvas.message = "Press “Start 90-second challenge” first."
+                self.canvas.message = "Press “Start a 90 s challenge” first."
                 return
             right, finished = self.challenge.answer(letter)
             if right:
@@ -360,7 +360,7 @@ class BlinkCodeGame(QWidget):
                 self.canvas.message = "Word complete! +bonus" if finished else f"{letter} ✓"
             else:
                 self.canvas.wobble()
-                self.canvas.message = f"That was {shown} — need {self.challenge.expected}. Combo lost."
+                self.canvas.message = f"That was {shown}, but the word needs {self.challenge.expected}. Combo lost."
             self.canvas.word, self.canvas.position = self.challenge.word, self.challenge.position
             self.canvas.target_code = MORSE[self.challenge.expected]
             self.canvas.score, self.canvas.combo = self.challenge.score, self.challenge.combo
@@ -396,11 +396,11 @@ class BlinkCodeGame(QWidget):
         self.canvas.best = prefs.morse_high_score
         ranked = f" · #{place} on this {COMPUTER}" if place and not record else ""
         self.canvas.message = (f"Time! {score} points, {self.challenge.words_done} words"
-                               + (" — a new high score!" if record else f" · best {prefs.morse_high_score}")
+                               + (". A new high score!" if record else f" · best {prefs.morse_high_score}")
                                + ranked)
         self.challenge.started_at = None
         self.canvas.time_left = None
-        self.challenge_button.setText("Start 90-second challenge")
+        self.challenge_button.setText("Start a 90 s challenge")
 
 
 class GamesPage(Page):
@@ -425,7 +425,7 @@ class GamesPage(Page):
         hub_column.addStretch(1)
         hub.addWidget(self._card(BlinkCodeMark(), "Blink Code",
                                  "Learn Morse code with your eyes: a short blink is a dot, a long blink a dash. "
-                                 "Unlock letters, chase combos in the 90-second challenge, or blink-type freely.",
+                                 "Unlock letters, chase combos in a 90 s challenge, or type freely with blinks.",
                                  "Play", self.open_blink_code), 0, Qt.AlignmentFlag.AlignTop)
         hub.addWidget(self._card(EyeGameMark(), "EyeGame",
                                  "An endless runner by MishkaNastia: blink to jump over toilets (some of them fly), "

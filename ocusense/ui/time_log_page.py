@@ -53,7 +53,7 @@ def clock(seconds: float) -> str:
 
 
 def short(seconds: float) -> str:
-    return format_duration(seconds) if seconds >= 30 else "–"
+    return format_duration(seconds) if seconds >= 30 else "under 30 s"
 
 
 def hhmm(timestamp: float) -> str:
@@ -136,7 +136,7 @@ class PlayButton(QAbstractButton):
         self.running = running
         self.setText("Stop" if running else "Start")
         self.setAccessibleName("Stop the timer" if running else "Start the timer")
-        self.setToolTip("Stop" if running else "Start — recording begins at once")
+        self.setToolTip("Stop" if running else "Start: recording begins at once")
         self.update()
 
     def paintEvent(self, event) -> None:
@@ -761,7 +761,7 @@ class EntryDialog(_Dialog):
         head.addStretch(1)
         if entry is not None and not self.running:
             self.continue_button = PlayButton(38)
-            self.continue_button.setToolTip("Continue — start a new timer with this subject and note")
+            self.continue_button.setToolTip("Continue: start a new timer with this subject and note")
             self.continue_button.setAccessibleName("Continue this entry")
             self.continue_button.clicked.connect(self._continue)
             head.addWidget(self.continue_button)
@@ -834,7 +834,7 @@ class EntryDialog(_Dialog):
         line.addStretch(1)
         if self.running:
             self.end.setEnabled(False)
-            self.end.setToolTip("Still running — stop the timer to give it an end.")
+            self.end.setToolTip("Still running. Stop the timer to give it an end.")
         row.addWidget(times, 1)
 
         clock_pill = QFrame()
@@ -1024,7 +1024,7 @@ class WeekCalendar(QWidget):
                 if h1 - h0 <= 0:
                     continue
                 first, last = min(first, int(h0)), max(last, int(h1 + 0.999))
-                title = f"{s.name} · {hhmm(e.start)}–{'now' if e.end is None else hhmm(e.end)}"
+                title = f"{s.name} · {hhmm(e.start)} to {'now' if e.end is None else hhmm(e.end)}"
                 self.items.append((i, h0, h1, s.colour, s.name, title + (f"\n{e.note}" if e.note else ""),
                                    e.id, e.end is None))
         self.first_hour, self.last_hour = first, min(24, last)
@@ -1525,7 +1525,7 @@ class TimeLogPage(Page):
         # the week
         monday = week_monday(today) + timedelta(days=7 * self.week_offset)
         sunday = monday + timedelta(days=6)
-        self.week_title.setText(f"{monday.day} {monday:%b} – {sunday.day} {sunday:%b %Y}  ·  W{monday.isocalendar()[1]}")
+        self.week_title.setText(f"{monday.day} {monday:%b} to {sunday.day} {sunday:%b %Y}  ·  W{monday.isocalendar()[1]}")
         a, b = day_start(monday), day_start(monday + timedelta(days=7))
         self.week_total.setText(f"Logged {short(log.total(a, b, now))}")
         self.this_button.setEnabled(self.week_offset != 0)
@@ -1591,7 +1591,7 @@ class TimeLogPage(Page):
         note = label(e.note, "secondary", theme.ui_font(14))
         note.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         line.addWidget(note, 1)
-        line.addWidget(label(f"{hhmm(e.start)} – {'now' if e.end is None else hhmm(e.end)}", "secondary",
+        line.addWidget(label(f"{hhmm(e.start)} to {'now' if e.end is None else hhmm(e.end)}", "secondary",
                              theme.number_font(13)))
         duration = label(clock(e.seconds(now)) if e.end is None else short(e.seconds(now)), font=theme.number_font(13))
         duration.setMinimumWidth(78)

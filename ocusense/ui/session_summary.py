@@ -70,7 +70,7 @@ class SessionSummaryCard(QDialog):
         top = QHBoxLayout()
         text = QVBoxLayout()
         text.addWidget(label("SESSION COMPLETE", "eyebrow", theme.ui_font(13, QFont.Weight.Bold)))
-        when = f"{summary.started_at:%H:%M}–{summary.ended_at:%H:%M}"
+        when = f"{summary.started_at:%H:%M} to {summary.ended_at:%H:%M}"
         text.addWidget(label(format_duration(summary.study_seconds) + " of study",
                              font=theme.ui_font(32, QFont.Weight.Bold)))
         text.addWidget(label(f"Today, {when}. Pauses not counted.", "secondary", theme.ui_font(14)))
@@ -80,7 +80,7 @@ class SessionSummaryCard(QDialog):
         layout.addLayout(top)
         layout.addWidget(rule())
 
-        coverage = f"{summary.coverage * 100:.0f}%" if summary.coverage is not None else "—"
+        coverage = f"{summary.coverage * 100:.0f}%" if summary.coverage is not None else "not measured"
         rows = [
             ("blinks", "Blinks counted", str(summary.blinks), ""),
             ("rate", "Blink rate", format_metric("rate", summary.metric("rate")), "per minute of tracked time"),
@@ -99,7 +99,7 @@ class SessionSummaryCard(QDialog):
 
         reminders = []
         for count, one, many in ((extras.distance_reminders, "distance reminder", "distance reminders"),
-                                 (extras.eye_rests, "eye-rest reminder", "eye-rest reminders"),
+                                 (extras.eye_rests, "eye rest reminder", "eye rest reminders"),
                                  (extras.break_reminders, "break reminder", "break reminders"),
                                  (extras.lighting_reminders, "lighting tip", "lighting tips")):
             if count:
@@ -107,7 +107,7 @@ class SessionSummaryCard(QDialog):
         self.values["reminders"] = ", ".join(reminders) if reminders else "No reminders this session."
         layout.addWidget(label("Reminders: " + self.values["reminders"] if reminders else self.values["reminders"],
                                font=theme.ui_font(15), wrap=True))
-        layout.addWidget(label("These describe what the camera measured — not a tiredness or health score.",
+        layout.addWidget(label("What the camera measured. Statistics › All time explains each number.",
                                "secondary", theme.ui_font(12), wrap=True))
 
         actions = QHBoxLayout()

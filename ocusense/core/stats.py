@@ -32,7 +32,7 @@ def to_display(name: str, value: float | None) -> float | None:
 def format_metric(name: str, value: float | None, with_unit: bool = True) -> str:
     """Format an internal value for display, including the unit conversion."""
     if value is None:
-        return "—"
+        return "not yet"
     m = METRICS[name]
     text = f"{to_display(name, value):.{m['decimals']}f}"
     if not with_unit:

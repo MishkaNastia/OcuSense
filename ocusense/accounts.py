@@ -123,7 +123,7 @@ def validate_confirm(password: str, confirm: str) -> str | None:
 
 def validate_username(username: str) -> str | None:
     if not USERNAME_PATTERN.match(username):
-        return "Use 3–20 letters, numbers or underscores. It’s shown on leaderboards."
+        return "Use 3 to 20 letters, numbers or underscores. It’s shown on leaderboards."
     return None
 
 
@@ -133,7 +133,7 @@ def friendly_error(message: str) -> str:
     if "invalid login credentials" in m:
         return "Email or password is incorrect."
     if "email not confirmed" in m:
-        return "Please confirm your email first — check your inbox for the link we sent."
+        return "Please confirm your email first. Check your inbox for the link we sent."
     if "already registered" in m or "already been registered" in m or "user_already_exists" in m:
         return "There’s already an account with that email. Log in instead."
     if "rate limit" in m or "too many" in m:
@@ -141,7 +141,7 @@ def friendly_error(message: str) -> str:
     if "password" in m and "weak" in m:
         return "That password is too easy to guess. Try a longer one."
     if "network" in m or "fetch" in m or "timed out" in m:
-        return "We couldn’t reach the sign-in service. Check your connection and try again."
+        return "We couldn’t reach the login service. Check your connection and try again."
     return "Something went wrong. Please try again."
 
 

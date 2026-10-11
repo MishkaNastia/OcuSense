@@ -1,4 +1,4 @@
-"""The 20-20-20 eye-rest card: "Time for a 20-second eye rest" with a built-in countdown.
+"""The 20-20-20 eye-rest card: "Time to rest your eyes for 20 seconds" with a built-in countdown.
 
 Same alert style as the other reminders (paper card, ink border, a Miró mark: an
 eye looking along a dashed line to a far-away sun). "Start 20 s" counts down on the
@@ -15,7 +15,7 @@ from . import theme
 from .widgets.alert_banner import AlertBanner
 from .widgets.artwork import draw_star
 
-TITLE = "Time for a 20-second eye rest"
+TITLE = "Time to rest your eyes for 20 seconds"
 BODY = "Look at something about 6 metres (20 feet) away for 20 seconds."
 
 
@@ -89,7 +89,7 @@ class EyeRestCard(QWidget):
         self.left -= 1
         if self.left <= 0:
             self.timer.stop()
-            self.banner.title.setText("Nice — your eyes had a rest.")
+            self.banner.title.setText("Nice! Your eyes had a rest.")
             self.banner.body.setText("Back to it. The next reminder comes after another stretch of screen time.")
             for button in self.banner.buttons.values():
                 button.setVisible(False)
@@ -99,7 +99,7 @@ class EyeRestCard(QWidget):
 
     def _show_count(self) -> None:
         self.banner.title.setText(f"Keep looking far away… {self.left}")
-        self.banner.body.setText("Something about 6 metres (20 feet) away — a window, a wall across the room.")
+        self.banner.body.setText("Something about 6 metres (20 feet) away, like a window or a wall across the room.")
 
     def _close(self, how: str) -> None:
         self.timer.stop()

@@ -247,7 +247,7 @@ class ServiceAndPageTest(unittest.TestCase):
         page.fields["confirm"].setText("different1")
         page.submit()
         self.assertEqual(self.client.calls, [])  # nothing sent with mistakes in the form
-        self.assertIn("Use 3–20", page.field_errors["username"].text())
+        self.assertIn("Use 3 to 20", page.field_errors["username"].text())
         self.assertIn("don’t match", page.field_errors["confirm"].text())
         page.fields["username"].setText("mira")
         page.fields["confirm"].setText("secret123")
@@ -289,7 +289,7 @@ class ServiceAndPageTest(unittest.TestCase):
         service.sign_in("mira@example.com", "secret123", lambda ok, value: None)
         page.username_field.setText("x")
         page.save_username()
-        self.assertIn("Use 3–20", page.username_status.text())
+        self.assertIn("Use 3 to 20", page.username_status.text())
         page.username_field.setText("blink_queen")
         page.save_username()
         self.assertEqual(self.client.calls[-1], ("set_username", "a1", "blink_queen"))

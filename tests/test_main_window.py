@@ -182,7 +182,7 @@ class WindowTest(unittest.TestCase):
         w._on_update(update(openness=(0.8, 0.6, 0.7)))
         self.assertEqual(w.study.openness_value.text(), "70%")
         w._on_update(update(face_found=False, openness=None))
-        self.assertEqual(w.study.openness_value.text(), "—")
+        self.assertEqual(w.study.openness_value.text(), "not yet")
 
     def test_last_60_seconds_collects_data_then_shows_values(self):
         w = self.window
@@ -242,7 +242,7 @@ class WindowTest(unittest.TestCase):
     def test_other_pages_unavailable_during_calibration(self):
         w = self.window
         w.start()
-        for key in ("statistics", "current", "all_time", "patterns", "settings", "account"):
+        for key in ("statistics", "current", "all_time", "settings", "account"):
             self.assertFalse(w.sidebar.items[key].isEnabled(), key)
         self.assertTrue(w.sidebar.items["study"].isEnabled())
         w.show_stats()
@@ -312,7 +312,7 @@ class SidebarNavigationTest(unittest.TestCase):
         w = self.window
         self._monitor()
         recorder = w.recorder
-        for key in ("current", "all_time", "patterns", "settings", "account", "study", "current"):
+        for key in ("current", "all_time", "settings", "account", "study", "current"):
             w.show_page(key)
             self.assertIs(w.pages.currentWidget(), w.page_for[key])
             self.assertEqual(w.state, "monitoring")
@@ -321,14 +321,15 @@ class SidebarNavigationTest(unittest.TestCase):
             self.assertIs(w.recorder, recorder)
             self.assertTrue(w.sidebar.items[key].selected)
 
-    def test_statistics_expands_to_its_three_pages(self):
+    def test_statistics_expands_to_its_two_pages(self):
         bar = self.window.sidebar
         self.assertTrue(bar.items["current"].isHidden())
         bar.items["statistics"].click()
         self.assertFalse(bar.items["current"].isHidden())
         self.assertIs(self.window.pages.currentWidget(), self.window.current_page)
         bar.items["statistics"].click()  # collapse; the group stays highlighted
-        self.assertTrue(bar.items["patterns"].isHidden())
+        self.assertTrue(bar.items["all_time"].isHidden())
+        self.assertNotIn("patterns", bar.items)  # Understanding your patterns is gone
         self.assertTrue(bar.items["statistics"].ancestor)
 
     def test_sidebar_keyboard_navigation(self):
@@ -382,16 +383,14 @@ class SidebarNavigationTest(unittest.TestCase):
         page = w.stats_page
         self.assertEqual(page.summary_values["sessions"].text(), "1")
         self.assertNotIn("breaks", page.summary_values)  # breaks aren't shown at all
-        self.assertIn("memory only", page.memory_note.text())
+        self.assertIn("live in memory", page.memory_note.text())
 
-    def test_patterns_page_never_invents_findings(self):
-        from ocusense.ui.patterns_page import PLACEHOLDER
-        w = self.window
-        self._monitor(30)
-        w.stop()
-        w.show_page("patterns")
-        self.assertEqual(w.patterns_page.observations.text(), PLACEHOLDER)
-        self.assertIn("1 session", w.patterns_page.observations_detail.text())
+    def test_all_time_explains_the_numbers(self):
+        from PySide6.QtWidgets import QLabel
+        texts = " ".join(label.text() for label in self.window.stats_page.findChildren(QLabel))
+        for expected in ("What these numbers mean", "How a blink is counted", "Tracking coverage",
+                         "isn’t a medical device"):
+            self.assertIn(expected, texts)
 
     def test_settings_controls_are_connected(self):
         w = self.window

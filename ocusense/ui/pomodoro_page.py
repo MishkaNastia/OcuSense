@@ -55,7 +55,7 @@ class PomodoroPage(Page):
 
     def __init__(self, preferences, parent=None):
         super().__init__("Focus", "Pomodoro",
-                         "Study in focused rounds with short breaks in between. Change the lengths below — your "
+                         "Study in focused rounds with short breaks in between. Change the lengths below; your "
                          "choices are remembered.", parent)
         self.preferences = preferences
         self.timer = PomodoroTimer(preferences.pomodoro())

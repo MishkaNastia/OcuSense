@@ -42,9 +42,9 @@ EXPLAIN = {
             f"A window counts only if it is finished and has at least {MIN_VALID_SECONDS_FOR_RATE:.0f} s of valid "
             "tracking. Per second = per minute ÷ 60.",
     "instant": "60 ÷ the time between two consecutive blinks, in blinks per minute (per second: 1 ÷ that time). "
-               "one value per pair of blinks, so it appears after a short recording. Much noisier than the per-minute rate: a single "
+               "one value per pair of blinks, so it appears after a short recording. Much noisier than the rate per minute: a single "
                "long pause gives one very low value, a quick double blink a very high one.",
-    "openness": "Relative to your calibrated eye positions. Not a fatigue score or literal percentage of "
+    "openness": "Relative to your calibrated eye positions, not a literal percentage of "
                 "anatomical eye opening. Bars show the share of valid observed time, weighted by time between "
                 "frames, so a varying frame rate doesn’t distort them.",
 }
@@ -193,7 +193,7 @@ class DistributionsPanel(QWidget):
         self.note.setText(status)
         if len(rates) < MIN_WINDOWS:
             self.summary.setText("Not enough eligible minutes yet.")
-            self.chart.clear(f"A blink-rate histogram needs at least {MIN_WINDOWS} eligible one-minute windows "
+            self.chart.clear(f"A blink rate histogram needs at least {MIN_WINDOWS} eligible minutes of tracking "
                              f"({len(rates)} so far). Each window needs {MIN_VALID_SECONDS_FOR_RATE:.0f} s of valid "
                              "tracking.")
             return
@@ -220,7 +220,7 @@ class DistributionsPanel(QWidget):
             close, reopen = self.thresholds
             markers = [(close * 100, f"closes {close:.0%}"), (reopen * 100, f"reopens {reopen:.0%}")]
             both += (" Dashed lines: the recorded detection thresholds; the detector applies them to the mean of "
-                     "both eyes (each clipped to 0–100 %).")
+                     "both eyes (each clipped to 0 to 100 %).")
         self.note.setText(f"Below 0 %: {below:.1f} % of the time · 100 % or above: {above:.1f} % of the time "
                           f"(range seen {o.lowest[self.eye]:.0f} % to {o.highest[self.eye]:.0f} %)." + both)
         self.chart.set_data(shares, OPENNESS_BINS, "% of valid observed time",

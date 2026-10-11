@@ -59,7 +59,6 @@ from .account_service import AccountService
 from .all_time_page import AllTimePage
 from .calibration_view import CalibrationView
 from .current_session_page import CurrentSessionPage
-from .patterns_page import PatternsPage
 from .settings_page import SettingsPage
 from .sidebar import STATISTICS_PAGES, Sidebar
 from .eye_rest_card import BODY as EYE_REST_BODY, TITLE as EYE_REST_TITLE, EyeRestCard
@@ -112,7 +111,7 @@ class MainWindow(QMainWindow):
         self.elapsed = 0.0  # seconds of monitoring in this session (excluding pauses)
         self.running_since: float | None = None
         self.last_update: MonitorUpdate | None = None
-        self.view = "study"  # the sidebar page shown: study, current, all_time, patterns, settings, account, …
+        self.view = "study"  # the sidebar page shown: study, current, all_time, settings, account, …
         self.demo_history = demo_history
         self.store = SessionStore(demo_sessions() if demo_history else None)  # in memory for now
         self.recorder: SessionRecorder | None = None
@@ -161,7 +160,6 @@ class MainWindow(QMainWindow):
         self.calibration = CalibrationView()
         self.current_page = CurrentSessionPage()
         self.stats_page = AllTimePage()
-        self.patterns_page = PatternsPage()
         self.settings_page = SettingsPage()
         self.account_service = AccountService()
         self.account_page = AccountPage(self.account_service)
@@ -178,11 +176,11 @@ class MainWindow(QMainWindow):
         self.time_log_page.status_text.connect(self.sidebar.set_time_log_status)
         self.time_log_page.running_changed.connect(self._time_log_running)
         self.page_for = {"study": self.study, "current": self.current_page, "all_time": self.stats_page,
-                         "patterns": self.patterns_page, "settings": self.settings_page, "account": self.account_page,
+                         "settings": self.settings_page, "account": self.account_page,
                          "pomodoro": self.pomodoro_page, "games": self.games_page,
                          "time_log": self.time_log_page, "library": self.library_page}
         self.pages = QStackedWidget()
-        for page in (self.study, self.calibration, self.current_page, self.stats_page, self.patterns_page,
+        for page in (self.study, self.calibration, self.current_page, self.stats_page,
                      self.settings_page, self.account_page, self.pomodoro_page, self.games_page,
                      self.time_log_page, self.library_page):
             self.pages.addWidget(page)
@@ -442,7 +440,7 @@ class MainWindow(QMainWindow):
             self.study.graph_caption.setText("Measurement paused. Come back, the camera misses you")
         elif not update.reliable:
             self.status.set("warning", "Measurement paused")
-            self.study.graph_caption.setText(f"Paused — {update.reason}")
+            self.study.graph_caption.setText(f"Paused: {update.reason}")
         else:
             self.status.set("monitoring", "Monitoring")
             self.study.graph_caption.setText("Last 10 seconds · relative to your own calibration")
@@ -553,11 +551,9 @@ class MainWindow(QMainWindow):
                                              time.monotonic(), self.reference, self.reference_error)
             if current is not None and self.last_update is not None and self.state != "monitoring":
                 self.current_page.set_graph(self.last_update.samples, self.last_update.now, dimmed=True,
-                                            caption="Paused — the camera is off")
+                                            caption="Paused. The camera is off")
         elif self.view == "all_time":
             self.stats_page.refresh(sessions, current, self.demo_history)
-        elif self.view == "patterns":
-            self.patterns_page.refresh(sessions)
 
     def _drift_for(self, recorder: SessionRecorder) -> LiveDrift:
         """The comparison for this session: with the saved reference, or (without one) its own first 10 minutes."""
@@ -700,7 +696,7 @@ class MainWindow(QMainWindow):
         elif self.monitor.calibration:
             text = "Calibrated. Recalibrate if lighting, glasses or your position change."
         else:
-            text = "Not calibrated yet — your first session starts with a short calibration (about 25 s), saved for next time."
+            text = "Not calibrated yet. Your first session starts with a short calibration (about 25 s), and OcuSense remembers it."
         can = bool(self.monitor.calibration) and self.state in ("ready", "monitoring")
         if not can and self.monitor.calibration and self.state == "paused":
             text += " Resume or stop the session to recalibrate."
@@ -838,7 +834,7 @@ class MainWindow(QMainWindow):
             self.status.set("ready", "Ready")
             self.study.graph_caption.setText("")
             first = not self.monitor.calibration
-            self.study.graph.clear("Press Start. The very first time, a 25-second calibration lets OcuSense get to "
+            self.study.graph.clear("Press Start. The very first time, a quick calibration (25 seconds) lets OcuSense get to "
                                    "know your eyes. After that, it remembers." if first
                                    else "Press Start when you’re ready to study.")
             self.study.set_blinks(0)
@@ -870,7 +866,7 @@ class MainWindow(QMainWindow):
         if self.state == "calibrating":
             return "Finish the calibration first."
         if not self.monitor.calibration:
-            return "Calibrate once on the Study page first — the game needs to know your open and closed eyes."
+            return "Calibrate once on the Study page first. The game needs to know what your open and closed eyes look like."
         if self.state == "playing":
             return ""
         if self.state == "monitoring":
@@ -887,7 +883,7 @@ class MainWindow(QMainWindow):
         self._stop_camera()
         self.monitor.interrupt()
         self._set_state("paused" if self.recorder is not None else "ready",
-                        "Back from the game — press Resume to continue your session." if self.recorder else "")
+                        "Welcome back from the game! Press Resume to continue your session." if self.recorder else "")
 
     def title_bar_blended(self, height: int) -> None:
         """The title bar became transparent (ui/window_chrome.py): keep the logo clear of the window buttons."""

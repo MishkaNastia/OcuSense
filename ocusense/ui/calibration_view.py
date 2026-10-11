@@ -112,7 +112,7 @@ class CalibrationView(QScrollArea):
         if not face_found:
             self.face.setText("Can’t see you! Move into the camera’s view.")
         elif not reliable:
-            self.face.setText(f"Hold on — {reason}.")
+            self.face.setText(f"Hold on: {reason}.")
         else:
             self.face.setText("Face tracked.")
 

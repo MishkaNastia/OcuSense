@@ -74,7 +74,7 @@ class EyeRunnerGame(QWidget):
         layout.addWidget(self.status)
         layout.addWidget(paragraph(
             "Made by our teammate MishkaNastia. Keys work too: Space or ↑ jumps (again in the air for the extra jump), "
-            "↓ ducks, P pauses. If your eyes feel tired or dry, stop and rest them — game blinks never count in "
+            "↓ ducks, P pauses. If your eyes feel tired or dry, stop and rest them. Game blinks never count in "
             "your study statistics.", 13, secondary=True))
         layout.addStretch(1)
 
@@ -89,10 +89,10 @@ class EyeRunnerGame(QWidget):
     def toggle_camera(self) -> None:
         if self.window.state == "playing":
             self.window.stop_game_camera()
-            self.status.setText("Camera off — Space still works.")
+            self.status.setText("Camera off. Space still works.")
         else:
             problem = self.window.start_game_camera()
-            self.status.setText(problem or "Camera on — blink to jump!")
+            self.status.setText(problem or "Camera on. Blink to jump!")
         self._show_input()
         self.setFocus()
 

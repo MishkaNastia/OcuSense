@@ -159,4 +159,4 @@ class MenuBarIcon(QObject):
             self.pomodoro_status.setVisible(True)
             self.pomodoro_action.setText("Pause Pomodoro" if t.state == "running" else "Resume Pomodoro")
         if self.tray is not None:
-            self.tray.setToolTip(f"OcuSense — {self.status.text()}")
+            self.tray.setToolTip(f"OcuSense: {self.status.text()}")

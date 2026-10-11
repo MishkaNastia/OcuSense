@@ -51,7 +51,7 @@ class SessionSummaryTest(unittest.TestCase):
         self.assertEqual(card.values["blinks"], str(summary.blinks))
         self.assertTrue(card.values["rate"].endswith("blinks/min"))
         self.assertEqual(card.values["focus"], "1")
-        self.assertEqual(card.values["reminders"], "2 distance reminders, 1 eye-rest reminder")
+        self.assertEqual(card.values["reminders"], "2 distance reminders, 1 eye rest reminder")
         self.assertEqual(w.state, "ready")
 
     def test_see_statistics_and_short_sessions(self):

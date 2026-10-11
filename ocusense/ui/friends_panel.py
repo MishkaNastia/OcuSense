@@ -93,7 +93,7 @@ class FriendsPanel(QWidget):
         self.add_button.setEnabled(has_name)
         self.name_field.setEnabled(has_name)
         if not has_name and self.service.account is not None:
-            self.status.setText("Choose a username above first — friends find you by it.")
+            self.status.setText("Choose a username above first: that’s how friends find you.")
 
     def _row(self, friend: Friend) -> QWidget:
         row = QWidget()
@@ -118,7 +118,7 @@ class FriendsPanel(QWidget):
         name = self.name_field.text().strip().lstrip("@")
         error = validate_username(name)
         if error:
-            self.status.setText("Usernames are 3–20 letters, numbers or underscores.")
+            self.status.setText("Usernames are 3 to 20 letters, numbers or underscores.")
             return
         self.add_button.setEnabled(False)
 

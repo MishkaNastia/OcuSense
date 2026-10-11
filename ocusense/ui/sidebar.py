@@ -4,7 +4,7 @@
   Pomodoro (shows the time left while it runs)
   Time log (shows the running timer)
   Games
-  Statistics ›  Current session / All time / Understanding your patterns
+  Statistics ›  Current session / All time
   ...
   Settings
   Log in (or Account)
@@ -29,7 +29,7 @@ from .widgets.status_indicator import StatusIndicator
 
 SIDEBAR_WIDTH = 224
 HOVER = "#E3D7BB"  # one step deeper than the sidebar's paper
-STATISTICS_PAGES = ("current", "all_time", "patterns")
+STATISTICS_PAGES = ("current", "all_time")
 
 
 class SidebarItem(QAbstractButton):
@@ -171,8 +171,7 @@ class Sidebar(QWidget):
         self._add(layout, SidebarItem("games", "Games", "games"))
         self._add(layout, SidebarItem("library", "Gallery", "library"))
         self._add(layout, SidebarItem("statistics", "Statistics", "statistics", expandable=True))
-        for key, text in (("current", "Current session"), ("all_time", "All time"),
-                          ("patterns", "Understanding your patterns")):
+        for key, text in (("current", "Current session"), ("all_time", "All time")):
             self._add(layout, SidebarItem(key, text, level=1))
         self.paintings_layout = QVBoxLayout()
         self.paintings_layout.setContentsMargins(0, 0, 0, 0)

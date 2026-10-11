@@ -141,7 +141,7 @@ class StatsTest(unittest.TestCase):
     def test_formatting(self):
         self.assertEqual(format_metric("rate", 14.72), "14.7 blinks/min")
         self.assertEqual(format_metric("closed", 3.04), "3.0%")
-        self.assertEqual(format_metric("closure", None), "—")
+        self.assertEqual(format_metric("closure", None), "not yet")
         self.assertEqual(format_metric("closure", 0.184), "184 ms")  # seconds in, milliseconds shown
         self.assertEqual(format_duration(155 * 60), "2 h 35 min")
         self.assertEqual(format_duration(45), "45 s")

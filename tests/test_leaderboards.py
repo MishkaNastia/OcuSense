@@ -279,7 +279,7 @@ class OnlineTest(unittest.TestCase):
         self.assertEqual(len(names), 4)  # two headings, two people
         panel.name_field.setText("x")
         panel.add()
-        self.assertIn("3–20", panel.status.text())
+        self.assertIn("3 to 20", panel.status.text())
         panel.name_field.setText("@olek_2")
         panel.add()
         self.assertEqual(self.boards.calls[-2], ("request", "olek_2"))
