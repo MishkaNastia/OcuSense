@@ -80,6 +80,7 @@ POSTURE_CALIBRATING_TITLE = "Calibrating posture — please sit up straight"
 POSTURE_CALIBRATING_BODY = ("For the next minute OcuSense records how you sit: sit up straight, at a good distance "
                             "from the screen, and keep working. After that it tells you when you start slouching.")
 POSTURE_RECORDED = "Posture recorded — I'll tell you when you slouch"
+POSTURE_BODY = "Your posture has been off for a while: sit up straight, shoulders back, screen at eye level."
 TILT_MESSAGE = "You changed your screen angle — recalibrate your posture now"
 TILT_TITLE = "Screen angle changed"
 TILT_BODY = ("Recalibrate your posture now: press Recalibrate now, then sit the way you want to and keep working "
@@ -222,6 +223,15 @@ class MainWindow(QMainWindow):
         column.addWidget(posture_holder)
         self._posture_calibrating = False  # the 1-minute posture baseline was being recorded on the last frame
         self._posture_card_dismissed = False  # "Got it" pressed during this recording
+        self.posture_banner = AlertBanner(POSTURE_MESSAGE, POSTURE_BODY, ("Got it",), PostureMark())
+        self.posture_banner.action.connect(lambda _name: self.posture_holder.setVisible(False))
+        slouch_holder = QWidget()
+        slouch_row = QVBoxLayout(slouch_holder)
+        slouch_row.setContentsMargins(40, 16, 40, 0)
+        slouch_row.addWidget(self.posture_banner)
+        self.posture_holder = slouch_holder
+        slouch_holder.setVisible(False)
+        column.addWidget(slouch_holder)
         self.tilt_banner = AlertBanner(TILT_TITLE, TILT_BODY, ("Recalibrate now", "Not now"), TiltMark())
         self.tilt_banner.action.connect(self._tilt_banner_action)
         tilt_holder = QWidget()  # its own holder: independent of the distance reminder's card
@@ -466,8 +476,14 @@ class MainWindow(QMainWindow):
             self.recorder.add_observation(update.observation)
         self._show_posture_calibration(update)
         if update.posture_enabled and self.posture_reminder.update(update.now, update.posture_status):
-            self.notify(POSTURE_MESSAGE, "Posture")
+            self.posture_holder.setVisible(True)  # in the window: macOS hides notifications of the app in front
             self.study.message_label.setText(f"{POSTURE_MESSAGE} ({datetime.now():%H:%M}).")
+            app = QApplication.instance()
+            if app.applicationState() != Qt.ApplicationState.ApplicationActive or not self.isActiveWindow():
+                self.notify(POSTURE_MESSAGE, "Posture")  # OcuSense is in the background
+        elif (not self.posture_holder.isHidden() and update.posture_status is not None
+              and update.posture_status.tracked and not update.posture_status.poor):
+            self.posture_holder.setVisible(False)  # sitting up again: the card goes away by itself
         if SCREEN_TILTED in update.events:
             self.notify(TILT_MESSAGE, "OcuSense")  # posture waits for "Recalibrate now"
             self.study.message_label.setText(f"{TILT_MESSAGE} ({datetime.now():%H:%M}).")
@@ -774,6 +790,7 @@ class MainWindow(QMainWindow):
         self.banner_holder.setVisible(False)
         self.tilt_holder.setVisible(False)  # "Recalibrate now" only works while monitoring (Current session says why)
         self.posture_cal_holder.setVisible(False)
+        self.posture_holder.setVisible(False)
         self._posture_calibrating = False
         self.lighting.reset()  # pause/stop/recalibrate: the dark stretch starts over
         self._lighting_waiting = False

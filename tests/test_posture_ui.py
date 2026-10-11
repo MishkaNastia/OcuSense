@@ -140,9 +140,14 @@ class PostureUiTest(unittest.TestCase):
                              pitch_change=5.0, roll_change=0.0, centre_drop=0.1)
         self.send(posture_cal_status=PostureCalibration.DONE, posture_status=poor)
         self.send(posture_cal_status=PostureCalibration.DONE, posture_status=poor)
-        self.assertEqual(self.notifications,
-                         [("Posture", "Stop slouching, hunchbacks are not particularly sexy you know")])
+        self.assertFalse(self.window.posture_holder.isHidden())  # the card in the window
+        self.assertEqual(self.window.posture_banner.title.text(),
+                         "Stop slouching, hunchbacks are not particularly sexy you know")
         self.assertIn("Stop slouching", self.window.study.message_label.text())
+        self.assertLessEqual(len(self.notifications), 1)  # a Mac notification only when OcuSense is in the background
+        self.send(posture_cal_status=PostureCalibration.DONE,
+                  posture_status=PostureStatus(tracked=True, pitch_change=0.0, centre_drop=0.0))
+        self.assertTrue(self.window.posture_holder.isHidden())  # sat up: the card goes away
 
     def test_no_posture_message_when_off(self):
         self.monitoring()
