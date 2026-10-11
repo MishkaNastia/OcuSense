@@ -18,12 +18,12 @@ describe("account form checks", () => {
   });
 
   it("only redirects within this site", () => {
-    expect(safeNext("/account")).toBe("/account");
     expect(safeNext("/update-password")).toBe("/update-password");
-    expect(safeNext("https://evil.example")).toBe("/account");
-    expect(safeNext("//evil.example")).toBe("/account");
-    expect(safeNext("/\\evil.example")).toBe("/account");
-    expect(safeNext(null)).toBe("/account");
+    expect(safeNext("/update-password")).toBe("/update-password");
+    expect(safeNext("https://evil.example")).toBe("/email-confirmed");
+    expect(safeNext("//evil.example")).toBe("/email-confirmed");
+    expect(safeNext("/\\evil.example")).toBe("/email-confirmed");
+    expect(safeNext(null)).toBe("/email-confirmed");
   });
 
   it("explains provider errors without leaking details", () => {

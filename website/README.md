@@ -57,19 +57,23 @@ no camera and shows every feature.
 | Feature | Status |
 | --- | --- |
 | All information pages | Live |
-| Sample session, prompts, break feedback, patterns | Simulated (synthetic data, kept in memory only, gone on reload) |
+| Sample session and the app's reminders | Simulated (made up data, kept in memory only, gone on reload) |
 | Camera demo (calibration, openness, blinks, rolling measurements) | Live in the browser. Checked with Chromium's fake camera only, **not yet with a real face/webcam** |
-| Pattern-based prompts | Experimental, shown only in the sample session |
-| Accounts (sign up, log in, reset password, email verification, account page) | **Waiting for configuration** (Supabase). Without it, the forms are disabled and say so |
+| Leaderboard (`/leaderboard`) | Live once Supabase is connected: top 20 per game, refreshed every minute |
+| Account email links (`/update-password`, `/email-confirmed`) | Live once Supabase is connected. There's no login on the website: accounts are made and used in the app |
 | Mac download | "Coming soon" until you add a public download link |
-| Windows / Linux | Planned |
+| Windows | Being prepared, not tested on a Windows PC yet |
+| Linux | Planned |
 
 No analytics or advertising trackers are used. The face model and program files are
 served by this website itself; camera images never leave the browser.
 
-## Setting up accounts (Supabase, optional)
+## Connecting accounts (Supabase, optional)
 
-Nothing is created for you; the site works without accounts. When you are ready:
+The website has no login of its own. It needs the Supabase project for two things: the
+public leaderboard, and the pages that password reset and confirmation emails open. The
+easiest way is `packaging/connect_supabase.py` from the repository root (see
+`docs/accounts.md`), which also creates `.env.local`. By hand:
 
 1. Create a free project at https://supabase.com.
 2. In the dashboard open **Project Settings → API** and copy the *Project URL* and the
@@ -83,9 +87,10 @@ Nothing is created for you; the site works without accounts. When you are ready:
    public address, e.g. `https://your-site.example/auth/callback`, and set
    `NEXT_PUBLIC_SITE_URL` to it).
 5. Restart (`Ctrl+C`, then `npm run dev`, or `npm run build && npm run start`).
-6. Test: sign up, open the confirmation email, log in, open *Account*, log out, and
-   try *Forgot password*. Supabase's built-in email sender is rate-limited; for real use
-   add your own SMTP provider in the Supabase dashboard.
+6. Test: in the app, use *Log in › Forgot password?* and open the email's link; it should
+   land on *Choose a new password*. Open `/leaderboard` after playing a game while logged in.
+   Supabase's built-in email sender is rate-limited; for real use add your own SMTP
+   provider in the Supabase dashboard.
 
 `.env.local` is ignored by Git — never commit it.
 

@@ -5,13 +5,14 @@ import { createAuthClient } from "@/lib/auth/server";
 import { safeNext } from "@/lib/auth/validation";
 
 /**
- * Where links in Supabase emails land (confirm email, reset password).
- * Supports both link styles: `?code=` (PKCE, the default) and `?token_hash=&type=`.
+ * Where links in Supabase emails land when they use the `?code=` (PKCE) or
+ * `?token_hash=&type=` style. Links with the details after "#" are handled in the
+ * browser instead (components/auth/LinkForwarder.tsx and PasswordReset.tsx).
  */
 export async function GET(request: NextRequest) {
   const url = request.nextUrl;
   const next = safeNext(url.searchParams.get("next"));
-  const fail = (reason: string) => NextResponse.redirect(new URL(`/login?error=${reason}`, url.origin));
+  const fail = (reason: string) => NextResponse.redirect(new URL(`/update-password?error=${reason}`, url.origin));
 
   const supabase = await createAuthClient();
   if (!supabase) return fail("not-configured");
@@ -28,5 +29,6 @@ export async function GET(request: NextRequest) {
   } else {
     return fail("link");
   }
-  return NextResponse.redirect(new URL(next, url.origin));
+  const target = type === "recovery" ? "/update-password" : next;
+  return NextResponse.redirect(new URL(target, url.origin));
 }

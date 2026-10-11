@@ -20,6 +20,7 @@ export const mainNav = [
   { href: "/how-it-works", label: "How it works" },
   { href: "/science", label: "The science" },
   { href: "/demo", label: "Demo" },
+  { href: "/leaderboard", label: "Leaderboard" },
   { href: "/about", label: "About us" },
   { href: "/download", label: "Download" },
 ];

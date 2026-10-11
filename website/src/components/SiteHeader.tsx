@@ -43,10 +43,6 @@ export function SiteHeader() {
               </li>
             ))}
           </ul>
-          <div className={styles.account}>
-            <Link href="/login" className="btn btn-quiet btn-small">Log in</Link>
-            <Link href="/signup" className="btn btn-secondary btn-small">Create account</Link>
-          </div>
         </nav>
       </div>
     </header>

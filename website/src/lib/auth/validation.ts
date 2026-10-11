@@ -29,7 +29,7 @@ export function validateConfirm(password: string, confirm: string): string | und
 }
 
 /** Only allow redirects to paths on this site (never to another website). */
-export function safeNext(next: string | null | undefined, fallback = "/account"): string {
+export function safeNext(next: string | null | undefined, fallback = "/email-confirmed"): string {
   if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return fallback;
   return next;
 }

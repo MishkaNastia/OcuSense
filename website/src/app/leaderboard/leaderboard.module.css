@@ -1,0 +1,20 @@
+.tableWrap { overflow-x: auto; }
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  border-top: 2px solid var(--ink);
+}
+.table th {
+  text-align: left;
+  font-size: 0.85rem;
+  color: var(--graphite);
+  font-weight: 600;
+  padding: 10px 12px 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.table td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--rule); }
+.num { text-align: right; }
+.place { width: 4.5em; }
+.podium td:nth-child(2) { font-weight: 700; }
+.podium .place { color: var(--vermilion-text); font-weight: 700; }

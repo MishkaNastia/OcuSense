@@ -3,6 +3,7 @@ import { Atkinson_Hyperlegible_Mono, Atkinson_Hyperlegible_Next, Bricolage_Grote
 
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+import { LinkForwarder } from "@/components/auth/LinkForwarder";
 import { site } from "@/content/site";
 
 import "./globals.css";
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <SiteHeader />
         <main id="main">{children}</main>
         <SiteFooter />
+        <LinkForwarder />
       </body>
     </html>
   );

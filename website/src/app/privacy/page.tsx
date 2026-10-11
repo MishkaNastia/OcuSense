@@ -54,7 +54,8 @@ export default function PrivacyPage() {
             or our servers.
           </dd>
           <dt>Cookies</dt>
-          <dd>None for visitors. If you log in, the sign-in provider sets cookies that keep you logged in, and they are removed when you log out.</dd>
+          <dd>None for visitors: the website has no login. The only exception is the page a password reset email
+            opens, which keeps a sign-in cookie while you choose your new password and removes it straight after.</dd>
           <dt>Analytics and ads</dt>
           <dd>None. We don’t use analytics, advertising trackers or third-party embeds.</dd>
         </dl>
@@ -64,10 +65,10 @@ export default function PrivacyPage() {
         <h2 id="accounts">Accounts</h2>
         <p className="prose">
           Accounts are handled by Supabase Auth, a managed sign-in service. It stores your email address, a securely
-          hashed password and sign-in times. We don’t see your password. If you use the leaderboards in the app, your
-          account also holds a username, your game scores and your friends list, because that’s what other players
-          see. Eye measurements are <b>never</b> uploaded, and there is no cloud sync. Accounts are optional: the app
-          and the demo work without one.
+          hashed password and sign-in times. We don’t see your password. If you use the leaderboards in the app, your account also holds a username, your game scores and your friends
+          list. Your username and best scores are public on the <Link href="/leaderboard">leaderboard</Link>; your friends
+          list is visible only to you and your friends. Eye measurements are <b>never</b> uploaded, and there is no
+          cloud sync. You create and use your account in the app; it’s optional, and the app and the demo work without one.
         </p>
       </section>
 
