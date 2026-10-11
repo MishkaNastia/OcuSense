@@ -47,10 +47,13 @@ class Preferences:
     pomodoro_sound: bool = False
     animations: bool = True  # also off when macOS "Reduce motion" is on
     pomodoro_monitoring: bool = True  # eye monitoring runs in focus rounds and pauses in breaks
+    time_log_monitoring: bool = True  # eye monitoring runs while a time-log timer runs
     # 20-20-20 eye rest
     eye_rest: bool = False  # off unless switched on in Settings › Reminders
     lighting_check: bool = False  # off unless switched on in Settings › Reminders
     # Games
+    garden_breaks: int = 0
+    garden_water: int = 0
     morse_dash_ms: int = 450  # Blink Code: closures at least this long are dashes
     morse_high_score: int = 0
     runner_high_score: int = 0  # EyeGame
@@ -83,9 +86,13 @@ class Preferences:
             if isinstance(value, int) and not isinstance(value, bool) and low <= value <= high:
                 setattr(prefs, name, value)
         for name in ("auto_start_breaks", "auto_start_focus", "pomodoro_notify", "pomodoro_sound", "animations",
-                     "pomodoro_monitoring", "eye_rest", "lighting_check"):
+                     "pomodoro_monitoring", "time_log_monitoring", "eye_rest", "lighting_check"):
             if isinstance(values.get(name), bool):
                 setattr(prefs, name, values[name])
+        for name in ("garden_breaks", "garden_water"):
+            value = values.get(name)
+            if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                setattr(prefs, name, value)
         dash = values.get("morse_dash_ms")
         if isinstance(dash, int) and not isinstance(dash, bool) and 250 <= dash <= 900:
             prefs.morse_dash_ms = dash

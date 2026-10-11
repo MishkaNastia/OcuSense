@@ -27,52 +27,103 @@ and calibration never leave the Mac.
   link in the email is opened. The link goes to the website (`/auth/callback`); then
   you log in in the app.
 
-## Setting it up (once per Supabase project)
+## Setting it up (once, for everyone who gets the app)
 
-1. **Use the same Supabase project as the website.** Its URL and publishable key are
-   in Supabase › Project Settings › API, and in `website/.env.local` if the website
-   is already set up.
-2. **Run the database script:** Supabase › SQL Editor › paste
-   `supabase/schema.sql` › Run. It creates:
+The website (`website/`) and the app use **one** Supabase project, so one account works in both.
+
+1. **Create the project.** Sign in at https://supabase.com and create a free project.
+2. **Set up the database.** Supabase › SQL Editor › paste `supabase/schema.sql` › Run. It creates:
    - `profiles`: public usernames, filled in automatically from sign-ups.
    - `username_available()`: lets the form say "taken" before sign-up.
-   - `game_scores`: players can add their own scores but never edit them.
-   - the `leaderboard` view: each player's best score per game.
+   - `game_scores`, `friendships` and the leaderboard and friend functions (see below).
 
-   Running it again is safe.
-3. **Tell the app where the project is.** Use one of these:
-   - **Just your Mac:** create `~/Library/Application Support/OcuSense/supabase.json`.
-   - **Bundled into the app for everyone:** put the same file at
-     `ocusense/supabase.json` and rebuild (`./packaging/build_mac.sh`). It is
-     git-ignored, like the website's `.env.local`.
-   - **While developing:** set `OCUSENSE_SUPABASE_URL` and `OCUSENSE_SUPABASE_KEY`.
+   Running it again is safe, and it is needed again after this file changes.
+3. **Choose how new accounts start.** While the website runs only on your own computer,
+   confirmation emails would link to `localhost`, which other people can't open. So switch
+   **Authentication › Sign In / Providers › Email › Confirm email** off: accounts then work
+   straight away. Once the website is public, switch it back on and set the **Site URL**
+   (Authentication › URL Configuration) to the website's address, with
+   `https://…/auth/callback` in the Redirect URLs.
+4. **Connect the app and the website, and rebuild.** Copy the *Project URL* and the
+   **publishable** key from Project Settings › API Keys, then run:
 
-   The file looks like this:
-
-   ```json
-   { "url": "https://YOUR-PROJECT.supabase.co", "publishable_key": "sb_publishable_…" }
+   ```bash
+   .venv/bin/python packaging/connect_supabase.py https://YOUR-PROJECT.supabase.co sb_publishable_… --build
    ```
-4. **Set the redirect URLs.** In Supabase › Authentication › URL Configuration,
-   make sure the website's address is the Site URL, so confirmation and
-   password-reset links open the website.
 
-Without step 3, the Account page says "Accounts aren't set up in this copy of
-OcuSense", and everything else works as before.
+   The script:
+   - refuses a secret key
+   - asks the project whether sign-in and the database are ready, and says exactly what's missing
+   - saves `ocusense/supabase.json`, which is bundled into the app, so everyone who gets this
+     `OcuSense.app` can log in
+   - creates `website/.env.local` if it doesn't exist
+   - rebuilds the app
 
-## Next: the leaderboards
+   Both files are git-ignored. The publishable key is designed to be public: what users can do is
+   limited by the database rules in `schema.sql`.
 
-The tables are ready. What's left is in the app:
+Other ways to point a copy of the app at a project:
 
-- **Submit a score** after a Blink Code challenge, when signed in:
-  `POST /rest/v1/game_scores` with `{"game": "blink_code_challenge", "score": 420,
-  "details": {"words": 5, "best_combo": 9}}`. Send the `apikey` header and
-  `Authorization: Bearer <access token>`, as `AccountService._access_token()`
-  gives it.
-- **Read the top 50:**
-  `GET /rest/v1/leaderboard?game=eq.blink_code_challenge&order=score.desc&limit=50`.
-- **Show it:** a Leaderboard view in the Games page, plus your rank on the
-  Account page.
+- `~/Library/Application Support/OcuSense/supabase.json`: just your Mac, no rebuild needed.
+- `OCUSENSE_SUPABASE_URL` and `OCUSENSE_SUPABASE_KEY`: while developing.
 
-Scores are submitted by the app, so a determined person could send a fake score.
-For a class project that's fine. Later, a Supabase Edge Function could check
-scores (for example, against the game length) before saving them.
+Without any of these, the Account page says "Accounts aren't set up in this copy of OcuSense",
+and everything else works as before.
+
+## Leaderboards and friends
+
+**In the app**
+
+- **Games › Leaderboards** has one game at a time (Blink Code challenge, EyeGame) and three tabs:
+  - **On this Mac:** your top 10 per game. Kept in
+    `~/Library/Application Support/OcuSense/scores.json`, with or without an account. A high score
+    from before this existed shows as "earlier".
+  - **Friends:** you and your accepted friends, best score each. Needs a sign-in.
+  - **Everyone:** every player with a username, best score each. Readable while signed out too.
+
+  Ties share a place. If you're below the top 50, your own row is added at the end, highlighted.
+- **Every finished game counts:** each 90-second Blink Code challenge and each EyeGame run (score
+  above 0) goes into the list on this Mac.
+- **Uploads:** a game played while signed in is also uploaded to `game_scores`, straight away. If
+  OcuSense is offline, or the server refuses, it waits in `scores.json` and goes up the next time
+  you're signed in and online. Games played while signed out stay on this Mac, so a score can't be
+  claimed for an account afterwards.
+- **Account › Friends:**
+  - Add a player by their exact username (not case-sensitive).
+  - They accept or decline. If you both ask each other, it becomes a friendship straight away.
+  - Either of you can remove the friendship, and you can cancel a request you sent.
+  - You need a username yourself first.
+- **The code:**
+  - `ocusense/scores.py`: the list on this Mac and the upload queue.
+  - `ocusense/leaderboards.py`: the Supabase calls.
+  - `ocusense/ui/leaderboard_view.py`: the Games section and `ScoreKeeper`.
+  - `ocusense/ui/friends_panel.py`: the Account section.
+  - `tests/test_leaderboards.py`: tests with the network faked.
+
+**On the server** (`supabase/schema.sql`; run it again after updating, which is safe):
+
+| | What it does |
+| --- | --- |
+| `game_scores` | `game` is `blink_code_challenge` or `eye_runner` (constraint `game_scores_game_check`; add new games there and in `ocusense/scores.py`) |
+| `friendships` | one row per pair: `pending`, then `accepted`. Players can read only their own rows and can't write any directly. |
+| `request_friend(name)` | ask by username; accepts if they already asked you; at most 50 open requests |
+| `respond_friend(other, accept)` | accept or decline a request you received |
+| `remove_friend(other)` | unfriend, or withdraw your request |
+| `my_friends()` | your friends and open requests |
+| `game_leaderboard(game_name, scope, max_rows)` | best score per player for `everyone` or `friends`, ranked, with `is_me` |
+
+The SQL was checked against PostgreSQL 16 with a small stand-in for Supabase's `auth` schema
+(`auth.users`, `auth.uid()`, the `anon` and `authenticated` roles). The checks covered:
+
+- upgrading from the previous version of the script, and running it twice
+- ranking and ties, and your own row outside the top
+- the whole request, accept, decline and remove cycle
+- what's refused: posting a score for someone else, changing a score, writing friendships
+  directly, reading other people's friendships, and signed-out friend requests
+
+**Limits (fine for a class project):**
+
+- Scores are sent by the app, so a determined person could post a fake one. A Supabase Edge
+  Function could check scores (for example, against the game length) before saving them.
+- Usernames on the leaderboards are public: anyone can see them.
+- The website doesn't show leaderboards yet. It can call `game_leaderboard` the same way.

@@ -17,7 +17,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 from ocusense.config import MODEL_PATH
 from ocusense.system import IS_MAC
 
-from . import theme
+from . import theme, window_chrome
 from .main_window import MainWindow
 
 
@@ -67,6 +67,7 @@ def run() -> int:
         app.setWindowIcon(tray_icon())
     # Let Tab reach every button on macOS, not only text fields.
     app.styleHints().setTabFocusBehavior(Qt.TabFocusBehavior.TabFocusAllControls)
+    window_chrome.install(app)  # no grey title bar on any window (macOS)
 
     if not MODEL_PATH.exists():
         return _fail("The face model file is missing.",

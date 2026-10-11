@@ -260,7 +260,7 @@ class RunnerCanvas(QWidget):
         if g.state == "title":
             self._text(p, "EYEGAME", big, RED, cx, 110)
             self._text(p, "blink (or press Space) to start and to jump", mid, INK, cx, 155)
-            self._text(p, "double blink (or double-tap Space) = extra jump in mid-air", small, INK, cx, 185)
+            self._text(p, "blink again in the air (or press Space again) = extra jump", small, INK, cx, 185)
             self._text(p, "Down = duck   P = pause", small, INK, cx, 205)
         elif g.state == "over":
             self._text(p, "G A M E   O V E R", big, RED, cx, 100)

@@ -5,8 +5,8 @@ Live webcam blink counter using OpenCV, Google MediaPipe Face Landmarker
 calibration. All video is processed locally in memory: camera images are never
 saved or uploaded. Only the raw EAR recording (see below), your personal calibration
 (`calibration.json`, reused every time the app opens), your reference for blink
-timing (`reference.json`) and your reminder choices (`preferences.json`) are
-written to disk.
+timing (`reference.json`) your reminder choices (`preferences.json`), and game progress (`garden.json` and
+`scores.json`) are written to disk.
 
 For how every measurement and graph works (methods, time windows, histograms,
 saved files), see [docs/measurements.md](docs/measurements.md).
@@ -45,7 +45,13 @@ The sidebar on the left switches pages without interrupting monitoring:
   long blink = dash; the space bar works too). Learn mode unlocks letters, the
   90-second Challenge scores combos and keeps a high score, Free blink types what you
   blink. Miró animations; game blinks are never recorded in your study statistics
-  or the EAR recording.
+  or the EAR recording. **Leaderboards** under the games: your top 10 per game on this
+  Mac, and, signed in, your friends' and everyone's best scores (details in
+  [docs/accounts.md](docs/accounts.md)).
+- **Gallery** — spend Garden harvest coins on 5 framed paintings (25–135 coins).
+  Keep a collection and display up to two paintings beneath Statistics in the
+  sidebar, staggered upper left and lower right. Purchases and placements are saved locally with the
+  Garden balance; moving or removing a painting is free.
 - **Statistics** (expands) — **Current session** (the running session's time,
   coverage and measurements), **All time** (totals, a date filter, a timeline
   with blink rate, median closure duration or time classified as closed, and
@@ -54,7 +60,7 @@ The sidebar on the left switches pages without interrupting monitoring:
 - **Settings** — recalibration, measurement details, and data & privacy
   (including clearing the session history).
 - **Log in** — optional OcuSense accounts (the same as on the website): log in, create an
-  account with a username for the coming game leaderboards, reset a password, log out.
+  account with a username for the game leaderboards, add friends, reset a password, log out.
   Set-up: [docs/accounts.md](docs/accounts.md).
 
 **Raw EAR recording.** While the camera is on, the app saves the left and right
@@ -107,11 +113,19 @@ and every painting's source and rights: [docs/art-shop.md](docs/art-shop.md).
 
 **EyeGame** (Games). An endless runner made by our teammate MishkaNastia
 ([github.com/MishkaNastia/EyeGame](https://github.com/MishkaNastia/EyeGame)), ported from
-Pygame into the app: blink to jump over exams, angry printers and eduroam, blink twice
-quickly for an extra jump in mid-air, grab coffee, a croissant or a Blink Mate can for
+Pygame into the app: blink to jump over toilets (from 300 points some of them fly), blink again
+in the air for an extra jump (the game uses a quicker blink rule than the study detector, so a fast
+second blink counts), grab coffee, a croissant or a Blink Mate can for
 double points. Blinks come from OcuSense's calibrated detector (the jump fires the moment
 your eyes close); Space / ↑ / ↓ / P work too. Like Blink Code, it never counts towards your
 study statistics, and the high score is remembered.
+
+**OcuSense Garden** (Games). Six illustrated crop beds in the app's Miró palette.
+Complete three camera-verified gentle eye holds to water
+a crop. Plants grow while the app is closed; return to harvest coins, buy seeds,
+and add decorations or extra beds. Local saves preserve every harvest and purchase.
+Optional, snoozable garden reminders follow monitored study time. See
+[the garden guide](docs/garden.md) for the controls, architecture, and limitations.
 
 **Distance reminder.** Calibration asks you to sit about an arm's length away. If
 your face later looks 1.6× as big for 3 s, OcuSense shows "Trying to lick the
@@ -263,6 +277,8 @@ ocusense/
     wallet.py          coins and owned paintings: SQLite ledger, atomic purchases, one reward per round
     rewards.py         how many coins a finished game round earns (product settings)
   storage.py           where session summaries are kept (memory now, file later)
+  scores.py            game scores on this Mac (scores.json) and the ones waiting to go online
+  leaderboards.py      online leaderboards and friends (Supabase calls)
   recording.py         writes the raw EAR recording (CSV + calibration JSON)
   recording_files.py   reads and groups recordings for analysis (read-only)
   exports.py           writes derived analysis results to a chosen folder
@@ -280,6 +296,7 @@ ocusense/
     recordings_section.py   All time: import, choose and inspect recordings (background loading)
     pomodoro_page.py   Pomodoro (timer logic in core/pomodoro.py)
     games_page.py      Games: Blink Code (Morse logic in core/morse.py) and the hub
+    leaderboard_view.py the Leaderboards under the games, and ScoreKeeper (records and uploads scores)
     eye_runner_page.py EyeGame by MishkaNastia (rules in core/runner.py, drawing in
                        widgets/runner_canvas.py, art in ocusense/assets/eye_runner/)
     shop_page.py       Art shop (purchase flow)
@@ -288,10 +305,10 @@ ocusense/
     artwork_dialog.py  the larger view of a painting and the purchase confirmation
     settings_page.py   Settings
     account_page.py    Log in / Create account / your account (Supabase calls in accounts.py,
-                       background running in account_service.py)
+                       background running in account_service.py; friends in friends_panel.py)
     theme.py           colours, fonts, style sheet
     widgets/           drawing-only pieces (graph, chart, artwork, status, icons, page)
-supabase/schema.sql    profiles, game scores and leaderboard for the accounts' Supabase project
+supabase/schema.sql    profiles, game scores, friends and leaderboards for the accounts' Supabase project
 prototype/             original OpenCV window (python -m prototype)
 packaging/             Mac build script and recipe; Windows build script and recipe; icon generator
 .github/workflows/     windows-build.yml — manual Windows build, artifact only (no releases)

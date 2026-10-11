@@ -6,7 +6,7 @@ import time
 import unittest
 
 from ocusense.core import runner as R
-from ocusense.core.runner import DoubleBlink, Obstacle, Rect, RunnerGame, Sizes, png_size
+from ocusense.core.runner import EyeClosures, Obstacle, Presses, Rect, RunnerGame, Sizes, png_size
 
 
 def new_game(**kw):
@@ -22,23 +22,42 @@ class AssetsTest(unittest.TestCase):
     def test_all_art_is_there(self):
         sizes = Sizes.load()
         self.assertEqual(png_size(R.ASSETS / "avatar.png"), (536, 418))
-        self.assertEqual(len(sizes.obstacles), 8)
-        self.assertEqual(sum(o.effect == "poop" for o in sizes.obstacles), 1)  # the toilet
+        self.assertEqual([o.id for o in sizes.obstacles], ["toilet"])  # only toilets
+        self.assertEqual(sizes.obstacles[0].effect, "poop")
         for o in sizes.obstacles:
             self.assertTrue((R.ASSETS / "obstacles" / o.file).exists(), o.file)
         self.assertEqual(set(sizes.powerups), set(R.POWERUPS))
 
 
-class DoubleBlinkTest(unittest.TestCase):
-    """Her BlinkDetector's pairing rules, kept."""
+class BlinkInputTest(unittest.TestCase):
+    def test_one_jump_per_press(self):
+        d = Presses(cooldown_s=0.1)
+        self.assertTrue(d.press(0.0))
+        self.assertFalse(d.press(0.05))  # within the cooldown: the same blink
+        self.assertTrue(d.press(0.3))
+        self.assertTrue(d.press(2.0))
 
-    def test_pairs_cooldown_and_a_third_blink(self):
-        d = DoubleBlink(cooldown_s=0.1, window_s=0.5)
-        self.assertEqual(d.press(0.0), "blink")
-        self.assertIsNone(d.press(0.05))  # within the cooldown: the same blink
-        self.assertEqual(d.press(0.3), "double_blink")
-        self.assertEqual(d.press(0.6), "blink")  # a 3rd quick blink starts a new pair
-        self.assertEqual(d.press(2.0), "blink")  # too slow for a double
+    def feed(self, closures, values):
+        """Openness per frame → the frames on which the eyes closed."""
+        return [i for i, v in enumerate(values) if closures.update(v)]
+
+    def test_a_quick_double_blink_with_a_half_reopening_counts_twice(self):
+        # open → closed → only 55 % open → closed again → open (a fast double blink at 30 fps)
+        values = [0.9] * 3 + [0.1] * 3 + [0.55] * 2 + [0.1] * 3 + [0.9] * 3
+        self.assertEqual(self.feed(EyeClosures(), values), [3, 8])
+        from ocusense.core.blink_counter import BlinkCounter  # the study detector would only see one
+        study, seen = BlinkCounter(), []
+        for i, v in enumerate(values):
+            before = study.state
+            study.update(v)
+            if before == BlinkCounter.OPEN and study.state == BlinkCounter.CLOSED:
+                seen.append(i)
+        self.assertEqual(seen, [3])
+
+    def test_lost_eyes_and_starting_closed_never_jump(self):
+        closures = EyeClosures()
+        self.assertEqual(self.feed(closures, [0.1, 0.1, None, 0.1]), [])  # must see open eyes first
+        self.assertEqual(self.feed(closures, [0.9, None, 0.1, 0.9, 0.1]), [4])  # a lost frame forgets "open"
 
 
 class RulesTest(unittest.TestCase):
@@ -56,10 +75,10 @@ class RulesTest(unittest.TestCase):
         g = new_game()
         g.jump()
         run(g, 0.3)
-        g.jump(double=True)
+        g.jump()
         self.assertTrue(g.player.extra)
         vy = g.player.vy
-        g.jump(double=True)
+        g.jump()
         self.assertEqual(g.player.vy, vy)  # only one extra jump per jump
         peak = 0.0
         for _ in range(120):
@@ -67,16 +86,25 @@ class RulesTest(unittest.TestCase):
             peak = max(peak, g.player.y)
         self.assertAlmostEqual(peak, R.EXTRA_JUMP_APEX, delta=8)  # a fixed peak: stays on screen
 
+    def test_a_late_second_blink_still_gives_the_extra_jump(self):
+        g = new_game()
+        g.jump()
+        run(g, 0.6)  # well after the old 0.5 s double-blink window, still in the air
+        self.assertGreater(g.player.y, 0)
+        g.jump()
+        self.assertTrue(g.player.extra)
+        self.assertLess(g.player.vy, 0)  # going up again
+
     def test_score_speed_and_crash(self):
         g = new_game(highscore=5)
         g.jump()
         run(g, 0.7)
         self.assertGreater(g.score, 5)
         self.assertGreater(g.speed, R.START_SPEED)
-        g.obstacles = [Obstacle(R.PLAYER_X - 20, "ground", g.sizes.obstacles[1], g.rng)]
+        g.obstacles = [Obstacle(R.PLAYER_X - 20, "ground", g.sizes.obstacles[0], g.rng)]
         g.update(1 / 60)
         self.assertEqual(g.state, "over")
-        self.assertEqual(g.killed_by, g.sizes.obstacles[1].joke)
+        self.assertEqual(g.killed_by, "Grades went down the drain")
         self.assertTrue(g.new_record)
         g.jump()
         self.assertEqual(g.state, "over")  # the crash blink doesn't restart right away
@@ -186,7 +214,7 @@ class EyeGameWindowTest(unittest.TestCase):
         self.assertEqual(w.recorder.blinks, blinks_before)  # never in the study session
         self.assertEqual(len(w.ear_log.rows), rows_before)
         g.game.score = 123
-        g.game.obstacles = [R.Obstacle(R.PLAYER_X - 20, "ground", g.game.sizes.obstacles[2], g.game.rng)]
+        g.game.obstacles = [R.Obstacle(R.PLAYER_X - 20, "ground", g.game.sizes.obstacles[0], g.game.rng)]
         g.game.player.y, g.game.player.vy = 0, 0
         g.clock.restart()
         QTest.qWait(20)  # one real frame step

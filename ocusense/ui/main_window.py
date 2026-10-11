@@ -5,6 +5,7 @@ It connects the pieces and holds no layouts of its own pages:
   StudyPage / CalibrationView                    — Study
   CurrentSessionPage / AllTimePage / PatternsPage — Statistics
   SettingsPage / AccountPage                     — at the bottom of the sidebar
+  TimeLogPage                                    — Time log (subjects, projects and when you work on them)
   CameraWorker (monitoring/camera_worker.py)     — frames in, structured results out
   SessionRecorder + SessionStore                 — numbers kept for Statistics
   EarRecording (recording.py)                    — raw EAR of every frame, saved as CSV files
@@ -63,11 +64,13 @@ from .sidebar import STATISTICS_PAGES, Sidebar
 from .eye_rest_card import BODY as EYE_REST_BODY, TITLE as EYE_REST_TITLE, EyeRestCard
 from .gallery_page import GalleryPage
 from .games_page import GamesPage
+from .library_page import LibraryPage, PaintingWall
 from .lighting_card import BODY as LIGHTING_BODY, TITLE as LIGHTING_TITLE, LightingCard
 from .menu_bar import MenuBarIcon
 from .pomodoro_page import PomodoroPage
 from .session_summary import SessionExtras, SessionSummaryCard
 from .study_page import StudyPage
+from .time_log_page import TimeLogPage
 from .widgets.alert_banner import AlertBanner, TooCloseMark
 from .widgets.common import vline
 
@@ -106,7 +109,7 @@ class MainWindow(QMainWindow):
         self.elapsed = 0.0  # seconds of monitoring in this session (excluding pauses)
         self.running_since: float | None = None
         self.last_update: MonitorUpdate | None = None
-        self.view = "study"  # the sidebar page shown: study, current, all_time, patterns, settings or account
+        self.view = "study"  # the sidebar page shown: study, current, all_time, patterns, settings, account, …
         self.demo_history = demo_history
         self.store = SessionStore(demo_sessions() if demo_history else None)  # in memory for now
         self.recorder: SessionRecorder | None = None
@@ -168,18 +171,23 @@ class MainWindow(QMainWindow):
         # Coins and paintings: one collection shared by the games, the Art shop and Your gallery.
         self.art = ArtCollection(demo=demo_wallet, parent=self)
         self.games_page = GamesPage(self)
+        self.library_page = LibraryPage(self.games_page.blink_garden.store)
+        self.time_log_page = TimeLogPage(preferences=self.preferences)
+        self.time_log_page.status_text.connect(self.sidebar.set_time_log_status)
+        self.time_log_page.running_changed.connect(self._time_log_running)
         self.shop_page = ShopPage(self.art)
         self.gallery_page = GalleryPage(self.art, self.preferences, self.account_service)
         self.shop_page.view_gallery.connect(self._view_in_gallery)
         self.gallery_page.visit_shop.connect(lambda: self.show_page("shop"))
         self.page_for = {"study": self.study, "current": self.current_page, "all_time": self.stats_page,
                          "patterns": self.patterns_page, "settings": self.settings_page, "account": self.account_page,
-                         "pomodoro": self.pomodoro_page, "games": self.games_page, "shop": self.shop_page,
-                         "gallery": self.gallery_page}
+                         "pomodoro": self.pomodoro_page, "games": self.games_page,
+                         "time_log": self.time_log_page, "library": self.library_page,
+                         "shop": self.shop_page, "gallery": self.gallery_page}
         self.pages = QStackedWidget()
         for page in (self.study, self.calibration, self.current_page, self.stats_page, self.patterns_page,
-                     self.settings_page, self.account_page, self.pomodoro_page, self.games_page, self.shop_page,
-                     self.gallery_page):
+                     self.settings_page, self.account_page, self.pomodoro_page, self.games_page,
+                     self.time_log_page, self.library_page, self.shop_page, self.gallery_page):
             self.pages.addWidget(page)
         content = QWidget()
         column = QVBoxLayout(content)
@@ -202,6 +210,12 @@ class MainWindow(QMainWindow):
         self.lighting_card = LightingCard()  # the lighting check, below the other reminders
         self.lighting_card.finished.connect(self._lighting_card_closed)
         column.addWidget(self.lighting_card)
+        from .blink_garden_page import GardenReminderCard
+        self.garden_reminder = GardenReminderCard(self, self.games_page.blink_garden)
+        column.addWidget(self.garden_reminder)
+        self.painting_wall = PaintingWall(self.games_page.blink_garden.store)
+        self.library_page.changed.connect(self.painting_wall.refresh)
+        self.sidebar.paintings_layout.addWidget(self.painting_wall)
         column.addWidget(self.pages, 1)
         outer.addWidget(content, 1)
 
@@ -454,6 +468,7 @@ class MainWindow(QMainWindow):
         self.study.set_time(self.elapsed + running)
         self._ticks += 1
         self._check_eye_rest(time.monotonic())
+        self.garden_reminder.tick(time.monotonic())
         if self._ticks % 4 == 0 and getattr(self, "menu_bar", None) is not None:
             self.menu_bar.refresh()  # once a second
         if self.state == "monitoring" and self.recorder and self._ticks % 2 == 0:
@@ -565,6 +580,18 @@ class MainWindow(QMainWindow):
                 self.pause()
                 self.study.message_label.setText("Paused for your break — the camera is off." if phase != "focus"
                                                  else "Paused with the Pomodoro.")
+
+    def _time_log_running(self, running: bool) -> None:
+        """A time-log timer started → eye monitoring starts (or resumes); stopped → the session ends."""
+        if not self.preferences.time_log_monitoring or self.state in ("calibrating", "playing"):
+            return
+        if running:
+            if self.state in ("ready", "error"):
+                self.start()  # the very first time this calibrates first
+            elif self.state == "paused":
+                self.resume()
+        elif self.state in ("monitoring", "paused"):
+            self.stop()  # saved under Statistics, with the summary card
 
     def _pomodoro_phase_ended(self, ended) -> None:
         ""f"A Pomodoro phase finished: a {NOTIFICATION_NAME} if OcuSense isn't in view, and an optional sound."""
@@ -836,6 +863,12 @@ class MainWindow(QMainWindow):
         self.monitor.interrupt()
         self._set_state("paused" if self.recorder is not None else "ready",
                         "Back from the game — press Resume to continue your session." if self.recorder else "")
+
+    def title_bar_blended(self, height: int) -> None:
+        """The title bar became transparent (ui/window_chrome.py): keep the logo clear of the window buttons."""
+        layout = self.sidebar.layout()
+        m = layout.contentsMargins()
+        layout.setContentsMargins(m.left(), m.top() + height, m.right(), m.bottom())
 
     def closeEvent(self, event) -> None:
         self._finish_session()
