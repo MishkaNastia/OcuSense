@@ -54,6 +54,8 @@ app = BUNDLE(
         "CFBundleVersion": VERSION,
         "LSMinimumSystemVersion": "14.0",
         "NSHighResolutionCapable": True,
+        # Keep timers on time in the background (Pomodoro, reminders and their notifications).
+        "NSAppSleepDisabled": True,
         # Shown by macOS when OcuSense first asks for the camera. Required:
         # without it macOS closes the app as soon as it opens the camera.
         "NSCameraUsageDescription": (

@@ -14,7 +14,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from ocusense.config import MODEL_PATH
-from ocusense.system import IS_MAC
+from ocusense.system import IS_MAC, keep_running_in_background
 
 from . import theme, window_chrome
 from .main_window import MainWindow
@@ -48,9 +48,11 @@ def all_notifications() -> list[tuple[str, str]]:
     """Every notification OcuSense can send, as (title, message), for --notification-test."""
     from .eye_rest_card import BODY as EYE_REST_BODY, TITLE as EYE_REST_TITLE
     from .lighting_card import BODY as LIGHTING_BODY, TITLE as LIGHTING_TITLE
+    from .blink_garden_page import GARDEN_BODY, GARDEN_TITLE
     from .main_window import BREAK_MESSAGE, DISTANCE_BODY, DISTANCE_TITLE, POMODORO_MESSAGES, TILT_MESSAGE
     return ([(DISTANCE_TITLE, DISTANCE_BODY), ("Time for a break", BREAK_MESSAGE),
-             (EYE_REST_TITLE, EYE_REST_BODY), (LIGHTING_TITLE, LIGHTING_BODY), ("OcuSense", TILT_MESSAGE)]
+             (EYE_REST_TITLE, EYE_REST_BODY), (LIGHTING_TITLE, LIGHTING_BODY), ("OcuSense", TILT_MESSAGE),
+             (GARDEN_TITLE, GARDEN_BODY)]
             + [POMODORO_MESSAGES[phase] for phase in ("short_break", "long_break", "focus")])
 
 
@@ -76,6 +78,7 @@ def run() -> int:
     app.setApplicationName("OcuSense")
     app.setStyle("Fusion")  # predictable styling; our own colours come from the style sheet
     app.setStyleSheet(theme.STYLE_SHEET)
+    keep_running_in_background()  # macOS: no App Nap, so timers and notifications stay on time
     if not IS_MAC:  # macOS takes the icon from OcuSense.app; Windows needs it on the windows themselves
         from .menu_bar import tray_icon
         app.setWindowIcon(tray_icon())

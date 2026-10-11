@@ -9,6 +9,7 @@ The rest of OcuSense asks this module instead of checking sys.platform itself:
                             other:   $XDG_DATA_HOME/OcuSense or ~/.local/share/OcuSense
                           OCUSENSE_DATA_DIR overrides it (e.g. for a portable copy or tests).
     camera_backends()     which OpenCV camera APIs to try, in order
+    camera_permission()   macOS: has OcuSense been allowed to use the camera yet?
     camera_help()         what to do when the camera can't be opened, in this system's words
     reduce_motion()       the system's "reduce motion / animations off" setting
     COMPUTER              "Mac" / "PC" / "computer", for messages like "stays on this Mac"
@@ -69,6 +70,45 @@ def camera_backends(platform: str | None = None) -> list[int | None]:
     return [None]
 
 
+_AV_LOADED = False
+
+
+def _capture_device():
+    """macOS AVCaptureDevice, loaded straight from the system framework (no extra package)."""
+    global _AV_LOADED
+    import objc
+    if not _AV_LOADED:
+        objc.loadBundle("AVFoundation", {}, bundle_path="/System/Library/Frameworks/AVFoundation.framework")
+        objc.registerMetaDataForSelector(  # the completion handler is a block taking one BOOL
+            b"AVCaptureDevice", b"requestAccessForMediaType:completionHandler:",
+            {"arguments": {3: {"callable": {"retval": {"type": b"v"},
+                                            "arguments": {0: {"type": b"^v"}, 1: {"type": b"Z"}}}}}})
+        _AV_LOADED = True
+    return objc.lookUpClass("AVCaptureDevice")
+
+
+def camera_permission() -> str:
+    """"granted", "denied", "undetermined" (macOS hasn't asked yet) or "unknown" (other systems)."""
+    if not IS_MAC:
+        return "unknown"
+    try:
+        status = int(_capture_device().authorizationStatusForMediaType_("vide"))  # AVMediaTypeVideo
+    except Exception:
+        return "unknown"
+    return {0: "undetermined", 1: "denied", 2: "denied", 3: "granted"}.get(status, "unknown")
+
+
+def request_camera_permission(answered) -> bool:
+    """macOS: show the "allow camera" question; answered(granted) is called later, on another thread."""
+    if not IS_MAC:
+        return False
+    try:
+        _capture_device().requestAccessForMediaType_completionHandler_("vide", lambda granted: answered(bool(granted)))
+    except Exception:
+        return False
+    return True
+
+
 def camera_help(platform: str | None = None) -> str:
     platform = platform or sys.platform
     if platform == "darwin":
@@ -81,6 +121,28 @@ def camera_help(platform: str | None = None) -> str:
                 "a webcam at a time, so close Teams, Zoom, the Camera app or a browser call, then press Start again.")
     return ("Could not open the camera. Check that a webcam is connected, that this app may use it, "
             "and that no other app is using it, then press Start again.")
+
+
+_activity = None  # macOS: the token that keeps App Nap away while OcuSense runs
+
+
+def keep_running_in_background() -> bool:
+    """macOS: stop App Nap from slowing OcuSense down while another app is in front.
+
+    App Nap delays the timers of background apps, which would make Pomodoro, eye rest and
+    reminder notifications arrive late. Idle system sleep is still allowed. Returns True
+    when the request was made.
+    """
+    global _activity
+    if not IS_MAC or _activity is not None:
+        return _activity is not None
+    try:
+        from Foundation import NSActivityUserInitiatedAllowingIdleSystemSleep, NSProcessInfo
+        _activity = NSProcessInfo.processInfo().beginActivityWithOptions_reason_(
+            NSActivityUserInitiatedAllowingIdleSystemSleep, "Eye monitoring, Pomodoro and reminders run in the background")
+    except Exception:
+        return False
+    return _activity is not None
 
 
 def reduce_motion() -> bool:

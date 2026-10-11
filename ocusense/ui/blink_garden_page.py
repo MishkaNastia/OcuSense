@@ -246,6 +246,10 @@ class BlinkGardenGame(QWidget):
         super().hideEvent(event)
 
 
+GARDEN_TITLE = 'Your garden needs a little water'
+GARDEN_BODY = 'Some plants are thirsty. Time for a quick eye break in the garden?'
+
+
 class GardenReminderCard(QWidget):
     """Gentle in-app invitation driven only by the existing monitoring state."""
     def __init__(self, window, game, parent=None):
@@ -254,7 +258,7 @@ class GardenReminderCard(QWidget):
         self.clock = GardenReminder()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(40, 12, 40, 0)
-        self.banner = AlertBanner('Your garden needs a little water', 'Time for a quick eye break?',
+        self.banner = AlertBanner(GARDEN_TITLE, 'Time for a quick eye break?',
                                   ('Open garden', 'Snooze 10 min', 'Disable'), GardenCanvas())
         self.banner.action.connect(self.action)
         layout.addWidget(self.banner)
@@ -270,6 +274,8 @@ class GardenReminderCard(QWidget):
             plant = next(p for p in g.plots if p.state(time.time()) == 'NEEDS_WATER')
             self.banner.body.setText(f'Your {PLANTS[plant.plant].name.lower()} need watering. Time for a quick eye break?')
             self.show()
+            if self.window.in_background():  # the card alone would go unseen
+                self.window.notify(GARDEN_BODY, GARDEN_TITLE)
         if self.window.state != 'monitoring':
             self.hide()
 

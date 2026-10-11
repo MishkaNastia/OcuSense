@@ -21,6 +21,7 @@ registers with set_fallback(). Without a tray, nothing is shown.
 import os
 import subprocess
 import sys
+import time
 import zlib
 
 SCRIPT = ("on run argv", "display notification (item 1 of argv) with title (item 2 of argv)", "end run")
@@ -121,8 +122,11 @@ def _post_native(message: str, title: str) -> bool:
         content = api.UNMutableNotificationContent.alloc().init()
         content.setTitle_(title)
         content.setBody_(message)
-        # One identifier per kind of reminder: a new one replaces the previous of the same kind only.
-        identifier = f"app.ocusense.{zlib.crc32(title.encode()):08x}"
+        kind = f"app.ocusense.{zlib.crc32(title.encode()):08x}"
+        content.setThreadIdentifier_(kind)  # grouped by kind in Notification Centre
+        # A fresh identifier every time: reusing one can make macOS update the old notification
+        # silently instead of showing a new banner.
+        identifier = f"{kind}.{time.time_ns()}"
         center.addNotificationRequest_withCompletionHandler_(
             api.UNNotificationRequest.requestWithIdentifier_content_trigger_(identifier, content, None), None)
 

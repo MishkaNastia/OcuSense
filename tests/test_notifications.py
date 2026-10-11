@@ -61,6 +61,9 @@ class FakeApi:
         def setBody_(self, body):
             self.body = body
 
+        def setThreadIdentifier_(self, thread):
+            self.thread = thread
+
     class UNNotificationRequest:
         @staticmethod
         def requestWithIdentifier_content_trigger_(identifier, content, _trigger):
@@ -146,4 +149,4 @@ class EveryNotificationTest(unittest.TestCase):
         self.assertEqual(len(titles), len(set(titles)))  # each kind its own notification
         for expected in ("Trying to lick the screen?", "Time for a break", "Break’s over"):
             self.assertIn(expected, titles)
-        self.assertEqual(len(titles), 8)
+        self.assertEqual(len(titles), 9)

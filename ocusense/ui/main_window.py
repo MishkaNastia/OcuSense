@@ -27,7 +27,7 @@ import time
 from dataclasses import asdict
 from datetime import datetime
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication, QHBoxLayout, QMainWindow, QMessageBox, QStackedWidget, QVBoxLayout, QWidget,
@@ -52,7 +52,7 @@ from ocusense.monitoring.pipeline import (
 )
 from ocusense.recording import EarRecording
 from ocusense.storage import SessionStore
-from ocusense.system import COMPUTER, camera_help
+from ocusense.system import COMPUTER, camera_help, camera_permission, request_camera_permission
 
 from .account_page import AccountPage
 from .account_service import AccountService
@@ -98,6 +98,8 @@ BUTTONS_FOR_STATE = {
 
 
 class MainWindow(QMainWindow):
+    permission_answered = Signal(bool)  # macOS camera question answered (from Apple's thread)
+
     def __init__(self, demo_history: bool = False):
         super().__init__()
         self.setWindowTitle("OcuSense")
@@ -118,6 +120,9 @@ class MainWindow(QMainWindow):
         self._drift: tuple[SessionRecorder, LiveDrift] | None = None  # comparison with the reference
         self._reminder: BreakReminder | None = None  # break reminders for that session
         self.notify = notifications.post  # replaced in tests
+        self._after_permission = None  # set while macOS asks for camera access
+        self._next_after_permission = None
+        self.permission_answered.connect(self._on_permission)
         self.reference_path = reference_file.default_path()
         self.reference: reference_file.Reference | None = None  # the saved reference for blink timing
         self.reference_error = ""
@@ -254,9 +259,32 @@ class MainWindow(QMainWindow):
         self.menu_bar = MenuBarIcon(self)  # the eye in the macOS menu bar
 
     # ------------------------------------------------------------- camera life
+    def _camera_then(self, then) -> bool:
+        """_start_camera, remembering what to do once macOS's camera question is answered with Allow,
+        so the very first Start doesn't need a second click."""
+        self._next_after_permission = then
+        try:
+            return self._start_camera()
+        finally:
+            self._next_after_permission = None
+
     def _start_camera(self) -> bool:
         if self.thread is not None:
             return True
+        then = self._next_after_permission
+        permission = camera_permission()
+        if permission == "undetermined":
+            already_asking = self._after_permission is not None
+            self._after_permission = then or (lambda: None)
+            self.study.message_label.setText("Click Allow in the macOS camera question. OcuSense carries on by itself "
+                                             "right after.")
+            if not already_asking and not request_camera_permission(self.permission_answered.emit):
+                self._after_permission = None
+                self._set_state("error", CAMERA_HELP)
+            return False
+        if permission == "denied":
+            self._set_state("error", CAMERA_HELP)
+            return False
         self.camera = open_camera()
         if self.camera is None:
             self._set_state("error", CAMERA_HELP)
@@ -280,8 +308,15 @@ class MainWindow(QMainWindow):
         self.calibration.clear_preview()
 
     # ---------------------------------------------------------------- actions
+    def _on_permission(self, granted: bool) -> None:
+        then, self._after_permission = self._after_permission, None
+        if granted and then is not None:
+            then()  # carry on exactly where you were: start, resume or calibrate
+        elif not granted:
+            self._set_state("error", CAMERA_HELP)
+
     def start(self) -> None:
-        if not self._start_camera():
+        if not self._camera_then(self.start):
             return
         self._finish_session()
         self.monitor.reset_session()
@@ -302,7 +337,7 @@ class MainWindow(QMainWindow):
         self._set_state("paused")
 
     def resume(self) -> None:
-        if self._start_camera():
+        if self._camera_then(self.resume):
             self._enter_monitoring()
 
     def stop(self) -> None:
@@ -331,11 +366,11 @@ class MainWindow(QMainWindow):
     def recalibrate(self) -> None:
         self._stop_clock()
         self._finish_session()  # a new calibration starts a new session
-        if self._start_camera():
+        if self._camera_then(self.retry_calibration):
             self._begin_calibration()
 
     def retry_calibration(self) -> None:
-        if self._start_camera():
+        if self._camera_then(self.retry_calibration):
             self._begin_calibration()
 
     def cancel_calibration(self) -> None:
@@ -574,9 +609,13 @@ class MainWindow(QMainWindow):
             self._eye_rest_waiting = False  # never on top of the distance reminder
             self.session_extras.eye_rests += 1
             self.eye_rest_card.show_card()
-            app = QApplication.instance()
-            if app.applicationState() != Qt.ApplicationState.ApplicationActive or not self.isActiveWindow():
+            if self.in_background():
                 self.notify(EYE_REST_BODY, EYE_REST_TITLE)
+
+    def in_background(self) -> bool:
+        """True when you're not looking at OcuSense (another app in front, or the window hidden)."""
+        app = QApplication.instance()
+        return app.applicationState() != Qt.ApplicationState.ApplicationActive or not self.isActiveWindow()
 
     def _set_eye_rest(self, on: bool) -> None:
         self.preferences.eye_rest = on
@@ -715,8 +754,7 @@ class MainWindow(QMainWindow):
             self.session_extras.distance_reminders += 1
             self.banner_holder.setVisible(True)
             self.distance_banner.setVisible(True)
-            app = QApplication.instance()
-            if app.applicationState() != Qt.ApplicationState.ApplicationActive or not self.isActiveWindow():
+            if self.in_background():
                 self.notify(DISTANCE_BODY, DISTANCE_TITLE)  # OcuSense is in the background (notifications.post)
         elif not self.proximity.too_close and not self.banner_holder.isHidden():
             self.banner_holder.setVisible(False)  # moved back: the reminder goes away by itself
@@ -740,8 +778,7 @@ class MainWindow(QMainWindow):
             self._lighting_waiting = False  # never on top of another reminder
             self.session_extras.lighting_reminders += 1
             self.lighting_card.setVisible(True)
-            app = QApplication.instance()
-            if app.applicationState() != Qt.ApplicationState.ApplicationActive or not self.isActiveWindow():
+            if self.in_background():
                 self.notify(LIGHTING_BODY, LIGHTING_TITLE)
 
     def _lighting_card_closed(self, how: str) -> None:
@@ -872,6 +909,8 @@ class MainWindow(QMainWindow):
         if self.state == "monitoring":
             self.pause()  # the study session waits, paused; nothing from the game is recorded in it
         if not self._start_camera():
+            if self._after_permission is not None:
+                return "Click Allow in the macOS camera question, then press the camera button again."
             return "The camera couldn’t be opened."
         self.monitor.interrupt()
         self._set_state("playing", "A game is borrowing the camera. Your study session is paused and waiting.")

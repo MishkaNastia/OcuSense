@@ -133,3 +133,72 @@ class NavigationTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(MODEL_PATH.exists(), "model file missing - run download_model.py")
+class CameraPermissionTest(unittest.TestCase):
+    """The first Start asks macOS for the camera and carries on after Allow: no second click."""
+
+    def setUp(self):
+        from ocusense.ui.main_window import MainWindow
+        self.window = MainWindow()
+        self.window.notify = lambda message, title: None
+        self.opened = []
+
+        def fake_open():
+            self.opened.append(True)
+            return object()
+        self.patches = [mock.patch("ocusense.ui.main_window.open_camera", fake_open),
+                        mock.patch("ocusense.ui.main_window.CameraWorker", FakeWorker)]
+        for p in self.patches:
+            p.start()
+
+    def tearDown(self):
+        for p in self.patches:
+            p.stop()
+        self.window.thread = None
+        self.window.camera = None
+        self.window.close()
+
+    def test_allow_continues_by_itself(self):
+        w = self.window
+        answers = []
+        with mock.patch("ocusense.ui.main_window.camera_permission", return_value="undetermined"), \
+                mock.patch("ocusense.ui.main_window.request_camera_permission",
+                           side_effect=lambda answered: answers.append(answered) or True):
+            w.start()
+            self.assertEqual(self.opened, [])  # waits for the answer instead of failing
+            self.assertIn("Click Allow", w.study.message_label.text())
+            w.start()  # an impatient second click doesn't ask twice
+            self.assertEqual(len(answers), 1)
+        with mock.patch("ocusense.ui.main_window.camera_permission", return_value="granted"):
+            answers[0](True)  # macOS: Allow
+        self.assertEqual(self.opened, [True])
+        self.assertEqual(w.state, "calibrating")  # no calibration yet: it starts right away
+
+    def test_deny_shows_how_to_fix_it(self):
+        w = self.window
+        with mock.patch("ocusense.ui.main_window.camera_permission", return_value="undetermined"), \
+                mock.patch("ocusense.ui.main_window.request_camera_permission",
+                           side_effect=lambda answered: answered(False) or True):
+            w.start()
+        self.assertEqual(w.state, "error")
+        self.assertEqual(self.opened, [])
+
+
+class FakeWorker:
+    def __init__(self, monitor, camera):
+        from unittest.mock import MagicMock
+        self.updated, self.failed = MagicMock(), MagicMock()
+
+    def start(self):
+        pass
+
+    def requestInterruption(self):
+        pass
+
+    def wait(self, ms):
+        return True
+
+    def request_calibration(self):
+        pass
