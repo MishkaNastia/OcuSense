@@ -62,11 +62,15 @@ export const releases: Release[] = [
   },
   {
     platform: "Linux (beta)",
-    status: "coming-soon",
+    status: "available",
+    version: "0.1.0",
+    url: "https://github.com/MishkaNastia/OcuSense/releases/download/v0.1.0/OcuSense-linux-x64.tar.gz",
+    fileName: "OcuSense for Linux",
+    sizeLabel: "286 MB tar.gz · 64 bit (x86_64)",
+    sha256: "60d52c2e1e095f019a8a0fc873e661542d594322e03890cd0f7528bda57c475e",
     verified: [
-      "Same app and code, as a portable folder for 64 bit Linux (x86_64).",
-      "Not yet tried with a real webcam. Login lasts until you quit.",
+      "Built and checked automatically on Ubuntu, but not yet tried with a real webcam. Tell us what breaks!",
+      "Login lasts until you quit.",
     ],
-    notes: "Beta: the download appears here as soon as the build is ready.",
   },
 ];
