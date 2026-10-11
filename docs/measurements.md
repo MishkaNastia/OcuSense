@@ -82,8 +82,8 @@ calibration values are measured, not set.
 | `IRIS_DIAMETER_MM` | 11.7 mm | assumed iris width, the ruler for the posture distance |
 | `FOCAL_LENGTH_PER_FRAME_WIDTH` | 1.0 | webcam focal length ÷ frame width (≈ 53° view); tune if the cm are off |
 | `POSTURE_CALIBRATION_SECONDS` | 60 s | the posture baseline: the first minute of each study session (or after Recalibrate posture or a screen tilt) |
-| `POSTURE_MIN_SAMPLES` | 300 frames | frames with everything measured needed in that minute |
-| `POSTURE_MAX_PITCH_SPREAD` | 5° | head angle spread above this = no single posture: baseline rejected |
+| `POSTURE_MIN_SAMPLES` | 300 frames | frames with a head angle needed in that minute |
+| `POSTURE_MAX_PITCH_SPREAD` | 8° | head angle spread above this = no single posture: baseline rejected (and tried again) |
 | `POSTURE_SUSTAIN_SECONDS` | 20 s | a posture limit must be exceeded this long in a row to count… |
 | `POSTURE_GRACE_SECONDS` | 3 s | …where back within it (or no face) for up to this long doesn't restart the count |
 | `POSTURE_PITCH_DROP_DEGREES` | 12° | head dropped: chin this much lower than at calibration |
@@ -92,7 +92,8 @@ calibration values are measured, not set.
 | `POSTURE_CLOSER_FRACTION` | 0.20 | …as does being 20 % closer than at calibration |
 | `POSTURE_CENTRE_DROP` | 0.05 | slumped: face centre 5 % of the frame height lower… |
 | `POSTURE_SLUMP_GROWTH` | 0.05 | …and the face at least 5 % bigger (lower alone with the lid sensor) |
-| `POSTURE_REMINDER_GAP_SECONDS` | 600 s | the "stop slouching" message: one per poor stretch, at least 10 minutes apart |
+| `POSTURE_REMINDER_GAP_SECONDS` | 60 s | the "stop slouching" message: a new poor stretch gets one at least 1 minute after the last… |
+| `POSTURE_REMINDER_REPEAT_SECONDS` | 120 s | …and while posture stays poor it is repeated every 2 minutes |
 | `LID_RECALIBRATE_DEGREES` | 5° | screen tilted this much from the baseline… |
 | `LID_SETTLE_SECONDS` | 2 s | …and left there this long: "You changed your screen angle — recalibrate your posture now" |
 | `LID_READ_INTERVAL` | 0.5 s | time between screen angle readings |
@@ -632,17 +633,25 @@ The focal length is **not measured** for your camera: if the centimetres look of
 `FOCAL_LENGTH_PER_FRAME_WIDTH` (0.87 for a 60° camera). The limits compare with your own
 baseline, so a constant error in centimetres mostly cancels out, except for the fixed 50 cm limit.
 
-**The posture baseline.** At the start of **every study session**, the **first minute** of work
-is recorded: sit the way you want to, at a good distance, and keep working normally (reading is
-fine; that's what it should describe). The **median** pitch, roll, distance, face centre, face
-size and screen angle become the baseline; posture isn't judged during that minute. Resuming
-after a pause keeps it (unless the pause interrupted it, then it starts again).
-**Recalibrate posture** records it again (for example after moving your chair or desk) without
-touching the eye calibration. It is rejected, and the previous baseline kept, when:
-- fewer than **300** frames had everything measured (face mostly out of view), or
-- the head angle kept changing: its spread (interquartile range ÷ 1.349) was more than **5°**.
+**The posture baseline.** At the start of **every study session**, the **first minute** is
+recorded. A card at the top of the window says **"Calibrating posture — please sit up straight"**
+with a countdown (and a Mac notification if OcuSense is in the background): sit up straight, at a
+good distance, and keep working. The **median** pitch, roll, distance, face centre, face size and
+screen angle become the baseline; posture isn't judged during that minute. Afterwards the Study
+page says "Posture recorded — I'll tell you when you slouch". **Got it** hides the card (the
+recording carries on). Resuming after a pause keeps the baseline (unless the pause interrupted it,
+then it starts again). **Recalibrate posture** records it again without touching the eye
+calibration. It doesn't depend on the 10-minute blink reference (section 11.7) at all.
+A baseline is rejected when:
+- fewer than **300** frames had a head angle (face mostly out of view), or
+- the head angle kept changing: its spread (interquartile range ÷ 1.349) was more than **8°**.
   The interquartile range is used rather than the median deviation because it also notices two
   alternating postures.
+
+The distance is optional: if the iris was measured in fewer than half of the frames, the baseline
+has no distance and only the fixed 50 cm limit is checked. If a baseline is rejected and there is
+no earlier one in this session, it **tries again straight away** (the card shows again, and the
+Study page says why); otherwise the earlier one is kept.
 
 It is recorded fresh for each session, rather than once like the 10-minute blink reference
 (section 11.7), because posture is measured relative to the camera: a different desk, chair or
@@ -664,8 +673,9 @@ the screen tilt is corrected, so lower alone counts.
 
 **Message.** When posture turns poor, a Mac notification (title "Posture") says **"Stop
 slouching, hunchbacks are not particularly sexy you know"**, and the same note appears under the
-Study page buttons. At most one per poor stretch (it ends when posture is good again; a lost
-face doesn't end it) and at least **10 minutes** apart (`POSTURE_REMINDER_GAP_SECONDS`).
+Study page buttons. It comes as soon as posture turns poor, then **every 2 minutes** while it stays
+poor. A poor stretch ends when posture is good again (a lost face doesn't end it); the next one
+gets a message again, at least **1 minute** after the previous message.
 
 Each limit has its own timer. Its count starts again only after being back within the limit for
 more than **3 seconds**: the camera's measurements wobble a little from frame to frame, and

@@ -8,7 +8,9 @@ import numpy as np
 from ocusense.core.calibration import GuidedCalibration
 from ocusense.core.models import PostureBaseline
 from ocusense.core.posture import PostureCalibration, PostureMonitor
-from ocusense.monitoring.pipeline import CALIBRATION_DONE, MODEL_PATH, SCREEN_TILTED, EyeMonitor
+from ocusense.monitoring.pipeline import (
+    CALIBRATION_DONE, MODEL_PATH, POSTURE_CALIBRATION_FAILED, SCREEN_TILTED, EyeMonitor,
+)
 
 
 @unittest.skipUnless(MODEL_PATH.exists(), "model file missing - run download_model.py")
@@ -64,8 +66,10 @@ class EyeMonitorTest(unittest.TestCase):
         self.assertEqual(self.monitor.calibrator.status, GuidedCalibration.IDLE)
         frame = np.zeros((480, 640, 3), np.uint8)
         self.monitor.process(frame, now=2.0)
-        self.monitor.process(frame, now=62.0)  # 1 min without a face
-        self.assertEqual(self.monitor.posture_calibrator.status, PostureCalibration.FAILED)
+        result = self.monitor.process(frame, now=62.0)  # 1 min without a face
+        self.assertIn(POSTURE_CALIBRATION_FAILED, result.events)
+        self.assertIn("seen clearly", self.monitor.posture_calibration_error)
+        self.assertEqual(self.monitor.posture_calibrator.status, PostureCalibration.RUNNING)  # no baseline: retried
         self.assertIsNone(self.monitor.posture_monitor)
 
     def test_eye_calibration_leaves_the_posture_baseline_to_the_session(self):

@@ -71,8 +71,8 @@ FOCAL_LENGTH_PER_FRAME_WIDTH = 1.0
 # working normally in the posture you want to keep. Fresh each session, because the laptop, chair
 # or screen may have moved since the last one; long enough to show how you really sit.
 POSTURE_CALIBRATION_SECONDS = 60.0
-POSTURE_MIN_SAMPLES = 300  # frames with everything measured needed in that minute (~10 s at 30 frames/s)
-POSTURE_MAX_PITCH_SPREAD = 5.0  # degrees (robust spread); more = the posture kept changing, not one baseline
+POSTURE_MIN_SAMPLES = 300  # frames with a head angle needed in that minute (~10 s at 30 frames/s)
+POSTURE_MAX_PITCH_SPREAD = 8.0  # degrees (robust spread); more = the posture kept changing, not one baseline
 POSTURE_SUSTAIN_SECONDS = 20.0  # a limit must be exceeded this long, without a real break, to count…
 POSTURE_GRACE_SECONDS = 3.0  # …where back inside the limit (or no face) for up to this long isn't a break:
 #                              the camera's frame-to-frame wobble near a limit mustn't restart the count
@@ -85,7 +85,8 @@ POSTURE_SLUMP_GROWTH = 0.05  # …AND the face this much bigger (sliding down al
 #                              lower but not bigger could be a tilted screen). With the lid angle sensor the tilt is
 #                              corrected, so lower alone is enough.
 
-POSTURE_REMINDER_GAP_SECONDS = 600.0  # a message when posture turns poor: one per poor stretch, at most every 10 min
+POSTURE_REMINDER_GAP_SECONDS = 60.0  # "stop slouching": a new poor stretch gets a message at least 1 min after the last…
+POSTURE_REMINDER_REPEAT_SECONDS = 120.0  # …and while posture stays poor, it is repeated every 2 min
 
 # --- Screen tilt (ocusense/lid_sensor.py; built-in camera of MacBooks with a lid angle sensor) ---
 # The camera sits in the lid: tilting the screen moves the face up or down in the picture and changes

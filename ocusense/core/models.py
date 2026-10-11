@@ -132,7 +132,7 @@ class PostureBaseline:
     """The posture reference: median values from the posture calibration (1 min of normal work)."""
     pitch: float
     roll: float
-    distance_cm: float
+    distance_cm: float | None  # None when the iris wasn't measured often enough (no "closer than" check then)
     centre_y: float
     size: float
     lid_angle: float | None = None  # screen angle during calibration, or None without the sensor

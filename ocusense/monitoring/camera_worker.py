@@ -114,7 +114,7 @@ def snapshot(monitor: EyeMonitor, result: FrameResult, now: float) -> MonitorUpd
         posture_status=result.posture_status,
         posture_cal_status=monitor.posture_calibrator.status,
         posture_cal_seconds_left=monitor.posture_calibrator.seconds_left(now),
-        posture_cal_error=monitor.posture_calibrator.error,
+        posture_cal_error=monitor.posture_calibration_error,
         lid_sensor=result.posture is not None and result.posture.lid_angle is not None,
         posture_enabled=monitor.posture_enabled,
         posture_needs_recalibration=monitor.posture_needs_recalibration,

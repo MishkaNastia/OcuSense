@@ -32,7 +32,7 @@ from ocusense.config import (
     FOCAL_LENGTH_PER_FRAME_WIDTH, IRIS_DIAMETER_MM, LID_RECALIBRATE_DEGREES, LID_SETTLE_SECONDS,
     POSTURE_CALIBRATION_SECONDS, POSTURE_CENTRE_DROP, POSTURE_CLOSER_FRACTION, POSTURE_GRACE_SECONDS,
     POSTURE_MAX_PITCH_SPREAD, POSTURE_MIN_DISTANCE_CM, POSTURE_MIN_SAMPLES, POSTURE_PITCH_DROP_DEGREES,
-    POSTURE_REMINDER_GAP_SECONDS, POSTURE_ROLL_DEGREES, POSTURE_SLUMP_GROWTH, POSTURE_SUSTAIN_SECONDS,
+    POSTURE_REMINDER_GAP_SECONDS, POSTURE_REMINDER_REPEAT_SECONDS, POSTURE_ROLL_DEGREES, POSTURE_SLUMP_GROWTH, POSTURE_SUSTAIN_SECONDS,
 )
 
 from .models import PostureBaseline, PostureReading, PostureStatus
@@ -156,8 +156,8 @@ class PostureCalibration:
     def update(self, now: float, reading: PostureReading | None) -> None:
         if self.status != self.RUNNING:
             return
-        if reading is not None and reading.pitch is not None and reading.distance_cm is not None:
-            self._samples.append(reading)  # only frames where everything was measured
+        if reading is not None and reading.pitch is not None:
+            self._samples.append(reading)  # frames with a head angle (the distance may be missing)
         if now - self._started < self.seconds:
             return
         if len(self._samples) < self.min_samples:
@@ -176,10 +176,11 @@ class PostureCalibration:
                           "to keep. Sit the way you want to and try again.")
             return
         lids = [r.lid_angle for r in s if r.lid_angle is not None]
+        distances = [r.distance_cm for r in s if r.distance_cm is not None]
         self.result = PostureBaseline(
             pitch=pitch,
             roll=statistics.median(r.roll for r in s),
-            distance_cm=statistics.median(r.distance_cm for r in s),
+            distance_cm=statistics.median(distances) if len(distances) * 2 >= len(s) else None,  # mostly, or not
             centre_y=statistics.median(r.centre_y for r in s),
             size=statistics.median(r.size for r in s),
             lid_angle=statistics.median(lids) if len(lids) * 2 >= len(s) else None,  # mostly read, or not at all
@@ -220,7 +221,8 @@ class PostureMonitor:
         if reading.roll is not None and abs(angle_difference(reading.roll, b.roll)) > self.roll_limit:
             out.add(HEAD_TILTED)
         d = reading.distance_cm
-        if d is not None and (d < self.min_distance_cm or d < b.distance_cm * (1 - self.closer_fraction)):
+        if d is not None and (d < self.min_distance_cm
+                              or (b.distance_cm is not None and d < b.distance_cm * (1 - self.closer_fraction))):
             out.add(TOO_CLOSE)
         lower = centre_y - b.centre_y > self.centre_drop
         bigger = bool(b.size) and reading.size / b.size >= 1 + self.slump_growth
@@ -300,17 +302,21 @@ class TiltWatcher:
 
 # ------------------------------------------------------------------ reminder
 class PostureReminder:
-    """When to say something about posture: once per poor stretch, at most every `gap_seconds`.
+    """When to say "stop slouching": as soon as posture turns poor, and again while it stays poor.
 
-    A stretch starts when the status turns poor (a limit exceeded for POSTURE_SUSTAIN_SECONDS)
-    and ends when posture is judged good again. Frames without a face or before the baseline
-    don't end it (the monitor already restarts its timers then), so tracking dropouts can't
-    cause a burst of messages.
+    A poor stretch starts when the status turns poor (a limit exceeded for POSTURE_SUSTAIN_SECONDS)
+    and ends when posture is judged good again. The first message of a stretch comes at once
+    (but at least `gap_seconds` after the previous message); while the stretch lasts it is
+    repeated every `repeat_seconds`. Frames without a face or before the baseline don't end a
+    stretch (the monitor already restarts its timers then), so tracking dropouts can't cause a
+    burst of messages.
     """
 
-    def __init__(self, gap_seconds: float = POSTURE_REMINDER_GAP_SECONDS):
+    def __init__(self, gap_seconds: float = POSTURE_REMINDER_GAP_SECONDS,
+                 repeat_seconds: float = POSTURE_REMINDER_REPEAT_SECONDS):
         self.gap_seconds = gap_seconds
-        self.in_stretch = False
+        self.repeat_seconds = repeat_seconds
+        self.sent_in_stretch = False  # this poor stretch has had its first message
         self.last: float | None = None
 
     def update(self, now: float, status: PostureStatus | None) -> bool:
@@ -318,12 +324,11 @@ class PostureReminder:
         if status is None or not status.tracked:
             return False
         if not status.poor:
-            self.in_stretch = False
+            self.sent_in_stretch = False  # sat up: the next poor stretch is a new one
             return False
-        if self.in_stretch:
-            return False
-        self.in_stretch = True  # one per stretch, even if the gap suppresses this one
-        if self.last is not None and now - self.last < self.gap_seconds:
+        wait = self.repeat_seconds if self.sent_in_stretch else self.gap_seconds
+        if self.last is not None and now - self.last < wait:
             return False
         self.last = now
+        self.sent_in_stretch = True
         return True

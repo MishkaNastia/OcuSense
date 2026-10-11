@@ -73,6 +73,7 @@ class EyeMonitor:
         self.posture_monitor: PostureMonitor | None = None  # once posture is calibrated
         self.tilt = TiltWatcher()  # screen tilt since the posture baseline (MacBook lid sensor)
         self.posture_needs_recalibration = False  # tilted since the baseline: not judged until recalibrated
+        self.posture_calibration_error = ""  # why the last posture baseline failed ("" after a good one)
         self._start = time.monotonic()
         self._last_timestamp_ms = -1
 
@@ -233,9 +234,13 @@ class EyeMonitor:
             calibrator.update(now, result.posture)
             if calibrator.status == PostureCalibration.DONE:
                 self.posture_monitor = PostureMonitor(calibrator.result)
+                self.posture_calibration_error = ""
                 result.events.append(POSTURE_CALIBRATION_DONE)
             elif calibrator.status == PostureCalibration.FAILED:
+                self.posture_calibration_error = calibrator.error
                 result.events.append(POSTURE_CALIBRATION_FAILED)
+                if self.posture_monitor is None:
+                    self.start_posture_calibration(now)  # no baseline to fall back on: try again straight away
             return  # not judged while the baseline is being recorded
         if self.posture_monitor is not None and not self.posture_needs_recalibration:
             result.posture_status = self.posture_monitor.update(now, result.posture)

@@ -85,8 +85,8 @@ class PostureUiTest(unittest.TestCase):
         self.monitoring()
         self.assertEqual(self.page.posture_button.text(), "Recalibrate posture")
         self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=80.4)
-        self.assertEqual(self.page.posture_indicator.text.text(), "Recording your posture: 1:20 left")
-        self.assertIn("Keep working", self.page.posture_detail.text())
+        self.assertEqual(self.page.posture_indicator.text.text(), "Calibrating posture: 1:20 left")
+        self.assertIn("sit up straight", self.page.posture_detail.text())
 
         good = PostureStatus(tracked=True, pitch_change=-2.0, roll_change=1.0, distance_cm=63.0,
                              baseline_distance_cm=65.0, centre_drop=0.01, size_ratio=1.02, lid_change=3.0)
@@ -149,6 +149,38 @@ class PostureUiTest(unittest.TestCase):
         poor = PostureStatus(tracked=True, poor=True, problems=(SLUMPED,), pitch_change=0.0, centre_drop=0.1)
         self.send(posture_enabled=False, posture_status=poor)
         self.assertEqual(self.notifications, [])
+
+    def test_calibration_card_with_countdown(self):
+        from ocusense.monitoring.pipeline import POSTURE_CALIBRATION_DONE
+        self.monitoring()
+        self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=42)
+        self.assertFalse(self.window.posture_cal_holder.isHidden())
+        self.assertEqual(self.window.posture_cal_banner.title.text(), "Calibrating posture — please sit up straight")
+        self.assertIn("0:42 left", self.window.posture_cal_banner.body.text())
+        self.send(posture_cal_status=PostureCalibration.DONE, events=[POSTURE_CALIBRATION_DONE],
+                  posture_status=PostureStatus(tracked=True, pitch_change=0.0, centre_drop=0.0))
+        self.assertTrue(self.window.posture_cal_holder.isHidden())
+        self.assertIn("Posture recorded — I'll tell you when you slouch", self.window.study.message_label.text())
+
+    def test_got_it_hides_the_card_until_the_next_recording(self):
+        self.monitoring()
+        self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=50)
+        self.window.posture_cal_banner.buttons["Got it"].click()
+        self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=49)
+        self.assertTrue(self.window.posture_cal_holder.isHidden())  # still recording, card stays away
+        self.send(posture_cal_status=PostureCalibration.DONE)
+        self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=60)  # a new recording
+        self.assertFalse(self.window.posture_cal_holder.isHidden())
+
+    def test_a_failed_baseline_says_it_tries_again(self):
+        from ocusense.monitoring.pipeline import POSTURE_CALIBRATION_FAILED
+        self.monitoring()
+        self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=1)
+        self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=60,
+                  events=[POSTURE_CALIBRATION_FAILED], posture_cal_error="Your face wasn't seen clearly enough.")
+        self.assertIn("Couldn't record your posture: Your face wasn't seen clearly enough. Trying again.",
+                      self.window.study.message_label.text())
+        self.assertIn("The last try didn't work", self.page.posture_detail.text())
 
     def test_failed_calibration_and_lost_face(self):
         self.monitoring()

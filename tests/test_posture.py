@@ -147,6 +147,14 @@ class CalibrationTest(unittest.TestCase):
         self.assertEqual(cal.status, PostureCalibration.FAILED)
         self.assertIn("kept changing", cal.error)
 
+    def test_distance_is_optional(self):
+        cal = self.record(lambda i: reading(distance=None))  # iris never measured
+        self.assertEqual(cal.status, PostureCalibration.DONE)
+        self.assertIsNone(cal.result.distance_cm)
+        monitor = PostureMonitor(cal.result)
+        self.assertEqual(monitor.exceeded(reading(distance=60.0)), set())  # no "closer than baseline" check
+        self.assertEqual(monitor.exceeded(reading(distance=45.0)), {TOO_CLOSE})  # the 50 cm limit still counts
+
     def test_no_lid_angle_without_the_sensor(self):
         self.assertIsNone(self.record(lambda i: reading()).result.lid_angle)
 
@@ -315,26 +323,27 @@ class PostureReminderTest(unittest.TestCase):
     GOOD = PostureStatus(tracked=True)
     LOST = PostureStatus(tracked=False)
 
-    def test_once_per_poor_stretch(self):
-        r = PostureReminder()
-        self.assertTrue(r.update(30.0, self.POOR))
-        self.assertFalse(any(r.update(30.0 + i, self.POOR) for i in range(1, 900)))  # still poor, 15 min: no more
+    def times(self, reminder, start, seconds, status):
+        return [start + i for i in range(int(seconds)) if reminder.update(start + i, status)]
 
-    def test_a_new_stretch_after_the_gap(self):
-        r = PostureReminder(gap_seconds=600)
+    def test_at_once_then_every_two_minutes_while_poor(self):
+        r = PostureReminder(gap_seconds=60, repeat_seconds=120)
+        self.assertEqual(self.times(r, 0.0, 300, self.POOR), [0.0, 120.0, 240.0])
+
+    def test_a_new_stretch_soon_after(self):
+        r = PostureReminder(gap_seconds=60, repeat_seconds=120)
         self.assertTrue(r.update(0.0, self.POOR))
-        r.update(60.0, self.GOOD)
-        self.assertFalse(r.update(300.0, self.POOR))  # a new stretch, but within 10 min of the last message
-        r.update(400.0, self.GOOD)
-        self.assertTrue(r.update(700.0, self.POOR))  # a new stretch, 11+ min later
+        r.update(10.0, self.GOOD)  # sat up
+        self.assertFalse(r.update(30.0, self.POOR))  # slouching again 30 s after the message: too soon
+        self.assertTrue(r.update(60.0, self.POOR))  # 1 min after the last message
 
     def test_lost_face_doesnt_end_a_stretch(self):
-        r = PostureReminder(gap_seconds=0)
+        r = PostureReminder(gap_seconds=60, repeat_seconds=120)
         self.assertTrue(r.update(0.0, self.POOR))
         r.update(1.0, self.LOST)
         r.update(2.0, None)
-        self.assertFalse(r.update(3.0, self.POOR))  # same stretch: no second message
-
+        self.assertFalse(r.update(70.0, self.POOR))  # same stretch: waits for the 2-minute repeat
+        self.assertTrue(r.update(120.0, self.POOR))
 
 if __name__ == "__main__":
     unittest.main()

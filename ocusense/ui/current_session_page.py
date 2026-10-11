@@ -266,9 +266,10 @@ class CurrentSessionPage(Page):
             return
         if update.posture_cal_status == PostureCalibration.RUNNING:
             minutes, seconds = divmod(int(round(update.posture_cal_seconds_left)), 60)
-            self.posture_indicator.set("calibrating", f"Recording your posture: {minutes}:{seconds:02d} left")
-            self.posture_detail.setText("Keep working, sitting the way you want to, at a good distance from the "
-                                        "screen. Posture isn't judged until this is done.")
+            self.posture_indicator.set("calibrating", f"Calibrating posture: {minutes}:{seconds:02d} left")
+            retry = f"The last try didn't work ({update.posture_cal_error}) " if update.posture_cal_error else ""
+            self.posture_detail.setText(f"{retry}Please sit up straight, at a good distance from the screen, and "
+                                        "keep working. Posture isn't judged until this is done.")
             return
         if update.posture_needs_recalibration:
             self.posture_indicator.set("warning", "Screen angle changed — recalibrate your posture")
@@ -297,7 +298,8 @@ class CurrentSessionPage(Page):
         if status.roll_change is not None:
             parts.append(f"tilted {abs(status.roll_change):.0f}°")
         if status.distance_cm is not None:
-            parts.append(f"about {status.distance_cm:.0f} cm away (calibrated {status.baseline_distance_cm:.0f} cm)")
+            parts.append(f"about {status.distance_cm:.0f} cm away" + (f" (calibrated {status.baseline_distance_cm:.0f} cm)"
+                                                                      if status.baseline_distance_cm is not None else ""))
         parts.append(f"face {abs(status.centre_drop) * 100:.0f} % of the picture "
                      f"{'lower' if status.centre_drop > 0 else 'higher'}")
         if status.lid_change:
