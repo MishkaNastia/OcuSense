@@ -67,25 +67,32 @@ IRIS_DIAMETER_MM = 11.7  # average adult iris diameter
 # 1.0 ≈ a 53° horizontal field of view, typical for laptop webcams (a 60° camera would be 0.87).
 # Not measured per camera, so the cm values are approximate; tune this if they are off.
 FOCAL_LENGTH_PER_FRAME_WIDTH = 1.0
-# The posture baseline: the first 2 minutes after each eye calibration (or after "Recalibrate posture"),
-# working normally in the posture you want to keep. Long enough to show how you really sit.
-POSTURE_CALIBRATION_SECONDS = 120.0
-POSTURE_MIN_SAMPLES = 300  # frames with everything measured needed in those 2 min (~10 s at 30 frames/s)
-POSTURE_MAX_PITCH_SPREAD = 5.0  # degrees (robust spread); more = the posture kept changing, not one baseline
-POSTURE_SUSTAIN_SECONDS = 15.0  # a limit must be exceeded this long, without a break, to count
-POSTURE_PITCH_DROP_DEGREES = 15.0  # head dropped: chin this much lower than at calibration
+# The posture baseline: the first minute of every study session (or after "Recalibrate posture"),
+# working normally in the posture you want to keep. Fresh each session, because the laptop, chair
+# or screen may have moved since the last one; long enough to show how you really sit.
+POSTURE_CALIBRATION_SECONDS = 60.0
+POSTURE_MIN_SAMPLES = 300  # frames with a head angle needed in that minute (~10 s at 30 frames/s)
+POSTURE_MAX_PITCH_SPREAD = 8.0  # degrees (robust spread); more = the posture kept changing, not one baseline
+POSTURE_SUSTAIN_SECONDS = 15.0  # a limit must be exceeded this long, without a real break, to count…
+POSTURE_GRACE_SECONDS = 3.0  # …where back inside the limit (or no face) for up to this long isn't a break:
+#                              the camera's frame-to-frame wobble near a limit mustn't restart the count
+POSTURE_PITCH_DROP_DEGREES = 12.0  # head dropped: chin this much lower than at calibration
 POSTURE_ROLL_DEGREES = 10.0  # head tilted sideways this much from calibration, either way
 POSTURE_MIN_DISTANCE_CM = 50.0  # closer than this to the screen…
 POSTURE_CLOSER_FRACTION = 0.20  # …or this much closer than at calibration (0.20 = 20 %)
-POSTURE_CENTRE_DROP = 0.08  # slumped: face centre this much lower in the picture (fraction of the frame height)…
-POSTURE_SLUMP_GROWTH = 0.10  # …AND the face this much bigger (sliding down almost always brings the head forward;
-#                              lower but not bigger is more likely the camera than the person)
+POSTURE_CENTRE_DROP = 0.05  # slumped: face centre this much lower in the picture (fraction of the frame height)…
+POSTURE_SLUMP_GROWTH = 0.05  # …AND the face this much bigger (sliding down almost always brings the head forward;
+#                              lower but not bigger could be a tilted screen). With the lid angle sensor the tilt is
+#                              corrected, so lower alone is enough.
+
+POSTURE_REMINDER_GAP_SECONDS = 60.0  # "stop slouching": a new poor stretch gets a message at least 1 min after the last…
+POSTURE_REMINDER_REPEAT_SECONDS = 120.0  # …and while posture stays poor, it is repeated every 2 min
 
 # --- Screen tilt (ocusense/lid_sensor.py; built-in camera of MacBooks with a lid angle sensor) ---
 # The camera sits in the lid: tilting the screen moves the face up or down in the picture and changes
 # the measured head angle. Small tilts are corrected from the lid angle; a clear one recalibrates.
 LID_RECALIBRATE_DEGREES = 5.0  # the screen moved at least this much since the posture baseline…
-LID_SETTLE_SECONDS = 2.0  # …and then stayed within ±1° this long: "you tilted your screen, recalibrating now"
+LID_SETTLE_SECONDS = 2.0  # …and then stayed within ±1° this long: ask to recalibrate posture
 LID_READ_INTERVAL = 0.5  # seconds between lid angle readings
 
 # --- Raw EAR recording (ocusense/recording.py) ---

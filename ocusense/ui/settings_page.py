@@ -84,8 +84,8 @@ class SettingsPage(Page):
         self.posture.setAccessibleName("Posture monitoring")
         self.body.addWidget(setting_row(
             "Posture monitoring",
-            "Watches your head angle, distance from the screen and slumping, compared with the first 2 minutes "
-            "after each eye calibration (Statistics › Current session). Shown live only; nothing about your posture is saved. Remembered between launches.", self.posture))
+            "Watches your head angle, distance from the screen and slumping, compared with the first minute "
+            "of each study session (Statistics › Current session). Shown live only; nothing about your posture is saved. Remembered between launches.", self.posture))
         self.body.addWidget(setting_row("Calibration sound",
                                         "A short system sound tells you when to open your eyes after the “gently "
                                         "closed” step. It is always on, because your eyes are closed then."))

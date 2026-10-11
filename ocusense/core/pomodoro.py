@@ -95,6 +95,12 @@ class PomodoroTimer:
             running = max(0.0, min(now - self._run_start, self.duration() - self._elapsed))
         return self.focus_seconds + running
 
+    def break_remaining(self, now: float) -> float | None:
+        """Seconds left of the break happening now (running or paused); None when there is no break on."""
+        if self.phase == FOCUS or self.state == IDLE:
+            return None  # focusing, or a break that hasn't been started
+        return self.remaining(now)
+
     @property
     def round_in_cycle(self) -> int:
         """Which focus round of the cycle this is (1-based) — the current one during focus, the last one in a break."""

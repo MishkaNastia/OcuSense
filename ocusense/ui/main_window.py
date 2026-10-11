@@ -38,7 +38,7 @@ from ocusense.calibration_store import CalibrationStore
 from ocusense.preferences import Preferences
 from ocusense.config import CLOSE_BELOW, MIN_SESSION_SECONDS, MODEL_PATH, REOPEN_ABOVE
 from ocusense.core.baseline_drift import BreakReminder, LiveDrift
-from ocusense.core.posture import PostureCalibration
+from ocusense.core.posture import PostureCalibration, PostureReminder
 from ocusense.core.calibration import GuidedCalibration
 from ocusense.core.eye_rest import EyeRestTimer
 from ocusense.core.lighting import LightingMonitor
@@ -49,7 +49,8 @@ from ocusense.monitoring.camera_worker import CameraWorker, MonitorUpdate, open_
 from ocusense import notifications
 from ocusense import reference as reference_file
 from ocusense.monitoring.pipeline import (
-    CALIBRATION_DONE, CALIBRATION_FAILED, CLOSED_STEP_FINISHED, SCREEN_TILTED, EyeMonitor,
+    CALIBRATION_DONE, CALIBRATION_FAILED, CLOSED_STEP_FINISHED, POSTURE_CALIBRATION_DONE, POSTURE_CALIBRATION_FAILED,
+    SCREEN_TILTED, EyeMonitor,
 )
 from ocusense.recording import EarRecording
 from ocusense.storage import SessionStore
@@ -73,9 +74,19 @@ from .session_summary import SessionExtras, SessionSummaryCard
 from .study_page import StudyPage
 from .time_log_page import TimeLogPage
 from .widgets.alert_banner import AlertBanner, TooCloseMark
+from .widgets.posture_marks import PostureMark, TiltMark
 from .widgets.common import vline
 
-TILT_MESSAGE = "Screen tilted! Relearning how you sit, give me 2 minutes"
+POSTURE_CALIBRATING_TITLE = "Calibrating posture: please sit up straight"
+POSTURE_CALIBRATING_BODY = ("For the next minute OcuSense records how you sit: sit up straight, at a good distance "
+                            "from the screen, and keep working. After that it tells you when you start slouching.")
+POSTURE_RECORDED = "Posture recorded. I'll tell you when you slouch"
+POSTURE_BODY = "Your posture has been off for a while: sit up straight, shoulders back, screen at eye level."
+TILT_MESSAGE = "You changed your screen angle. Recalibrate your posture now"
+TILT_TITLE = "Screen angle changed"
+TILT_BODY = ("Recalibrate your posture now: press Recalibrate now, then sit the way you want to and keep working "
+             "for a minute. Until then posture isn't checked.")
+POSTURE_MESSAGE = "Stop slouching, hunchbacks are not particularly sexy you know"
 BREAK_MESSAGE = "Hey, you should take a break, else your eyes will become drier than the Sahara desert."
 POMODORO_MESSAGES = {  # next phase → (title, message)
     "short_break": ("Focus round done, nice work!", "Short break time. Look out of a window: your eyes have been "
@@ -145,6 +156,7 @@ class MainWindow(QMainWindow):
         self.session_extras = SessionExtras()  # reminders and focus rounds in the running session
         self.summary_card: SessionSummaryCard | None = None
         self.monitor.posture_enabled = self.preferences.posture_monitoring  # Settings › Monitoring (camera not running yet)
+        self.posture_reminder = PostureReminder()  # "stop slouching…": once per poor stretch, at most every 10 min
         self._ticks = 0
 
         root = QWidget()
@@ -206,6 +218,36 @@ class MainWindow(QMainWindow):
         self.banner_holder = holder
         holder.setVisible(False)
         column.addWidget(holder)
+        self.posture_cal_banner = AlertBanner(POSTURE_CALIBRATING_TITLE, POSTURE_CALIBRATING_BODY, ("Got it",),
+                                              PostureMark())
+        self.posture_cal_banner.action.connect(self._posture_cal_banner_action)
+        posture_holder = QWidget()
+        posture_row = QVBoxLayout(posture_holder)
+        posture_row.setContentsMargins(40, 16, 40, 0)
+        posture_row.addWidget(self.posture_cal_banner)
+        self.posture_cal_holder = posture_holder
+        posture_holder.setVisible(False)
+        column.addWidget(posture_holder)
+        self._posture_calibrating = False  # the 1-minute posture baseline was being recorded on the last frame
+        self._posture_card_dismissed = False  # "Got it" pressed during this recording
+        self.posture_banner = AlertBanner(POSTURE_MESSAGE, POSTURE_BODY, ("Got it",), PostureMark())
+        self.posture_banner.action.connect(lambda _name: self.posture_holder.setVisible(False))
+        slouch_holder = QWidget()
+        slouch_row = QVBoxLayout(slouch_holder)
+        slouch_row.setContentsMargins(40, 16, 40, 0)
+        slouch_row.addWidget(self.posture_banner)
+        self.posture_holder = slouch_holder
+        slouch_holder.setVisible(False)
+        column.addWidget(slouch_holder)
+        self.tilt_banner = AlertBanner(TILT_TITLE, TILT_BODY, ("Recalibrate now", "Not now"), TiltMark())
+        self.tilt_banner.action.connect(self._tilt_banner_action)
+        tilt_holder = QWidget()  # its own holder: independent of the distance reminder's card
+        tilt_row = QVBoxLayout(tilt_holder)
+        tilt_row.setContentsMargins(40, 16, 40, 0)
+        tilt_row.addWidget(self.tilt_banner)
+        self.tilt_holder = tilt_holder
+        tilt_holder.setVisible(False)
+        column.addWidget(tilt_holder)
         self.eye_rest_card = EyeRestCard()  # the 20-20-20 reminder, below the distance reminder
         self.eye_rest_card.finished.connect(lambda _how: self.eye_rest.rested())
         column.addWidget(self.eye_rest_card)
@@ -405,7 +447,8 @@ class MainWindow(QMainWindow):
     def _enter_monitoring(self) -> None:
         now = time.monotonic()
         self.running_since = now
-        if self.recorder is None:
+        new_session = self.recorder is None
+        if new_session:
             self.recorder = SessionRecorder(now, calibration=self.monitor.calibration_info)
             self.session_extras = SessionExtras()
             self.study.clear_measurements()
@@ -413,9 +456,12 @@ class MainWindow(QMainWindow):
             self.recorder.resume(now)
         self._set_state("monitoring")
         m = self.monitor
-        if (m.posture_enabled and m.calibration is not None and m.posture_monitor is None
-                and m.posture_calibrator.status != PostureCalibration.RUNNING and self.thread is not None):
-            self.thread.request_posture_calibration()  # ticked while the camera was off, or after a pause
+        if not (m.posture_enabled and m.calibration is not None and self.thread is not None):
+            return
+        if new_session or (m.posture_monitor is None and m.posture_calibrator.status != PostureCalibration.RUNNING):
+            # Every study session starts with a fresh 1-minute posture baseline; after a pause, only if it
+            # had none yet (the pause interrupted it).
+            self.thread.request_posture_calibration()
 
     def _finish_session(self) -> bool:
         """End the recorded session; keep it for Statistics if it was long enough."""
@@ -466,9 +512,22 @@ class MainWindow(QMainWindow):
             return
         if self.recorder:
             self.recorder.add_observation(update.observation)
+        self._show_posture_calibration(update)
+        if update.posture_enabled and self.posture_reminder.update(update.now, update.posture_status):
+            self.posture_holder.setVisible(True)  # in the window: macOS hides notifications of the app in front
+            self.study.message_label.setText(f"{POSTURE_MESSAGE} ({datetime.now():%H:%M}).")
+            app = QApplication.instance()
+            if app.applicationState() != Qt.ApplicationState.ApplicationActive or not self.isActiveWindow():
+                self.notify(POSTURE_MESSAGE, "Posture")  # OcuSense is in the background
+        elif (not self.posture_holder.isHidden() and update.posture_status is not None
+              and update.posture_status.tracked and not update.posture_status.poor):
+            self.posture_holder.setVisible(False)  # sitting up again: the card goes away by itself
         if SCREEN_TILTED in update.events:
-            self.notify(TILT_MESSAGE, "OcuSense")  # the posture baseline is recorded again (2 min)
+            self.notify(TILT_MESSAGE, "OcuSense")  # posture waits for "Recalibrate now"
             self.study.message_label.setText(f"{TILT_MESSAGE} ({datetime.now():%H:%M}).")
+            self.tilt_holder.setVisible(True)
+        elif not update.posture_needs_recalibration and not self.tilt_holder.isHidden():
+            self.tilt_holder.setVisible(False)  # recalibrated (or posture turned off) some other way
         self._check_distance(update.now, update.closeness)
         self._check_lighting(update.now, update.brightness)
         self.study.set_live_openness(update.observation)
@@ -500,7 +559,7 @@ class MainWindow(QMainWindow):
             self.monitor.set_posture_enabled(False, time.monotonic())
 
     def calibrate_posture(self) -> None:
-        """A new 2-minute posture baseline, recorded on the camera thread while monitoring; the eye calibration is kept."""
+        """A new 1-minute posture baseline, recorded on the camera thread while monitoring; the eye calibration is kept."""
         if not self.settings_page.posture.isChecked():
             self.current_page.posture_detail.setText(self.current_page.posture_off_text)
             return
@@ -793,6 +852,10 @@ class MainWindow(QMainWindow):
     def _clear_distance_reminder(self) -> None:
         self.proximity.reset()
         self.banner_holder.setVisible(False)
+        self.tilt_holder.setVisible(False)  # "Recalibrate now" only works while monitoring (Current session says why)
+        self.posture_cal_holder.setVisible(False)
+        self.posture_holder.setVisible(False)
+        self._posture_calibrating = False
         self.lighting.reset()  # pause/stop/recalibrate: the dark stretch starts over
         self._lighting_waiting = False
 
@@ -823,6 +886,36 @@ class MainWindow(QMainWindow):
         if not on:
             self._lighting_waiting = False
             self.lighting_card.setVisible(False)
+
+    def _show_posture_calibration(self, update) -> None:
+        """The card while the 1-minute posture baseline is recorded (session start, Recalibrate, after a tilt)."""
+        running = update.posture_enabled and update.posture_cal_status == PostureCalibration.RUNNING
+        if running and not self._posture_calibrating:  # it has just started
+            self._posture_card_dismissed = False
+            app = QApplication.instance()
+            if app.applicationState() != Qt.ApplicationState.ApplicationActive or not self.isActiveWindow():
+                self.notify("Please sit up straight for a minute.", "Calibrating posture")
+        if POSTURE_CALIBRATION_FAILED in update.events:
+            self.study.message_label.setText(f"Couldn't record your posture: {update.posture_cal_error}"
+                                             + (" Trying again." if running else ""))
+        if running:
+            left = int(round(update.posture_cal_seconds_left))
+            self.posture_cal_banner.body.setText(f"{POSTURE_CALIBRATING_BODY} {left // 60}:{left % 60:02d} left.")
+            self.posture_cal_holder.setVisible(not self._posture_card_dismissed)
+        elif self._posture_calibrating:
+            self.posture_cal_holder.setVisible(False)
+            if POSTURE_CALIBRATION_DONE in update.events:
+                self.study.message_label.setText(f"{POSTURE_RECORDED} ({datetime.now():%H:%M}).")
+        self._posture_calibrating = running
+
+    def _posture_cal_banner_action(self, name: str) -> None:
+        self._posture_card_dismissed = True  # the recording carries on; the card stays away until the next one
+        self.posture_cal_holder.setVisible(False)
+
+    def _tilt_banner_action(self, name: str) -> None:
+        self.tilt_holder.setVisible(False)
+        if name == "Recalibrate now":
+            self.calibrate_posture()  # a new 1-minute posture baseline
 
     def _banner_action(self, name: str) -> None:
         self.banner_holder.setVisible(False)
