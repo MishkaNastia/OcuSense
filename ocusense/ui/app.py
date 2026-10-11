@@ -14,7 +14,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from ocusense.config import MODEL_PATH
-from ocusense.system import IS_MAC, keep_running_in_background
+from ocusense.system import IS_MAC, keep_running_in_background, set_windows_app_id
 
 from . import theme, window_chrome
 from .main_window import MainWindow
@@ -74,6 +74,7 @@ def _notification_test() -> int:
 def run() -> int:
     if "--notification-test" in sys.argv:
         return _notification_test()
+    set_windows_app_id()  # before any window or notification exists
     app = QApplication(sys.argv)
     app.setApplicationName("OcuSense")
     app.setStyle("Fusion")  # predictable styling; our own colours come from the style sheet

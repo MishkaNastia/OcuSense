@@ -308,3 +308,62 @@ class ServiceAndPageTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FakeAdvapi:
+    """Stands in for Windows' advapi32 Credential Manager calls (so this runs on any system)."""
+
+    def __init__(self):
+        self.store = {}
+        self.freed = 0
+
+    def CredWriteW(self, credential_ref, flags):
+        import ctypes
+        c = credential_ref._obj
+        self.store[c.TargetName] = (ctypes.string_at(c.CredentialBlob, c.CredentialBlobSize), c.Type, c.Persist)
+        return 1
+
+    def CredReadW(self, target, kind, flags, pointer_ref):
+        import ctypes
+        if target not in self.store:
+            return 0
+        blob = self.store[target][0]
+        self._keep = (ctypes.c_ubyte * len(blob)).from_buffer_copy(blob)
+        pointer = pointer_ref._obj
+        credential = pointer._type_()
+        credential.CredentialBlobSize = len(blob)
+        credential.CredentialBlob = ctypes.cast(self._keep, ctypes.POINTER(ctypes.c_ubyte))
+        self._credential = credential
+        pointer.contents = credential
+        return 1
+
+    def CredFree(self, pointer):
+        self.freed += 1
+
+    def CredDeleteW(self, target, kind, flags):
+        self.store.pop(target, None)
+        return 1
+
+
+class WindowsCredentialTest(unittest.TestCase):
+    def test_round_trip_through_the_credential_manager(self):
+        from ocusense.accounts import WindowsCredentialTokens
+        api = FakeAdvapi()
+        tokens = WindowsCredentialTokens(api)
+        self.assertIsNone(tokens.load())
+        self.assertTrue(tokens.save("refresh-ünïcode-123"))
+        blob, kind, persist = api.store[tokens.TARGET]
+        self.assertEqual((kind, persist), (1, 2))  # generic credential, kept on this computer
+        self.assertEqual(tokens.load(), "refresh-ünïcode-123")
+        self.assertEqual(api.freed, 1)  # Windows' copy is always released
+        tokens.clear()
+        self.assertIsNone(tokens.load())
+
+    def test_windows_uses_it(self):
+        from ocusense import accounts
+        folder = Path(tempfile.mkdtemp())
+        clean = {k: v for k, v in os.environ.items() if k != "OCUSENSE_ACCOUNT_FILE"}
+        with mock.patch.dict(os.environ, clean | {"OCUSENSE_DATA_DIR": str(folder)}, clear=True), \
+                mock.patch.object(accounts, "IS_MAC", False), mock.patch.object(accounts, "IS_WINDOWS", True), \
+                mock.patch.object(accounts, "WindowsCredentialTokens", lambda: "windows store"):
+            self.assertEqual(accounts.AccountStore().tokens, "windows store")

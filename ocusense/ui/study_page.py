@@ -13,7 +13,7 @@ from ocusense.config import MIN_VALID_SECONDS_FOR_RATE
 from ocusense.core.measurements import combined_openness_percent, openness_percent
 from ocusense.core.models import CalibrationInfo, FrameObservation, RollingSnapshot
 from ocusense.core.stats import format_duration, format_metric
-from ocusense.system import COMPUTER
+from ocusense.system import COMPUTER, STOP_SHORTCUT
 
 from . import theme
 from .widgets.artwork import Composition
@@ -65,7 +65,7 @@ class StudyPage(QScrollArea):
         self.resume_button = button("Resume", "primary")
         self.stop_button = button("Stop", "quiet")
         self.recalibrate_button = button("Recalibrate", "quiet")
-        self.stop_button.setToolTip("Stop and end this session (⌘.)")
+        self.stop_button.setToolTip(f"Stop and end this session ({STOP_SHORTCUT})")
         self.pause_button.setToolTip("Pause: the camera turns off until you resume")
         self.buttons = {"start": self.start_button, "pause": self.pause_button, "resume": self.resume_button,
                         "stop": self.stop_button, "recalibrate": self.recalibrate_button}

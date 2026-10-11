@@ -32,6 +32,8 @@ NOTIFICATION_NAME = ("Mac notification" if IS_MAC else "Windows notification" if
                      else "desktop notification")
 TRAY_NAME = "menu bar" if IS_MAC else "system tray"
 THIS_APP = "the Mac app" if IS_MAC else "the Windows app" if IS_WINDOWS else "the desktop app"
+STOP_SHORTCUT = "⌘." if IS_MAC else "Ctrl+."  # the Stop shortcut, as each system writes it
+APP_ID = "OcuSense.OcuSense"  # Windows: the app's identity for the taskbar and notifications
 THIS_APP_START = THIS_APP[0].upper() + THIS_APP[1:]  # at the start of a sentence
 NOTIFICATION_START = NOTIFICATION_NAME[0].upper() + NOTIFICATION_NAME[1:]
 
@@ -143,6 +145,17 @@ def keep_running_in_background() -> bool:
     except Exception:
         return False
     return _activity is not None
+
+
+def set_windows_app_id() -> bool:
+    """Windows: give OcuSense its own identity, so its taskbar button and notifications say OcuSense."""
+    if not IS_WINDOWS:
+        return False
+    try:
+        import ctypes
+        return ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID) == 0  # S_OK
+    except Exception:
+        return False
 
 
 def reduce_motion() -> bool:

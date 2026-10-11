@@ -34,8 +34,10 @@ SCREEN_TILTED = "screen_tilted"  # the screen was clearly tilted: posture waits 
 
 
 def create_landmarker(model_path: Path = MODEL_PATH):
+    # The model's bytes, not its path: on Windows MediaPipe can't open a path with non-English
+    # letters in it (e.g. a user folder like C:\Users\İrem), and reading it ourselves avoids that.
     options = vision.FaceLandmarkerOptions(
-        base_options=BaseOptions(model_asset_path=str(model_path)),
+        base_options=BaseOptions(model_asset_buffer=Path(model_path).read_bytes()),
         running_mode=vision.RunningMode.VIDEO,
         num_faces=1,
         output_facial_transformation_matrixes=True,  # head angle for posture (doesn't change the landmarks)

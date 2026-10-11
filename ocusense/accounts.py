@@ -11,8 +11,8 @@ Where things are kept:
                               ocusense/supabase.json (bundled into the app)
     who is signed in          <data folder>/account.json
                               (user id, email and username — nothing secret)
-    the sign-in token         the macOS Keychain ("OcuSense" / refresh-token); on Windows
-                              only in memory for now (signed out when OcuSense quits)
+    the sign-in token         the macOS Keychain ("OcuSense" / refresh-token), or the Windows
+                              Credential Manager ("app.ocusense.OcuSense/refresh-token")
 
 Only the public project URL and the publishable (anon) key are used, as on the
 website. Passwords are sent to Supabase over HTTPS and never stored on this Mac.
@@ -35,7 +35,7 @@ import urllib.request
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from ocusense.system import IS_MAC, user_data_dir
+from ocusense.system import IS_MAC, IS_WINDOWS, user_data_dir
 KEYCHAIN_SERVICE = "app.ocusense.OcuSense"
 KEYCHAIN_ACCOUNT = "refresh-token"
 TIMEOUT = 15  # seconds per request
@@ -325,8 +325,77 @@ class FileTokens:
         self.path.unlink(missing_ok=True)
 
 
+class WindowsCredentialTokens:
+    """The refresh token in the Windows Credential Manager (generic credential "OcuSense").
+
+    The Windows counterpart of the macOS Keychain: Windows keeps it encrypted for this
+    user account. `api` is advapi32 (replaceable in tests).
+    """
+
+    TARGET = "app.ocusense.OcuSense/refresh-token"
+    CRED_TYPE_GENERIC, CRED_PERSIST_LOCAL_MACHINE = 1, 2
+
+    def __init__(self, api=None):
+        import ctypes
+        from ctypes import wintypes
+
+        class FILETIME(ctypes.Structure):
+            _fields_ = [("dwLowDateTime", wintypes.DWORD), ("dwHighDateTime", wintypes.DWORD)]
+
+        class CREDENTIAL(ctypes.Structure):
+            _fields_ = [("Flags", wintypes.DWORD), ("Type", wintypes.DWORD), ("TargetName", wintypes.LPWSTR),
+                        ("Comment", wintypes.LPWSTR), ("LastWritten", FILETIME),
+                        ("CredentialBlobSize", wintypes.DWORD), ("CredentialBlob", ctypes.POINTER(ctypes.c_ubyte)),
+                        ("Persist", wintypes.DWORD), ("AttributeCount", wintypes.DWORD),
+                        ("Attributes", ctypes.c_void_p), ("TargetAlias", wintypes.LPWSTR),
+                        ("UserName", wintypes.LPWSTR)]
+
+        self.ctypes, self.CREDENTIAL = ctypes, CREDENTIAL
+        self.api = api if api is not None else ctypes.windll.advapi32
+
+    def save(self, token: str) -> bool:
+        ctypes = self.ctypes
+        blob = token.encode("utf-8")
+        buffer = (ctypes.c_ubyte * len(blob)).from_buffer_copy(blob)
+        credential = self.CREDENTIAL()
+        credential.Type = self.CRED_TYPE_GENERIC
+        credential.TargetName = self.TARGET
+        credential.UserName = "OcuSense"
+        credential.CredentialBlobSize = len(blob)
+        credential.CredentialBlob = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_ubyte))
+        credential.Persist = self.CRED_PERSIST_LOCAL_MACHINE
+        try:
+            return bool(self.api.CredWriteW(ctypes.byref(credential), 0))
+        except Exception:
+            return False
+
+    def load(self) -> str | None:
+        ctypes = self.ctypes
+        found = ctypes.POINTER(self.CREDENTIAL)()
+        try:
+            if not self.api.CredReadW(self.TARGET, self.CRED_TYPE_GENERIC, 0, ctypes.byref(found)):
+                return None
+            size = found.contents.CredentialBlobSize
+            token = ctypes.string_at(found.contents.CredentialBlob, size).decode("utf-8")
+        except Exception:
+            return None
+        finally:
+            if found:
+                try:
+                    self.api.CredFree(found)
+                except Exception:
+                    pass
+        return token or None
+
+    def clear(self) -> None:
+        try:
+            self.api.CredDeleteW(self.TARGET, self.CRED_TYPE_GENERIC, 0)
+        except Exception:
+            pass
+
+
 class MemoryTokens:
-    """Keeps the sign-in token only while OcuSense runs (Windows, until Credential Manager support exists)."""
+    """Keeps the sign-in token only while OcuSense runs (systems without a secure store)."""
 
     def __init__(self):
         self.token: str | None = None
@@ -353,7 +422,12 @@ class AccountStore:
                 tokens = FileTokens(self.path.with_suffix(".token"))
             elif IS_MAC:
                 tokens = KeychainTokens()
-            else:  # no secure store wired up yet on Windows: stay signed in only until OcuSense quits
+            elif IS_WINDOWS:
+                try:
+                    tokens = WindowsCredentialTokens()
+                except Exception:  # no Credential Manager: stay signed in until OcuSense quits
+                    tokens = MemoryTokens()
+            else:
                 tokens = MemoryTokens()
         self.tokens = tokens
 

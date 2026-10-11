@@ -19,9 +19,12 @@ packaging in `packaging/`.
 | Status icon | menu bar, monochrome template icon | system tray, full-colour icon; a click opens the window |
 | Notifications | Notification Centre (UserNotifications) | shown by the tray icon (Qt `showMessage`, appears as a Windows notification) |
 | Reduce motion | Accessibility › Reduce motion | Accessibility › Visual effects › Animation effects off |
-| Sign-in token | macOS Keychain | kept only while OcuSense runs (sign in again after quitting); Credential Manager support is a to-do |
+| Sign-in token | macOS Keychain | Windows Credential Manager ("app.ocusense.OcuSense/refresh-token") |
 | Fonts | system font (SF Pro) | system font (Segoe UI); numbers in the fixed system font |
-| Window icon | from OcuSense.app | set by the app; the .exe has `OcuSense.ico` |
+| Window icon | from OcuSense.app | set by the app; the .exe has `OcuSense.ico`; the app sets its own taskbar identity (AppUserModelID) so notifications say OcuSense |
+| Screen tilt (posture) | MacBook lid sensor, when present | not available: posture uses the camera only |
+| Title bar | blended into the window | the normal Windows title bar |
+| Face model | loaded from its bytes on both systems, so folder names with non-English letters work |  |
 
 Monitoring keeps running while other apps are in front: the camera runs in its own
 thread, independent of window focus. Stop and Quit release the camera on both systems
