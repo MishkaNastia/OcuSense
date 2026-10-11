@@ -7,13 +7,16 @@ Keys work too: Space / Up = jump (double-tap = extra jump), Down = duck, P = pau
 """
 
 import time
+import uuid
 
 from PySide6.QtCore import QElapsedTimer, Qt, QTimer, Signal
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QWidget
 
+from ocusense.art.rewards import eye_game_coins
 from ocusense.core.runner import DoubleBlink, RunnerGame, Sizes
 
 from . import theme
+from .art_collection import award_text
 from .widgets.common import label
 from .widgets.page import paragraph
 from .widgets.runner_canvas import RunnerCanvas
@@ -37,6 +40,7 @@ class EyeRunnerGame(QWidget):
         self.blinks = DoubleBlink()  # eye closures → jump / extra jump
         self.keys = DoubleBlink(cooldown_s=0.0)  # Space taps → jump / extra jump
         self.down = False
+        self.run_id: str | None = None
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         layout = QVBoxLayout(self)
@@ -116,6 +120,7 @@ class EyeRunnerGame(QWidget):
         event = pairing.press(t)
         if event:
             self.game.jump(double=event == "double_blink")
+            self._start_run_if_new()
 
     def keyPressEvent(self, event) -> None:
         key = event.key()
@@ -141,6 +146,23 @@ class EyeRunnerGame(QWidget):
         super().focusOutEvent(event)
         self.down = False
 
+    def _start_run_if_new(self) -> None:
+        if self.game.state == "play" and self.run_id is None:
+            self.run_id = uuid.uuid4().hex  # one reward per finished run, never twice
+
+    def run_finished(self) -> None:
+        if self.game.new_record:
+            prefs = self.window.preferences
+            prefs.runner_high_score = self.game.highscore
+            prefs.save()
+        score = int(self.game.score)
+        coins = eye_game_coins(score)
+        if coins and self.run_id:
+            award = self.window.art.award_game(f"game:eye_game:{self.run_id}", "eye_game", coins,
+                                               f"EyeGame run: {score} points")
+            self.status.setText(award_text(award))
+        self.run_id = None
+
     def toggle_pause(self) -> None:
         if self.game.state != "play":
             return
@@ -156,10 +178,8 @@ class EyeRunnerGame(QWidget):
         dt = max(0.0, min(self.clock.restart() / 1000, 1 / 20))  # clamp, so a hiccup can't teleport things
         was_over = self.game.state == "over"
         self.game.update(dt, self.down)
-        if self.game.state == "over" and not was_over and self.game.new_record:
-            prefs = self.window.preferences
-            prefs.runner_high_score = self.game.highscore
-            prefs.save()
+        if self.game.state == "over" and not was_over:
+            self.run_finished()
         self.pause_button.setEnabled(self.game.state == "play")
         if self.game.state != "play" and self.game.paused:
             self.game.paused = False

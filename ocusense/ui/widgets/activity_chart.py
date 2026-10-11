@@ -18,7 +18,7 @@ VALUE_WIDTH = 132
 
 
 def day_name(day: date, today: date) -> str:
-    return "Today" if day == today else day.strftime("%a %-d %b")
+    return "Today" if day == today else f"{day:%a} {day.day} {day:%b}"  # %-d doesn't exist on Windows
 
 
 class ActivityChart(QWidget):

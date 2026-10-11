@@ -13,6 +13,7 @@ from ocusense.config import MIN_VALID_SECONDS_FOR_RATE
 from ocusense.core.measurements import combined_openness_percent, openness_percent
 from ocusense.core.models import CalibrationInfo, FrameObservation, RollingSnapshot
 from ocusense.core.stats import format_duration, format_metric
+from ocusense.system import COMPUTER
 
 from . import theme
 from .widgets.artwork import Composition
@@ -178,7 +179,7 @@ class StudyPage(QScrollArea):
         footer.addWidget(self.preview)
         privacy = QVBoxLayout()
         privacy.addWidget(label("Camera preview", font=theme.ui_font(14, QFont.Weight.Bold)))
-        privacy.addWidget(label("Processed on this Mac. Images are never saved or uploaded.", "secondary", theme.ui_font(13)))
+        privacy.addWidget(label(f"Processed on this {COMPUTER}. Images are never saved or uploaded.", "secondary", theme.ui_font(13)))
         footer.addLayout(privacy)
         footer.addStretch(1)
         layout.addLayout(footer)

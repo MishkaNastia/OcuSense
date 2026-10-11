@@ -9,7 +9,11 @@ notifications off for OcuSense, nothing is shown — their choice is respected.
 Elsewhere (e.g. `python -m ocusense`, where Apple's API needs a real app bundle) or if
 the framework is unavailable, it falls back to the system's `osascript` ("display
 notification", shown under Script Editor). The text is passed as arguments, never pasted
-into the script. With OCUSENSE_NO_NOTIFICATIONS set (tests), or off macOS, nothing is shown.
+into the script. With OCUSENSE_NO_NOTIFICATIONS set (tests), nothing is shown.
+
+On Windows (and other systems) notifications are shown by the OcuSense icon in the
+system tray (Qt's QSystemTrayIcon.showMessage, a Windows notification), which the tray
+registers with set_fallback(). Without a tray, nothing is shown.
 """
 
 import os
@@ -22,12 +26,26 @@ SCRIPT = ("on run argv", "display notification (item 1 of argv) with title (item
 NOT_DETERMINED, DENIED, AUTHORIZED, PROVISIONAL, EPHEMERAL = 0, 1, 2, 3, 4
 
 _native = None  # (UserNotifications module, notification centre) once loaded, or False if unavailable
+_fallback = None  # off macOS: callable(message, title) -> bool, set by the system tray icon
+
+
+def set_fallback(show) -> None:
+    """Off macOS: how to show a notification (the system tray icon registers this)."""
+    global _fallback
+    _fallback = show
 
 
 def post(message: str, title: str = "OcuSense") -> bool:
     """Show a notification without waiting for it. Returns False if it couldn't be shown."""
-    if sys.platform != "darwin" or os.environ.get("OCUSENSE_NO_NOTIFICATIONS"):
+    if os.environ.get("OCUSENSE_NO_NOTIFICATIONS"):
         return False
+    if sys.platform != "darwin":
+        if _fallback is None:
+            return False
+        try:
+            return bool(_fallback(message, title))
+        except Exception:
+            return False
     if getattr(sys, "frozen", False) and _post_native(message, title):  # frozen: inside OcuSense.app
         return True
     return _post_osascript(message, title)

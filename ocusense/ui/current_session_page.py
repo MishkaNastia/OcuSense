@@ -15,6 +15,7 @@ from ocusense.core.baseline_drift import NOT_ENOUGH_DATA, TESTED, LiveDrift
 from ocusense.core.models import SessionSummary
 from ocusense.reference import MIN_REFERENCE_INTERVALS
 from ocusense.core.stats import METRICS, format_duration, format_metric
+from ocusense.system import THIS_APP
 
 from . import theme
 from .distributions_panel import DistributionsPanel
@@ -126,7 +127,7 @@ class CurrentSessionPage(Page):
             body.addWidget(widget)
 
         self.section("Breaks and check-ins", body)
-        body.addWidget(paragraph("Breaks and check-ins aren’t recorded by the Mac app yet, so none are shown "
+        body.addWidget(paragraph(f"Breaks and check-ins aren’t recorded by {THIS_APP} yet, so none are shown "
                                  "for this session.", secondary=True))
         self.body.addWidget(self.content)
         self.finish()

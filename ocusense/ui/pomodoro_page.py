@@ -17,6 +17,7 @@ from ocusense.core.pomodoro import (
     FOCUS, IDLE, LIMITS, LONG_BREAK, PAUSED, PHASE_NAMES, PRESETS, RUNNING, SHORT_BREAK, PomodoroSettings, PomodoroTimer,
 )
 from ocusense.core.stats import format_duration
+from ocusense.system import NOTIFICATION_START
 
 from . import theme
 from .widgets.common import label
@@ -26,11 +27,11 @@ from .widgets.segmented import Segmented
 
 
 def system_reduce_motion() -> bool:
-    """macOS System Settings › Accessibility › Display › Reduce motion."""
+    """The system's reduce-motion setting (macOS Reduce motion, Windows Animation effects off)."""
     try:
-        from AppKit import NSWorkspace
-        return bool(NSWorkspace.sharedWorkspace().accessibilityDisplayShouldReduceMotion())
-    except Exception:  # not on macOS, or AppKit unavailable
+        from ocusense.system import reduce_motion
+        return reduce_motion()
+    except Exception:
         return False
 
 
@@ -129,7 +130,7 @@ class PomodoroPage(Page):
         for name, text in (("pomodoro_monitoring", "Run eye monitoring in focus rounds and pause it in breaks"),
                            ("auto_start_breaks", "Start breaks automatically"),
                            ("auto_start_focus", "Start the next focus round automatically"),
-                           ("pomodoro_notify", "Mac notification when a phase ends (when OcuSense isn’t in view)"),
+                           ("pomodoro_notify", f"{NOTIFICATION_START} when a phase ends (when OcuSense isn’t in view)"),
                            ("pomodoro_sound", "A short sound when a phase ends"),
                            ("animations", "Animations")):
             box = QCheckBox(text)

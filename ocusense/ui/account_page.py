@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QVBoxLayout, QWidget
 from ocusense.accounts import (
     Account, validate_confirm, validate_email, validate_password, validate_username,
 )
+from ocusense.system import COMPUTER
 
 from . import theme
 from .account_service import AccountService
@@ -64,7 +65,7 @@ class AccountPage(Page):
         box.addWidget(label("Accounts aren’t set up in this copy of OcuSense.",
                             font=theme.ui_font(22, QFont.Weight.Bold), wrap=True))
         box.addWidget(paragraph(
-            "You don’t need an account: calibration, monitoring, Statistics and the games all work on this Mac "
+            f"You don’t need an account: calibration, monitoring, Statistics and the games all work on this {COMPUTER} "
             "without one, and nothing is sent anywhere."))
         box.addWidget(paragraph(
             "For developers: connect the app to the website’s Supabase project as described in docs/accounts.md.",
@@ -77,7 +78,7 @@ class AccountPage(Page):
         box.setSpacing(10)
         box.addWidget(paragraph(
             "An account is optional. It gives you a username for the Blink Code leaderboards (coming soon), "
-            "and the same account works on the OcuSense website. Your eye data never leaves this Mac."))
+            f"and the same account works on the OcuSense website. Your eye data never leaves this {COMPUTER}."))
         box.addSpacing(4)
         self.mode_switch = Segmented(MODES, self.mode, "Log in or create an account")
         self.mode_switch.changed.connect(self.set_mode)
@@ -174,7 +175,7 @@ class AccountPage(Page):
         self.email_label.setText(f"Signed in as {account.email}")
         if not self.username_field.hasFocus():
             self.username_field.setText(account.username)
-        _show(self.offline_note, "Offline — you’re still signed in on this Mac; OcuSense will reconnect next time."
+        _show(self.offline_note, f"Offline — you’re still signed in on this {COMPUTER}; OcuSense will reconnect next time."
               if self.service.offline else "", "secondary")
         self.set_tag("Offline" if self.service.offline else "Signed in")
         if not account.username:

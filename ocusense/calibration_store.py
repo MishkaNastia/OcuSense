@@ -5,7 +5,7 @@ Support folder. It holds only numbers — the open and closed EAR of each eye, t
 reference face size (distance reminder), when it was made and the measurement
 version — never images.
 
-    ~/Library/Application Support/OcuSense/calibration.json
+    <OcuSense data folder>/calibration.json   (see ocusense/system.py)
 
 A file that can't be read, doesn't pass the calibration's own checks, or was made
 with a different measurement version is ignored (load() returns None), so the app
@@ -21,12 +21,13 @@ from pathlib import Path
 from ocusense.config import MEASUREMENT_VERSION
 from ocusense.core.calibration import EyeReference, PersonalCalibration
 from ocusense.core.models import CalibrationInfo
+from ocusense.system import user_data_dir
 
 
 def default_path() -> Path:
     """OCUSENSE_CALIBRATION_FILE overrides it (e.g. in tests)."""
     override = os.environ.get("OCUSENSE_CALIBRATION_FILE")
-    return Path(override) if override else Path.home() / "Library" / "Application Support" / "OcuSense" / "calibration.json"
+    return Path(override) if override else user_data_dir() / "calibration.json"
 
 
 @dataclass(frozen=True)

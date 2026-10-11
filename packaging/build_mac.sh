@@ -9,7 +9,10 @@ cd "$(dirname "$0")/.."
 .venv/bin/python -m PyInstaller --noconfirm --clean packaging/OcuSense.spec
 
 # Quick check without a camera: the model loads and a frame can be analysed.
-QT_QPA_PLATFORM=offscreen dist/OcuSense.app/Contents/MacOS/OcuSense --self-test
+# A throwaway data folder, so the check never creates or changes your real OcuSense files.
+SELF_TEST_DATA="$(mktemp -d)"
+OCUSENSE_DATA_DIR="$SELF_TEST_DATA" QT_QPA_PLATFORM=offscreen dist/OcuSense.app/Contents/MacOS/OcuSense --self-test
+rm -rf "$SELF_TEST_DATA"
 
 echo "Built: $(pwd)/dist/OcuSense.app"
 

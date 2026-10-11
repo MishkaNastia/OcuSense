@@ -6,11 +6,12 @@ leaderboards will hang on later (see supabase/schema.sql and docs/accounts.md).
 
 Where things are kept:
     the Supabase project      OCUSENSE_SUPABASE_URL + OCUSENSE_SUPABASE_KEY, or
-                              ~/Library/Application Support/OcuSense/supabase.json, or
+                              <data folder>/supabase.json (see ocusense/system.py), or
                               ocusense/supabase.json (bundled into the app)
-    who is signed in          ~/Library/Application Support/OcuSense/account.json
+    who is signed in          <data folder>/account.json
                               (user id, email and username — nothing secret)
-    the sign-in token         the macOS Keychain ("OcuSense" / refresh-token)
+    the sign-in token         the macOS Keychain ("OcuSense" / refresh-token); on Windows
+                              only in memory for now (signed out when OcuSense quits)
 
 Only the public project URL and the publishable (anon) key are used, as on the
 website. Passwords are sent to Supabase over HTTPS and never stored on this Mac.
@@ -33,7 +34,7 @@ import urllib.request
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-APP_SUPPORT = Path.home() / "Library" / "Application Support" / "OcuSense"
+from ocusense.system import IS_MAC, user_data_dir
 KEYCHAIN_SERVICE = "app.ocusense.OcuSense"
 KEYCHAIN_ACCOUNT = "refresh-token"
 TIMEOUT = 15  # seconds per request
@@ -73,7 +74,7 @@ def load_config() -> SupabaseConfig | None:
         return None
     url, key = os.environ.get("OCUSENSE_SUPABASE_URL", ""), os.environ.get("OCUSENSE_SUPABASE_KEY", "")
     if not (url and key):
-        for path in (APP_SUPPORT / "supabase.json", _bundled_config_path()):
+        for path in (user_data_dir() / "supabase.json", _bundled_config_path()):
             try:
                 values = json.loads(path.read_text())
             except (OSError, ValueError):
@@ -313,14 +314,36 @@ class FileTokens:
         self.path.unlink(missing_ok=True)
 
 
+class MemoryTokens:
+    """Keeps the sign-in token only while OcuSense runs (Windows, until Credential Manager support exists)."""
+
+    def __init__(self):
+        self.token: str | None = None
+
+    def save(self, token: str) -> bool:
+        self.token = token
+        return True
+
+    def load(self) -> str | None:
+        return self.token
+
+    def clear(self) -> None:
+        self.token = None
+
+
 class AccountStore:
     """Who is signed in on this Mac: account.json (no secrets) plus the token store."""
 
     def __init__(self, path: Path | None = None, tokens=None):
         override = os.environ.get("OCUSENSE_ACCOUNT_FILE")
-        self.path = path or (Path(override) if override else APP_SUPPORT / "account.json")
+        self.path = path or (Path(override) if override else user_data_dir() / "account.json")
         if tokens is None:
-            tokens = FileTokens(self.path.with_suffix(".token")) if override else KeychainTokens()
+            if override:
+                tokens = FileTokens(self.path.with_suffix(".token"))
+            elif IS_MAC:
+                tokens = KeychainTokens()
+            else:  # no secure store wired up yet on Windows: stay signed in only until OcuSense quits
+                tokens = MemoryTokens()
         self.tokens = tokens
 
     def load(self) -> Account | None:

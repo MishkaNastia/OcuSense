@@ -36,14 +36,18 @@ from pathlib import Path
 
 from ocusense.config import RECORDING_CHUNK_SECONDS
 from ocusense.core.models import CalibrationInfo
+from ocusense.system import user_data_dir
 
 HEADER = ("unix_time", "left_ear", "right_ear", "reliable", "left_openness", "right_openness")
 
 
 def default_directory() -> Path:
-    """The standard place for an app's own files on a Mac (OCUSENSE_RECORDINGS_DIR overrides it, e.g. in tests)."""
+    """The recordings folder in OcuSense's data folder (see ocusense/system.py).
+
+    OCUSENSE_RECORDINGS_DIR overrides it, e.g. in tests.
+    """
     override = os.environ.get("OCUSENSE_RECORDINGS_DIR")
-    return Path(override) if override else Path.home() / "Library" / "Application Support" / "OcuSense" / "recordings"
+    return Path(override) if override else user_data_dir() / "recordings"
 
 
 def _number(value: float | None) -> str:

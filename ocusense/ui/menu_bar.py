@@ -1,4 +1,4 @@
-"""The OcuSense eye in the macOS menu bar, with a small menu.
+"""The OcuSense eye in the macOS menu bar (or the Windows system tray), with a small menu.
 
     Monitoring · 00:12:31          (status, not clickable)
     Pomodoro · Focus 18:42         (only while a Pomodoro runs)
@@ -10,8 +10,10 @@
     Open OcuSense
     Quit OcuSense
 
-The icon is the logo drawn in one colour as a macOS "template" image, so it follows
-light and dark menu bars. The menu only calls the window's existing actions (start,
+On macOS the icon is the logo drawn in one colour as a "template" image, so it follows
+light and dark menu bars. On Windows it is the full-colour logo on paper (template
+images don't exist there), a click opens the window, and the tray also shows OcuSense's
+notifications (see notifications.set_fallback). The menu only calls the window's existing actions (start,
 pause, resume, stop, the Pomodoro button) — no separate logic. Without a menu bar
 (e.g. in tests) the menu is still built, just not shown.
 """
@@ -22,7 +24,9 @@ from PySide6.QtCore import QObject, Qt
 from PySide6.QtGui import QAction, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
+from ocusense import notifications
 from ocusense.core.pomodoro import PHASE_NAMES
+from ocusense.system import IS_MAC
 
 from .pomodoro_page import clock
 from .widgets.artwork import paint_logo
@@ -39,6 +43,26 @@ def template_icon() -> QIcon:
     icon = QIcon(pixmap)
     icon.setIsMask(True)  # macOS draws it in the menu bar's own colour
     return icon
+
+
+def tray_icon() -> QIcon:
+    """Windows / other systems: the colour logo on a small paper tile (visible on dark and light taskbars)."""
+    from PySide6.QtCore import QRectF
+    from PySide6.QtGui import QColor
+
+    from ocusense.ui import theme
+
+    pixmap = QPixmap(64, 64)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    p = QPainter(pixmap)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    p.setBrush(QColor(theme.PAPER))
+    p.setPen(QColor(theme.INK))
+    p.drawRoundedRect(QRectF(1, 1, 62, 62), 14, 14)
+    p.translate(6, 6)
+    paint_logo(p, 52)
+    p.end()
+    return QIcon(pixmap)
 
 
 def _clock(seconds: float) -> str:
@@ -63,9 +87,12 @@ class MenuBarIcon(QObject):
         self.menu.aboutToShow.connect(self.refresh)
         self.tray = None
         if QSystemTrayIcon.isSystemTrayAvailable():
-            self.tray = QSystemTrayIcon(template_icon(), self)
+            self.tray = QSystemTrayIcon(template_icon() if IS_MAC else tray_icon(), self)
             self.tray.setContextMenu(self.menu)
             self.tray.setToolTip("OcuSense")
+            if not IS_MAC:
+                self.tray.activated.connect(self._activated)
+                notifications.set_fallback(self._notify)
             self.tray.show()
         self.refresh()
 
@@ -88,6 +115,16 @@ class MenuBarIcon(QObject):
             w.start()
             self._open()  # the first start may calibrate: show the window
 
+    def _activated(self, reason) -> None:
+        if reason == QSystemTrayIcon.ActivationReason.Trigger:  # a plain click on the Windows tray icon
+            self._open()
+
+    def _notify(self, message: str, title: str) -> bool:
+        if self.tray is None or not QSystemTrayIcon.supportsMessages():
+            return False
+        self.tray.showMessage(title, message, tray_icon(), 10_000)
+        return True
+
     def _open(self) -> None:
         w = self.window
         w.showNormal()
@@ -105,7 +142,7 @@ class MenuBarIcon(QObject):
         running = w.elapsed + (time.monotonic() - w.running_since if w.running_since is not None else 0.0)
         self.status.setText({"monitoring": f"Monitoring · {_clock(running)}", "paused": "Monitoring paused",
                              "calibrating": "Calibrating…", "error": "Camera unavailable",
-                             "playing": "Playing Blink Code"}.get(state, "Ready"))
+                             "playing": "Playing a game"}.get(state, "Ready"))
         self.monitor_action.setText({"monitoring": "Pause monitoring", "paused": "Resume monitoring"}
                                     .get(state, "Start monitoring"))
         self.monitor_action.setEnabled(state not in ("calibrating", "playing"))

@@ -15,6 +15,7 @@ from ocusense.config import (
     CAMERA_INDEX, PROXIMITY_COOLDOWN_CHOICES, PROXIMITY_COOLDOWN_SECONDS, PROXIMITY_SUSTAIN_SECONDS,
     PROXIMITY_WARN_RATIO, RECORDING_CHUNK_SECONDS,
 )
+from ocusense.system import COMPUTER, NOTIFICATION_NAME, THIS_APP, THIS_APP_START
 
 from . import theme
 from .widgets.common import label
@@ -86,7 +87,7 @@ class SettingsPage(Page):
                                         "Raw values, data quality and the calibration in use, below the "
                                         "measurements on the Study page.", self.details))
         self.body.addWidget(setting_row("Camera", f"Built-in camera (camera {CAMERA_INDEX}). Images are analysed on "
-                                                  "this Mac and never saved or uploaded."))
+                                                  f"this {COMPUTER} and never saved or uploaded."))
 
         # Reminders
         self.section("Reminders")
@@ -95,7 +96,7 @@ class SettingsPage(Page):
         self.reminders.setAccessibleName("Break reminders")
         self.body.addWidget(setting_row(
             "Break reminders",
-            "A Mac notification (and a note on the Study page) when you have been blinking less often than in your "
+            f"A {NOTIFICATION_NAME} (and a note on the Study page) when you have been blinking less often than in your "
             "reference for several minutes: 3 five-minute windows in a row below p = 0.01 with longer intervals. "
             "At most one per slow stretch and one every 20 minutes. Faster blinking never triggers one.",
             self.reminders))
@@ -140,21 +141,21 @@ class SettingsPage(Page):
             self.lighting))
         self.lighting.toggled.connect(self.lighting_changed.emit)
         self.body.addWidget(setting_row("Check-ins",
-                                        "Not in the Mac app yet. The planned gentle prompts can be tried in the "
+                                        f"Not in {THIS_APP} yet. The planned gentle prompts can be tried in the "
                                         "sample session on the OcuSense website.", tag="Not available yet"))
 
         # Appearance
         self.section("Appearance")
         self.body.addWidget(setting_row("Theme", "OcuSense uses its light paper theme. A dark appearance isn’t "
                                                  "available yet.", tag="Not available yet"))
-        self.body.addWidget(setting_row("Motion", "The Mac app uses no decorative animation."))
+        self.body.addWidget(setting_row("Motion", f"{THIS_APP_START} uses no decorative animation."))
 
         # Data & privacy
         self.section("Data & privacy")
         self.body.addWidget(paragraph(
-            "Camera images are analysed in memory on this Mac and thrown away immediately — they are never saved "
+            f"Camera images are analysed in memory on this {COMPUTER} and thrown away immediately — they are never saved "
             "or uploaded. Statistics (session times, blink counts, closure durations) are <b>kept only until you "
-            "quit OcuSense</b>. Saved on this Mac: your calibration (a few numbers, reused every time OcuSense "
+            f"quit OcuSense</b>. Saved on this {COMPUTER}: your calibration (a few numbers, reused every time OcuSense "
             "opens), the raw EAR recording, your reference for blink timing (below) and your reminder choices.",
             rich=True))
         self.record = QCheckBox("Record")
@@ -215,7 +216,7 @@ class SettingsPage(Page):
             f"“Trying to lick the screen?” — when your face looks {PROXIMITY_WARN_RATIO:g}× as big as during "
             f"calibration (roughly {100 / PROXIMITY_WARN_RATIO:.0f} % of the distance) for "
             f"{PROXIMITY_SUSTAIN_SECONDS:g} s; again every {every} while you stay that close, and never more often "
-            "than that. Shown in the window, and as a Mac notification while OcuSense is in the background.")
+            f"than that. Shown in the window, and as a {NOTIFICATION_NAME} while OcuSense is in the background.")
         self.fit_height()
 
     def show_distance(self, enabled: bool, has_reference: bool) -> None:

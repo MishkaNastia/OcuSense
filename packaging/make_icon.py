@@ -1,6 +1,7 @@
 """Draw the OcuSense app icon (logo B on paper) and save packaging/OcuSense.icns.
 
 Run from the project folder:  python packaging/make_icon.py
+With --ico (Windows builds) it saves packaging/OcuSense.ico instead (no macOS tools needed).
 """
 
 import os
@@ -42,8 +43,36 @@ def draw(size):
     return image
 
 
+def save_ico(path: Path, sizes=(16, 24, 32, 48, 64, 128, 256)) -> None:
+    """A Windows .ico with PNG-compressed images inside (supported since Windows Vista)."""
+    import struct
+
+    from PySide6.QtCore import QBuffer, QByteArray, QIODevice
+
+    images = []
+    for size in sizes:
+        data = QByteArray()
+        buffer = QBuffer(data)
+        buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+        draw(size).save(buffer, "PNG")
+        images.append((size, bytes(data)))
+    header = struct.pack("<HHH", 0, 1, len(images))
+    offset = 6 + 16 * len(images)
+    entries, blobs = b"", b""
+    for size, png in images:
+        side = 0 if size >= 256 else size  # 0 means 256 in the ICO format
+        entries += struct.pack("<BBBBHHII", side, side, 0, 0, 1, 32, len(png), offset)
+        blobs += png
+        offset += len(png)
+    path.write_bytes(header + entries + blobs)
+
+
 def main():
     QGuiApplication([])
+    if "--ico" in sys.argv:
+        save_ico(HERE / "OcuSense.ico")
+        print("Saved", HERE / "OcuSense.ico")
+        return
     with tempfile.TemporaryDirectory() as tmp:
         iconset = Path(tmp) / "OcuSense.iconset"
         iconset.mkdir()

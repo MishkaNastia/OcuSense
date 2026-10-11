@@ -113,7 +113,7 @@ class ObstacleKind:
 
 
 def load_obstacles(folder: Path = ASSETS / "obstacles") -> list[ObstacleKind]:
-    items = json.loads((folder / "obstacles.json").read_text())
+    items = json.loads((folder / "obstacles.json").read_text(encoding="utf-8"))
     return [ObstacleKind(it["id"], it["file"], it["joke"], it.get("effect"), png_size(folder / it["file"]))
             for it in items]
 

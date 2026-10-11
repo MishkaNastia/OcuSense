@@ -98,6 +98,13 @@ beret dabs a circle, a dot, a star, a crescent and a curve onto his canvas, then
 starts a new painting. He is only decoration: he stands still when the Pomodoro
 page's Animations switch is off or macOS Reduce motion is on.
 
+**Art shop and Your gallery** (sidebar). Finished game rounds earn coins (at most 150 a
+day), which buy famous public-domain paintings from The Met's Open Access collection (CC0);
+bought paintings hang in "<your name>’s gallery". No real money is involved. To try
+purchases without playing, start with `--demo-wallet`: a separate test wallet with 1000
+coins, clearly labelled, that never mixes with the real collection. Details, reward rules
+and every painting's source and rights: [docs/art-shop.md](docs/art-shop.md).
+
 **EyeGame** (Games). An endless runner made by our teammate MishkaNastia
 ([github.com/MishkaNastia/EyeGame](https://github.com/MishkaNastia/EyeGame)), ported from
 Pygame into the app: blink to jump over exams, angry printers and eduroam, blink twice
@@ -127,6 +134,14 @@ preview Statistics with clearly labelled demo sessions:
 `python -m ocusense --demo-history`.
 ⌘. also stops. Tab reaches the sidebar; ↑/↓ move between its items and →/←
 open or close Statistics.
+
+## Windows
+
+The same app runs on Windows 10/11 x64. Platform differences live in `ocusense/system.py`.
+The portable Windows build is made with `packaging/build_windows.py` on Windows, or by the
+manual GitHub Actions workflow "Windows build (manual)", which gives a downloadable zip.
+It is **prepared but not yet verified on a Windows PC**. See [docs/windows.md](docs/windows.md)
+for building, the unsigned-build warning, and the verification checklist.
 
 ## Build OcuSense.app (macOS)
 
@@ -242,6 +257,11 @@ ocusense/
   monitoring/          camera + MediaPipe
     pipeline.py        one camera frame → structured results (EyeMonitor)
     camera_worker.py   background thread; sends results to the interface
+  system.py            macOS / Windows differences: data folder, camera APIs, wording, reduce motion
+  art/                 Art shop data — no interface
+    catalogue.py       the paintings (assets/artworks/catalogue.json + images, rights per painting)
+    wallet.py          coins and owned paintings: SQLite ledger, atomic purchases, one reward per round
+    rewards.py         how many coins a finished game round earns (product settings)
   storage.py           where session summaries are kept (memory now, file later)
   recording.py         writes the raw EAR recording (CSV + calibration JSON)
   recording_files.py   reads and groups recordings for analysis (read-only)
@@ -262,6 +282,10 @@ ocusense/
     games_page.py      Games: Blink Code (Morse logic in core/morse.py) and the hub
     eye_runner_page.py EyeGame by MishkaNastia (rules in core/runner.py, drawing in
                        widgets/runner_canvas.py, art in ocusense/assets/eye_runner/)
+    shop_page.py       Art shop (purchase flow)
+    gallery_page.py    Your gallery
+    art_collection.py  coins + paintings for the pages and games (signals changes to both pages)
+    artwork_dialog.py  the larger view of a painting and the purchase confirmation
     settings_page.py   Settings
     account_page.py    Log in / Create account / your account (Supabase calls in accounts.py,
                        background running in account_service.py)
@@ -269,7 +293,8 @@ ocusense/
     widgets/           drawing-only pieces (graph, chart, artwork, status, icons, page)
 supabase/schema.sql    profiles, game scores and leaderboard for the accounts' Supabase project
 prototype/             original OpenCV window (python -m prototype)
-packaging/             Mac build script, PyInstaller recipe, icon generator
+packaging/             Mac build script and recipe; Windows build script and recipe; icon generator
+.github/workflows/     windows-build.yml — manual Windows build, artifact only (no releases)
 tests/                 one test file per area, plus structure guards
 models/                MediaPipe face model (python download_model.py)
 ```

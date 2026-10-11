@@ -70,8 +70,24 @@ def _games(p):  # a game pad: rounded body, a plus and two buttons
     p.drawEllipse(QPointF(15.5, 12), 0.9, 0.9)
 
 
+def _gallery(p):  # a framed picture: frame, mat line, a hill and a sun
+    p.drawRoundedRect(QRectF(2.5, 4, 15, 12.5), 1.2, 1.2)
+    p.drawRect(QRectF(5, 6.5, 10, 7.5))
+    hill = QPainterPath(QPointF(5, 14))
+    hill.cubicTo(7.5, 10.5, 9.5, 10.5, 12, 14)
+    p.drawPath(hill)
+    p.drawEllipse(QPointF(12.2, 9.1), 1.1, 1.1)
+
+
+def _shop(p):  # a coin with a star, for the Art shop
+    p.drawEllipse(QPointF(10, 10), 7.2, 7.2)
+    p.drawEllipse(QPointF(10, 10), 4.6, 4.6)
+    for dx, dy in ((0, 2.2), (2.2, 0), (1.55, 1.55), (1.55, -1.55)):
+        p.drawLine(QPointF(10 - dx, 10 - dy), QPointF(10 + dx, 10 + dy))
+
+
 ICONS = {"study": _study, "pomodoro": _pomodoro, "games": _games, "statistics": _statistics, "settings": _settings,
-         "account": _account}
+         "account": _account, "shop": _shop, "gallery": _gallery}
 
 
 def draw_icon(painter, name: str, rect: QRectF, color, background) -> None:

@@ -1,7 +1,8 @@
 """Runs the camera + EyeMonitor in a background thread so the window never freezes.
 
 The camera itself is opened on the main thread (open_camera): on macOS,
-OpenCV can only ask for camera permission from the main thread.
+OpenCV can only ask for camera permission from the main thread. On Windows it
+tries DirectShow, then Media Foundation (see ocusense/system.py).
 """
 
 import threading
@@ -16,6 +17,7 @@ from PySide6.QtGui import QImage
 from ocusense.config import CAMERA_INDEX, PREVIEW_WIDTH
 from ocusense.core.calibration import STEPS
 from ocusense.monitoring.pipeline import EyeMonitor, FrameResult
+from ocusense.system import IS_WINDOWS, camera_backends
 
 
 @dataclass
@@ -44,13 +46,20 @@ class MonitorUpdate:
     brightness: float = None  # average picture brightness 0–255, for the lighting check (never saved)
 
 
-def open_camera(index: int = CAMERA_INDEX) -> cv2.VideoCapture | None:
-    """Open the webcam on the calling (main) thread. Returns None if it can't."""
-    camera = cv2.VideoCapture(index)
-    if not camera.isOpened():
+def open_camera(index: int = CAMERA_INDEX, backends=None, check_frame: bool | None = None) -> cv2.VideoCapture | None:
+    """Open the webcam on the calling (main) thread. Returns None if it can't.
+
+    On Windows a camera that another app is using can still "open"; reading one
+    frame tells the difference, so the next capture API is tried instead.
+    """
+    backends = camera_backends() if backends is None else backends
+    check_frame = IS_WINDOWS if check_frame is None else check_frame
+    for backend in backends:
+        camera = cv2.VideoCapture(index) if backend is None else cv2.VideoCapture(index, backend)
+        if camera.isOpened() and (not check_frame or camera.read()[0]):
+            return camera
         camera.release()
-        return None
-    return camera
+    return None
 
 
 def picture_brightness(frame_bgr: np.ndarray) -> float:

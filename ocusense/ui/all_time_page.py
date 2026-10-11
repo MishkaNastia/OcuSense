@@ -13,6 +13,7 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QPushButton, QScrollArea, QVB
 
 from ocusense.core.models import SessionSummary
 from ocusense.core.stats import METRICS, combined_metric, format_duration, format_metric, period_stats
+from ocusense.system import THIS_APP
 
 from . import theme
 from .widgets.activity_chart import DAY_LABEL_WIDTH, ActivityChart, day_name
@@ -116,7 +117,7 @@ class AllTimePage(QScrollArea):
         self.summary_values = {}
         for i, (key, text, note) in enumerate((("study", "Total study time", "includes a session in progress"),
                                                ("sessions", "Completed sessions", ""),
-                                               ("breaks", "Recorded breaks", "not recorded by the Mac app yet"))):
+                                               ("breaks", "Recorded breaks", f"not recorded by {THIS_APP} yet"))):
             cell = QWidget()
             col = QVBoxLayout(cell)
             col.setContentsMargins(0 if i == 0 else 24, 18, 24, 18)

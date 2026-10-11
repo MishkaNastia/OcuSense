@@ -2,16 +2,20 @@
 
 Options:
   --demo-history   fill Statistics with clearly labelled demo sessions
+  --demo-wallet    developer test wallet: 1000 test coins in a separate collection file, for trying the Art
+                   shop (never mixed with the real collection; also OCUSENSE_DEMO_WALLET=1)
   --self-test      check a build without a camera: model loads, one frame is analysed
   --notification-test  send one test Mac notification and quit (check name, icon and permission)
 """
 
+import os
 import sys
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from ocusense.config import MODEL_PATH
+from ocusense.system import IS_MAC
 
 from . import theme
 from .main_window import MainWindow
@@ -21,7 +25,12 @@ def _self_test(window: MainWindow) -> int:
     import numpy as np
 
     result = window.monitor.process(np.zeros((480, 640, 3), np.uint8), now=1.0)
-    print(f"OcuSense self-test OK · model: {MODEL_PATH} · face found: {result.landmarks is not None}")
+    report = f"OcuSense self-test OK · model: {MODEL_PATH} · face found: {result.landmarks is not None}"
+    print(report)
+    log = os.environ.get("OCUSENSE_SELF_TEST_LOG")  # a windowed Windows build has no console to print to
+    if log:
+        with open(log, "w", encoding="utf-8") as f:
+            f.write(report + "\n")
     return 0
 
 
@@ -53,6 +62,9 @@ def run() -> int:
     app.setApplicationName("OcuSense")
     app.setStyle("Fusion")  # predictable styling; our own colours come from the style sheet
     app.setStyleSheet(theme.STYLE_SHEET)
+    if not IS_MAC:  # macOS takes the icon from OcuSense.app; Windows needs it on the windows themselves
+        from .menu_bar import tray_icon
+        app.setWindowIcon(tray_icon())
     # Let Tab reach every button on macOS, not only text fields.
     app.styleHints().setTabFocusBehavior(Qt.TabFocusBehavior.TabFocusAllControls)
 
@@ -60,7 +72,8 @@ def run() -> int:
         return _fail("The face model file is missing.",
                      f"Expected at: {MODEL_PATH}\nDuring development, run:  python download_model.py")
     try:
-        window = MainWindow(demo_history="--demo-history" in sys.argv)
+        window = MainWindow(demo_history="--demo-history" in sys.argv,
+                            demo_wallet="--demo-wallet" in sys.argv or bool(os.environ.get("OCUSENSE_DEMO_WALLET")))
     except Exception as error:  # e.g. MediaPipe's native library or a damaged model file
         return _fail("The eye-tracking model could not be loaded.", f"{type(error).__name__}: {error}")
 

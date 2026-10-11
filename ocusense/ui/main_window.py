@@ -48,16 +48,20 @@ from ocusense import reference as reference_file
 from ocusense.monitoring.pipeline import CALIBRATION_DONE, CALIBRATION_FAILED, CLOSED_STEP_FINISHED, EyeMonitor
 from ocusense.recording import EarRecording
 from ocusense.storage import SessionStore
+from ocusense.system import COMPUTER, NOTIFICATION_NAME, camera_help
 
 from .account_page import AccountPage
 from .account_service import AccountService
+from .art_collection import ArtCollection
 from .all_time_page import AllTimePage
 from .calibration_view import CalibrationView
 from .current_session_page import CurrentSessionPage
 from .patterns_page import PatternsPage
 from .settings_page import SettingsPage
+from .shop_page import ShopPage
 from .sidebar import STATISTICS_PAGES, Sidebar
 from .eye_rest_card import BODY as EYE_REST_BODY, TITLE as EYE_REST_TITLE, EyeRestCard
+from .gallery_page import GalleryPage
 from .games_page import GamesPage
 from .lighting_card import BODY as LIGHTING_BODY, TITLE as LIGHTING_TITLE, LightingCard
 from .menu_bar import MenuBarIcon
@@ -76,8 +80,7 @@ POMODORO_MESSAGES = {  # next phase → (title, message)
 DISTANCE_TITLE = "Trying to lick the screen?"
 DISTANCE_BODY = "Go easy on your eyes and move back a little."
 
-CAMERA_HELP = ("Could not open the camera. On a Mac: System Settings › Privacy & Security › Camera, "
-               "allow this app (or Terminal / VS Code when running from there), then reopen it.")
+CAMERA_HELP = camera_help()  # in this system's words (ocusense/system.py)
 
 BUTTONS_FOR_STATE = {
     "ready": {"start"},  # + "recalibrate" once calibrated
@@ -90,7 +93,7 @@ BUTTONS_FOR_STATE = {
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, demo_history: bool = False):
+    def __init__(self, demo_history: bool = False, demo_wallet: bool = False):
         super().__init__()
         self.setWindowTitle("OcuSense")
         self.resize(1280, 900)
@@ -162,13 +165,21 @@ class MainWindow(QMainWindow):
         self.pomodoro_page = PomodoroPage(self.preferences)
         self.pomodoro_page.checks["animations"].toggled.connect(lambda _on: self._apply_painter_animations())
         self._apply_painter_animations()
+        # Coins and paintings: one collection shared by the games, the Art shop and Your gallery.
+        self.art = ArtCollection(demo=demo_wallet, parent=self)
         self.games_page = GamesPage(self)
+        self.shop_page = ShopPage(self.art)
+        self.gallery_page = GalleryPage(self.art, self.preferences, self.account_service)
+        self.shop_page.view_gallery.connect(self._view_in_gallery)
+        self.gallery_page.visit_shop.connect(lambda: self.show_page("shop"))
         self.page_for = {"study": self.study, "current": self.current_page, "all_time": self.stats_page,
                          "patterns": self.patterns_page, "settings": self.settings_page, "account": self.account_page,
-                         "pomodoro": self.pomodoro_page, "games": self.games_page}
+                         "pomodoro": self.pomodoro_page, "games": self.games_page, "shop": self.shop_page,
+                         "gallery": self.gallery_page}
         self.pages = QStackedWidget()
         for page in (self.study, self.calibration, self.current_page, self.stats_page, self.patterns_page,
-                     self.settings_page, self.account_page, self.pomodoro_page, self.games_page):
+                     self.settings_page, self.account_page, self.pomodoro_page, self.games_page, self.shop_page,
+                     self.gallery_page):
             self.pages.addWidget(page)
         content = QWidget()
         column = QVBoxLayout(content)
@@ -323,7 +334,7 @@ class MainWindow(QMainWindow):
             self._set_state("ready", "Calibration cancelled. Press Start to calibrate again.")
 
     def _load_saved_calibration(self, announce: bool = False) -> bool:
-        """Use the calibration saved on this Mac, if there is a valid one. Only while the camera is off."""
+        ""f"Use the calibration saved on this {COMPUTER}, if there is a valid one. Only while the camera is off."""
         saved = self.calibration_store.load()
         if saved is None:
             if announce and self.calibration_store.last_error:
@@ -331,7 +342,7 @@ class MainWindow(QMainWindow):
             return False
         self.monitor.use_calibration(saved.calibration, saved.calibrated_at)
         if announce:
-            self._set_state("ready", f"Using your saved calibration from {saved.calibrated_at:%-d %b %Y}. "
+            self._set_state("ready", f"Using your saved calibration from {saved.calibrated_at.day} {saved.calibrated_at:%b %Y}. "
                                      "Recalibrate if your lighting, glasses or seat changed.")
         return True
 
@@ -475,6 +486,11 @@ class MainWindow(QMainWindow):
             self._refresh_settings()
         self._show_page()
 
+    def _view_in_gallery(self, artwork_id: str) -> None:
+        self.show_page("gallery")
+        if artwork_id:
+            self.gallery_page.focus_artwork(artwork_id)
+
     def show_study(self) -> None:
         self.show_page("study")
 
@@ -551,7 +567,7 @@ class MainWindow(QMainWindow):
                                                  else "Paused with the Pomodoro.")
 
     def _pomodoro_phase_ended(self, ended) -> None:
-        """A Pomodoro phase finished: a Mac notification if OcuSense isn't in view, and an optional sound."""
+        ""f"A Pomodoro phase finished: a {NOTIFICATION_NAME} if OcuSense isn't in view, and an optional sound."""
         prefs = self.preferences
         if ended.phase == "focus" and ended.completed and self.recorder is not None:
             self.session_extras.focus_rounds += 1
@@ -628,7 +644,7 @@ class MainWindow(QMainWindow):
     def _refresh_settings(self) -> None:
         calibration = self.monitor.calibration_info if self.monitor.calibration else None
         if calibration is not None:
-            text = (f"Calibrated on {calibration.calibrated_at:%-d %b %Y at %H:%M}. Saved on this Mac and reused "
+            text = (f"Calibrated on {calibration.calibrated_at.day} {calibration.calibrated_at:%b %Y at %H:%M}. Saved on this {COMPUTER} and reused "
                     "every time you open OcuSense. Recalibrate if lighting, glasses or your position change.")
         elif self.monitor.calibration:
             text = "Calibrated. Recalibrate if lighting, glasses or your position change."

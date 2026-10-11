@@ -3,7 +3,7 @@
 Every live session is compared with it (core/baseline_drift.py). There is one
 reference at a time, kept as reference.json next to the recordings folder:
 
-    ~/Library/Application Support/OcuSense/reference.json
+    <OcuSense data folder>/reference.json   (see ocusense/system.py)
 
 It holds the reference's intervals as (onset_a, onset_b) pairs in seconds since
 the reference period started, so it can be refitted or plotted later, plus the fit
@@ -71,7 +71,7 @@ class Reference:
 
     def label(self) -> str:
         started = datetime.fromisoformat(self.started_at)
-        return f"{started:%-d %b %Y, %H:%M}"
+        return f"{started.day} {started:%b %Y, %H:%M}"  # %-d doesn't exist on Windows
 
 
 def from_pairs(pairs, started_at: datetime, source: str, calibration: dict | None,

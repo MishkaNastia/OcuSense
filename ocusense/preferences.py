@@ -1,6 +1,7 @@
 """Choices from Settings that OcuSense remembers between launches.
 
-    ~/Library/Application Support/OcuSense/preferences.json
+    <OcuSense data folder>/preferences.json   (see ocusense/system.py: on a Mac
+    ~/Library/Application Support/OcuSense, on Windows %LOCALAPPDATA%\\OcuSense)
 
 Reminder choices and the Pomodoro settings. Unknown or invalid values fall back
 to the defaults, so a damaged file never stops the app.
@@ -13,12 +14,22 @@ from pathlib import Path
 
 from ocusense.config import PROXIMITY_COOLDOWN_CHOICES, PROXIMITY_COOLDOWN_SECONDS
 from ocusense.core.pomodoro import LIMITS, PomodoroSettings
+from ocusense.system import user_data_dir
 
 
 def default_path() -> Path:
     """OCUSENSE_PREFERENCES_FILE overrides it (e.g. in tests)."""
     override = os.environ.get("OCUSENSE_PREFERENCES_FILE")
-    return Path(override) if override else Path.home() / "Library" / "Application Support" / "OcuSense" / "preferences.json"
+    return Path(override) if override else user_data_dir() / "preferences.json"
+
+
+DISPLAY_NAME_MAX = 40
+
+
+def clean_display_name(text: str) -> str:
+    """A tidy local display name: no control characters, single spaces, at most 40 characters."""
+    text = "".join(ch for ch in str(text) if ch.isprintable())
+    return " ".join(text.split())[:DISPLAY_NAME_MAX].strip()
 
 
 @dataclass
@@ -43,6 +54,8 @@ class Preferences:
     morse_dash_ms: int = 450  # Blink Code: closures at least this long are dashes
     morse_high_score: int = 0
     runner_high_score: int = 0  # EyeGame
+    # Your gallery
+    display_name: str = ""  # optional local name for "<name>’s gallery" when no account name is available
 
     def pomodoro(self) -> PomodoroSettings:
         return PomodoroSettings(self.focus_minutes, self.short_break_minutes, self.long_break_minutes,
@@ -79,6 +92,8 @@ class Preferences:
         best = values.get("morse_high_score")
         if isinstance(best, int) and not isinstance(best, bool) and best >= 0:
             prefs.morse_high_score = best
+        if isinstance(values.get("display_name"), str):
+            prefs.display_name = clean_display_name(values["display_name"])
         best = values.get("runner_high_score")
         if isinstance(best, int) and not isinstance(best, bool) and best >= 0:
             prefs.runner_high_score = best
