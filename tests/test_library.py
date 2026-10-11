@@ -84,3 +84,20 @@ class LibraryTest(unittest.TestCase):
             for painting in PAINTINGS.values():
                 self.assertFalse(QPixmap(str(resource_path('ocusense/assets/paintings/' + painting.filename))).isNull())
             page.close()
+
+
+class MuseumPaintingsTest(unittest.TestCase):
+    def test_many_artists_each_with_source_and_no_retired_ids(self):
+        from ocusense.config import resource_path
+        from ocusense.core.library import RETIRED
+        museum = {k: p for k, p in PAINTINGS.items() if p.artist}
+        self.assertGreaterEqual(len(museum), 12)
+        self.assertEqual(len({p.artist for p in museum.values()}), len(museum))  # all different painters
+        for key, p in museum.items():
+            self.assertTrue(key.startswith("met_"), key)
+            self.assertNotIn(key, RETIRED)  # retired ids are refunded, never reused
+            self.assertTrue(p.source_url.startswith("https://www.metmuseum.org/art/collection/search/"), key)
+            self.assertTrue(p.year and p.price > 0, key)
+            self.assertNotIn("–", p.year)  # dates written out, no dashes
+            self.assertTrue(resource_path('ocusense/assets/paintings/' + p.filename).exists(), key)
+        self.assertIn("painting_01", PAINTINGS)  # the supplied pictures are still there

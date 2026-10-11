@@ -1,9 +1,9 @@
 """Coin-funded painting collection and persistent decoration placement."""
 from PySide6.QtCore import QRectF, QSize, QSizeF, Qt, Signal
-from PySide6.QtGui import QPainter, QPixmap
+from PySide6.QtGui import QBrush, QColor, QLinearGradient, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 from ocusense.config import resource_path
-from ocusense.core.library import PAINTINGS, SLOTS, SLOT_LABELS
+from ocusense.core.library import MET_RIGHTS, PAINTINGS, SLOTS, SLOT_LABELS
 from .widgets.page import Page
 from .widgets.common import label
 from . import theme
@@ -22,6 +22,7 @@ class PaintingArtwork(QWidget):
         self.setMinimumWidth(0)
         painting = PAINTINGS[key]
         self.source = QPixmap(str(resource_path('ocusense/assets/paintings/' + painting.filename)))
+        self.framed = bool(painting.artist)
         self.setAccessibleName(painting.name)
         self.setToolTip(painting.name)
 
@@ -38,7 +39,25 @@ class PaintingArtwork(QWidget):
                         (self.height() - size.height()) / 2, size.width(), size.height())
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        if self.framed:  # museum photos have no frame: give them gold ones like the supplied pictures
+            thick = max(5.0, min(target.width(), target.height()) * 0.075)
+            target = target.adjusted(thick, thick, -thick, -thick)
+            outer = target.adjusted(-thick, -thick, thick, thick)
+            gold = QLinearGradient(outer.topLeft(), outer.bottomRight())
+            gold.setColorAt(0.0, QColor("#F4D47C"))
+            gold.setColorAt(0.5, QColor("#C9952B"))
+            gold.setColorAt(1.0, QColor("#F0C75E"))
+            painter.setPen(QPen(QColor("#7A5A12"), 1.2))
+            painter.setBrush(QBrush(gold))
+            painter.drawRect(outer)
+            painter.setPen(QPen(QColor("#FFF1C2"), 1))
+            painter.drawRect(outer.adjusted(thick * 0.35, thick * 0.35, -thick * 0.35, -thick * 0.35))
         painter.drawPixmap(target, self.source, QRectF(self.source.rect()))
+        if self.framed:
+            painter.setPen(QPen(QColor("#5C430C"), 1.5))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRect(target)
         painter.end()
 
 
@@ -79,7 +98,8 @@ class LibraryPage(Page):
 
     def __init__(self, store):
         super().__init__('A little art, earned by you', 'Gallery',
-                         'Build your collection with garden coins. Display up to two favourites beneath Statistics in the sidebar.')
+                         'Build your collection with garden coins: our own pictures plus famous paintings by many '
+                         'different artists. Display up to two favourites beneath Statistics in the sidebar.')
         self.store = store
         self.balance = label('', font=theme.ui_font(20))
         self.body.addWidget(self.balance)
@@ -104,6 +124,14 @@ class LibraryPage(Page):
             layout.setContentsMargins(14, 14, 14, 14)
             layout.addWidget(artwork(key, 210, 190))
             layout.addWidget(label(painting.name, font=theme.ui_font(16), wrap=True))
+            if painting.artist:
+                layout.addWidget(label(f'{painting.artist}, {painting.year}', 'secondary', theme.ui_font(13), wrap=True))
+                source = QLabel(f'<a style="color:{theme.COBALT}" href="{painting.source_url}">At The Met</a> · public domain')
+                source.setTextFormat(Qt.TextFormat.RichText)
+                source.setOpenExternalLinks(True)
+                source.setToolTip(MET_RIGHTS)
+                source.setFont(theme.ui_font(12))
+                layout.addWidget(source)
             buy = QPushButton()
             buy.clicked.connect(lambda checked=False, k=key: self.purchase(k))
             layout.addWidget(buy)
