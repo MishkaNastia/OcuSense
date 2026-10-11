@@ -9,6 +9,9 @@ as an alternative input (tap = dot, hold = dash).
 
 Every finished Blink Code challenge and EyeGame run goes to the leaderboards
 (leaderboard_view.py): on this Mac always, and online when you're signed in.
+
+While a game is open, a field in the top-right corner shows how much of the Pomodoro
+break is left, or — when no break is on — nudges you back to work.
 """
 
 import time
@@ -20,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from ocusense.core.morse import DASH_MS, LEARN_ORDER, MORSE, ChallengeGame, LearnGame, MorseDecoder
+from ocusense.core.pomodoro import PAUSED
 from ocusense.core.runner import ASSETS as RUNNER_ASSETS
 from ocusense.system import COMPUTER
 
@@ -27,13 +31,14 @@ from . import theme
 from .eye_runner_page import EyeRunnerGame
 from .blink_garden_page import BlinkGardenGame, GardenCanvas
 from .leaderboard_view import LeaderboardView, ScoreKeeper
-from .pomodoro_page import system_reduce_motion
+from .pomodoro_page import clock, system_reduce_motion
 from .widgets.artwork import draw_star
 from .widgets.common import label, rule
 from .widgets.morse_canvas import MorseCanvas
 from .widgets.page import Page, paragraph
 from .widgets.segmented import Segmented
 
+NO_BREAK_TEXT = "Get back to work my little genius"
 MODES = (("learn", "Learn"), ("challenge", "Challenge"), ("free", "Free blink"))
 INPUTS = (("eyes", "Eyes"), ("keys", "Space bar"))
 
@@ -451,6 +456,18 @@ class GamesPage(Page):
         self.finish()
         self._fit_stack()
 
+        # Top right, over the page while a game is open: the Pomodoro break left, or a nudge back to work.
+        self.break_field = label("", font=theme.ui_font(15, QFont.Weight.Bold))
+        self.break_field.setParent(self)
+        self.break_field.setObjectName("BreakField")
+        self.break_field.setStyleSheet(f"#BreakField {{ background: {theme.PAPER_DEEP}; color: {theme.INK}; "
+                                       f"border: 2px solid {theme.INK}; border-radius: 10px; padding: 6px 12px; }}")
+        self.break_field.setAccessibleName("Pomodoro break")
+        self.break_field.hide()
+        self.break_ticker = QTimer(self)
+        self.break_ticker.timeout.connect(self.update_break_field)
+        self.break_ticker.start(250)
+
     def _card(self, mark: QWidget, title: str, text: str, action: str, handler) -> QWidget:
         card = QWidget()
         card.setObjectName("GameCard")
@@ -471,6 +488,32 @@ class GamesPage(Page):
         card.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
         return card
 
+    def update_break_field(self) -> None:
+        """Shows what core/pomodoro.PomodoroTimer.break_remaining reports; hidden outside a game."""
+        in_game = self.isVisible() and self.stack.currentWidget() is not self.hub
+        self.break_field.setVisible(in_game)
+        if not in_game:
+            return
+        timer = self.window.pomodoro_page.timer
+        left = timer.break_remaining(time.monotonic())
+        if left is None:
+            text = NO_BREAK_TEXT
+        else:
+            text = f"Break{' paused' if timer.state == PAUSED else ''}: {clock(left)} left"
+        if text != self.break_field.text():
+            self.break_field.setText(text)
+            self._place_break_field()
+        self.break_field.raise_()
+
+    def _place_break_field(self) -> None:
+        field = self.break_field
+        field.adjustSize()
+        field.move(max(0, self.viewport().width() - field.width() - 24), 20)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._place_break_field()
+
     def _fit_stack(self) -> None:
         """A QStackedWidget is as tall as its tallest page; size it to the one shown instead."""
         for i in range(self.stack.count()):
@@ -489,24 +532,28 @@ class GamesPage(Page):
         self._fit_stack()
         self.blink_code.setFocus()
         self.fit_height()
+        self.update_break_field()
 
     def open_eye_runner(self) -> None:
         self.stack.setCurrentWidget(self.eye_runner)
         self._fit_stack()
         self.eye_runner.setFocus()
         self.fit_height()
+        self.update_break_field()
 
     def open_blink_garden(self) -> None:
         self.stack.setCurrentWidget(self.blink_garden)
         self._fit_stack()
         self.blink_garden.setFocus()
         self.fit_height()
+        self.update_break_field()
 
     def show_hub(self) -> None:
         self.window.stop_game_camera()
         self.stack.setCurrentWidget(self.hub)
         self._fit_stack()
         self.fit_height()
+        self.update_break_field()
 
     def feed(self, update) -> None:
         if self.stack.currentWidget() is self.eye_runner:
