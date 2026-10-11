@@ -91,7 +91,7 @@ POSTURE_REMINDER_GAP_SECONDS = 600.0  # a message when posture turns poor: one p
 # The camera sits in the lid: tilting the screen moves the face up or down in the picture and changes
 # the measured head angle. Small tilts are corrected from the lid angle; a clear one recalibrates.
 LID_RECALIBRATE_DEGREES = 5.0  # the screen moved at least this much since the posture baseline…
-LID_SETTLE_SECONDS = 2.0  # …and then stayed within ±1° this long: "you tilted your screen, recalibrating now"
+LID_SETTLE_SECONDS = 2.0  # …and then stayed within ±1° this long: ask to recalibrate posture
 LID_READ_INTERVAL = 0.5  # seconds between lid angle readings
 
 # --- Raw EAR recording (ocusense/recording.py) ---

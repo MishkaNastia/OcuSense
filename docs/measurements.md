@@ -94,7 +94,7 @@ calibration values are measured, not set.
 | `POSTURE_SLUMP_GROWTH` | 0.05 | …and the face at least 5 % bigger (lower alone with the lid sensor) |
 | `POSTURE_REMINDER_GAP_SECONDS` | 600 s | the "stop slouching" message: one per poor stretch, at least 10 minutes apart |
 | `LID_RECALIBRATE_DEGREES` | 5° | screen tilted this much from the baseline… |
-| `LID_SETTLE_SECONDS` | 2 s | …and left there this long: "You tilted your screen, recalibrating now" |
+| `LID_SETTLE_SECONDS` | 2 s | …and left there this long: "You changed your screen angle — recalibrate your posture now" |
 | `LID_READ_INTERVAL` | 0.5 s | time between screen angle readings |
 | `PROXIMITY_WARN_RATIO` | 1.6 | distance reminder when the face looks 1.6× as big as at calibration… |
 | `PROXIMITY_SUSTAIN_SECONDS` | 3 s | …for this long |
