@@ -151,6 +151,13 @@ manual GitHub Actions workflow "Windows build (manual)", which gives a downloada
 It is **prepared but not yet verified on a Windows PC**. See [docs/windows.md](docs/windows.md)
 for building, the unsigned-build warning, and the verification checklist.
 
+## Linux (beta)
+
+A portable Linux build (x86_64) comes from `packaging/build_linux.py` on Linux, or from the
+manual GitHub Actions workflow "Linux build (manual)". Data lives in `~/.local/share/OcuSense`.
+Beta: not yet tried with a real webcam; login lasts until you quit (no keyring yet); on desktops
+without a system tray (e.g. default GNOME) there's no tray menu or notifications.
+
 ## Build OcuSense.app (macOS)
 
 ```

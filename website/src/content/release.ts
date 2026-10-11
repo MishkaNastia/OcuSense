@@ -45,13 +45,21 @@ export const releases: Release[] = [
     notes: "We’ll put a download here once a build is hosted publicly.",
   },
   {
-    platform: "Windows",
+    platform: "Windows (beta)",
     status: "coming-soon",
     verified: [
-      "Same app, same code, packaged as a portable folder for Windows 10 and 11 (64 bit).",
-      "Not tested on a Windows PC yet, so no download until it is.",
+      "Same app and code as the Mac version, as a portable folder for Windows 10 and 11 (64 bit).",
+      "Built and checked automatically on Windows, but not yet tried with a real webcam. Tell us what breaks!",
     ],
-    notes: "A Windows version is being prepared.",
+    notes: "Beta: the download appears here once the first build is published.",
   },
-  { platform: "Linux", status: "planned" },
+  {
+    platform: "Linux (beta)",
+    status: "coming-soon",
+    verified: [
+      "Same app and code, as a portable folder for 64 bit Linux (x86_64).",
+      "Built and checked automatically on Ubuntu, not yet tried with a real webcam. Login lasts until you quit.",
+    ],
+    notes: "Beta: the download appears here once the first build is published.",
+  },
 ];
