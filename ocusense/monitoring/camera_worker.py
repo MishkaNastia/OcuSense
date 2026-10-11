@@ -16,6 +16,8 @@ from PySide6.QtGui import QImage
 
 from ocusense.config import CAMERA_INDEX, PREVIEW_WIDTH
 from ocusense.core.calibration import STEPS
+from ocusense.core.posture import PostureCalibration
+from ocusense.lid_sensor import LidSensor
 from ocusense.monitoring.pipeline import EyeMonitor, FrameResult
 from ocusense.system import IS_WINDOWS, camera_backends
 
@@ -44,6 +46,13 @@ class MonitorUpdate:
     calibration_info: object = None  # core.models.CalibrationInfo in use for this frame, or None
     closeness: float = None  # face size now ÷ at calibration, for the distance reminder
     brightness: float = None  # average picture brightness 0–255, for the lighting check (never saved)
+    posture: object = None  # core.models.PostureReading on this frame, or None
+    posture_status: object = None  # core.models.PostureStatus, or None before posture calibration
+    posture_cal_status: str = PostureCalibration.IDLE
+    posture_cal_seconds_left: float = 0.0
+    posture_cal_error: str = ""
+    lid_sensor: bool = False  # the screen angle could be read (tilt is corrected and watched)
+    posture_enabled: bool = False  # Settings › Monitoring › Posture monitoring
 
 
 def open_camera(index: int = CAMERA_INDEX, backends=None, check_frame: bool | None = None) -> cv2.VideoCapture | None:
@@ -100,6 +109,13 @@ def snapshot(monitor: EyeMonitor, result: FrameResult, now: float) -> MonitorUpd
         calibration_info=monitor.calibration_info,
         closeness=result.closeness,
         brightness=picture_brightness(result.frame),
+        posture=result.posture,
+        posture_status=result.posture_status,
+        posture_cal_status=monitor.posture_calibrator.status,
+        posture_cal_seconds_left=monitor.posture_calibrator.seconds_left(now),
+        posture_cal_error=monitor.posture_calibrator.error,
+        lid_sensor=result.posture is not None and result.posture.lid_angle is not None,
+        posture_enabled=monitor.posture_enabled,
     )
 
 
@@ -118,12 +134,30 @@ class CameraWorker(QThread):
         self.camera = camera
         self._lock = threading.Lock()
         self._calibration_requested = False
+        self._posture_calibration_requested = False
+        self._posture_enabled_request: bool | None = None
+        self.lid = LidSensor()  # opened on this thread, read at most twice a second
 
     def request_calibration(self) -> None:
         with self._lock:
             self._calibration_requested = True
 
+    def request_posture_calibration(self) -> None:
+        with self._lock:
+            self._posture_calibration_requested = True
+
+    def request_posture_enabled(self, enabled: bool) -> None:
+        """Applied on the camera thread before the next frame, so a frame is never half on, half off."""
+        with self._lock:
+            self._posture_enabled_request = enabled
+
     def run(self) -> None:
+        try:
+            self._run()
+        finally:
+            self.lid.close()
+
+    def _run(self) -> None:
         while not self.isInterruptionRequested():
             ok, frame = self.camera.read()
             if not ok:
@@ -132,9 +166,16 @@ class CameraWorker(QThread):
             now = time.monotonic()
             with self._lock:
                 calibrate, self._calibration_requested = self._calibration_requested, False
+                posture, self._posture_calibration_requested = self._posture_calibration_requested, False
+                enabled, self._posture_enabled_request = self._posture_enabled_request, None
+            if enabled is not None:
+                self.monitor.set_posture_enabled(enabled, now)
             if calibrate:
                 self.monitor.start_calibration(now)
-            result = self.monitor.process(frame, now)
+            if posture and self.monitor.posture_enabled:
+                self.monitor.start_posture_calibration(now)
+            lid_angle = self.lid.read(now) if self.monitor.posture_enabled else None  # not even read when off
+            result = self.monitor.process(frame, now, lid_angle)
             update = snapshot(self.monitor, result, now)
             update.source = self
             self.updated.emit(update)

@@ -78,6 +78,12 @@ class SettingsPage(Page):
         self.recalibrate_button.clicked.connect(self.recalibrate_requested.emit)
         self.calibration_row_detail = label("", "secondary", theme.ui_font(14), wrap=True)
         self.body.addWidget(setting_row("Calibration", "", self.recalibrate_button, extra=(self.calibration_row_detail,)))
+        self.posture = QCheckBox("On")
+        self.posture.setAccessibleName("Posture monitoring")
+        self.body.addWidget(setting_row(
+            "Posture monitoring",
+            "Watches your head angle, distance from the screen and slumping, compared with the first 2 minutes "
+            "after each eye calibration (Statistics › Current session). Shown live only; nothing posture-related is saved. Remembered between launches.", self.posture))
         self.body.addWidget(setting_row("Calibration sound",
                                         "A short system sound tells you when to open your eyes after the “gently "
                                         "closed” step. It is always on, because your eyes are closed then."))

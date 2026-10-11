@@ -37,6 +37,7 @@ from ocusense.calibration_store import CalibrationStore
 from ocusense.preferences import Preferences
 from ocusense.config import CLOSE_BELOW, MIN_SESSION_SECONDS, MODEL_PATH, REOPEN_ABOVE
 from ocusense.core.baseline_drift import BreakReminder, LiveDrift
+from ocusense.core.posture import PostureCalibration
 from ocusense.core.calibration import GuidedCalibration
 from ocusense.core.eye_rest import EyeRestTimer
 from ocusense.core.lighting import LightingMonitor
@@ -46,7 +47,9 @@ from ocusense.demo_data import demo_sessions
 from ocusense.monitoring.camera_worker import CameraWorker, MonitorUpdate, open_camera
 from ocusense import notifications
 from ocusense import reference as reference_file
-from ocusense.monitoring.pipeline import CALIBRATION_DONE, CALIBRATION_FAILED, CLOSED_STEP_FINISHED, EyeMonitor
+from ocusense.monitoring.pipeline import (
+    CALIBRATION_DONE, CALIBRATION_FAILED, CLOSED_STEP_FINISHED, SCREEN_TILTED, EyeMonitor,
+)
 from ocusense.recording import EarRecording
 from ocusense.storage import SessionStore
 from ocusense.system import COMPUTER, NOTIFICATION_NAME, camera_help
@@ -74,6 +77,7 @@ from .time_log_page import TimeLogPage
 from .widgets.alert_banner import AlertBanner, TooCloseMark
 from .widgets.common import vline
 
+TILT_MESSAGE = "You tilted your screen, recalibrating now"
 BREAK_MESSAGE = "Hey, you should take a break, else your eyes will become drier than the Sahara desert."
 POMODORO_MESSAGES = {  # next phase → (title, message)
     "short_break": ("Focus round done", "Time for a short break — look into the distance and rest your eyes."),
@@ -135,6 +139,7 @@ class MainWindow(QMainWindow):
         self._lighting_waiting = False
         self.session_extras = SessionExtras()  # reminders and focus rounds in the running session
         self.summary_card: SessionSummaryCard | None = None
+        self.monitor.posture_enabled = self.preferences.posture_monitoring  # Settings › Monitoring (camera not running yet)
         self._ticks = 0
 
         root = QWidget()
@@ -229,6 +234,10 @@ class MainWindow(QMainWindow):
         self.stats_page.go_to_study.connect(self.show_study)
         self.current_page.go_to_study.connect(self.show_study)
         self.settings_page.recalibrate_requested.connect(self._recalibrate_from_settings)
+        self.current_page.calibrate_posture.connect(self.calibrate_posture)
+        self.settings_page.posture.setChecked(self.preferences.posture_monitoring)
+        self.current_page.set_posture_enabled(self.preferences.posture_monitoring)
+        self.settings_page.posture.toggled.connect(self._set_posture_monitoring)
         self.settings_page.clear_history_requested.connect(self.clear_history)
         self.settings_page.new_reference_requested.connect(self.make_new_reference)
         self.settings_page.record.toggled.connect(self._set_recording)
@@ -375,6 +384,10 @@ class MainWindow(QMainWindow):
         else:
             self.recorder.resume(now)
         self._set_state("monitoring")
+        m = self.monitor
+        if (m.posture_enabled and m.calibration is not None and m.posture_monitor is None
+                and m.posture_calibrator.status != PostureCalibration.RUNNING and self.thread is not None):
+            self.thread.request_posture_calibration()  # ticked while the camera was off, or after a pause
 
     def _finish_session(self) -> bool:
         """End the recorded session; keep it for Statistics if it was long enough."""
@@ -425,6 +438,9 @@ class MainWindow(QMainWindow):
             return
         if self.recorder:
             self.recorder.add_observation(update.observation)
+        if SCREEN_TILTED in update.events:
+            self.notify(TILT_MESSAGE, "OcuSense")  # the posture baseline is recorded again (2 min)
+            self.study.message_label.setText(f"{TILT_MESSAGE} ({datetime.now():%H:%M}).")
         self._check_distance(update.now, update.closeness)
         self._check_lighting(update.now, update.brightness)
         self.study.set_live_openness(update.observation)
@@ -441,6 +457,30 @@ class MainWindow(QMainWindow):
         self.study.graph.set_data(update.samples, update.now)
         if self.view == "current":  # only paint the second graph while it is visible
             self.current_page.set_graph(update.samples, update.now, caption=self.study.graph_caption.text())
+            self.current_page.show_posture(update)
+
+    def _set_posture_monitoring(self, on: bool) -> None:
+        """The Settings tick. With the camera on, it is switched on the camera thread before the next frame."""
+        self.preferences.posture_monitoring = on
+        self.preferences.save()
+        self.current_page.set_posture_enabled(on)
+        if self.thread is not None:
+            self.thread.request_posture_enabled(on)
+        elif on:
+            self.monitor.posture_enabled = True  # the baseline starts when monitoring does
+        else:
+            self.monitor.set_posture_enabled(False, time.monotonic())
+
+    def calibrate_posture(self) -> None:
+        """A new 2-minute posture baseline, recorded on the camera thread while monitoring; the eye calibration is kept."""
+        if not self.settings_page.posture.isChecked():
+            self.current_page.posture_detail.setText(self.current_page.posture_off_text)
+            return
+        if self.state != "monitoring" or self.thread is None:
+            self.current_page.posture_detail.setText("Start a session first: posture is calibrated while the "
+                                                     "camera is on.")
+            return
+        self.thread.request_posture_calibration()
 
     def _on_calibration_update(self, update: MonitorUpdate) -> None:
         if CLOSED_STEP_FINISHED in update.events:

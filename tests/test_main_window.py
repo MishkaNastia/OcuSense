@@ -39,10 +39,17 @@ class FakeThread:
 
     def __init__(self):
         self.calibration_requests = 0
+        self.posture_calibration_requests = 0
         self.stopped = False
 
     def request_calibration(self):
         self.calibration_requests += 1
+
+    def request_posture_calibration(self):
+        self.posture_calibration_requests += 1
+
+    def request_posture_enabled(self, enabled):
+        self.posture_enabled_requests = getattr(self, "posture_enabled_requests", []) + [enabled]
 
     def requestInterruption(self):
         self.stopped = True

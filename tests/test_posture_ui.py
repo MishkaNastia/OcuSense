@@ -1,0 +1,117 @@
+"""Statistics › Current session: the posture indicator and the Calibrate posture button (no camera, offscreen)."""
+
+import os
+import unittest
+
+from tests.test_main_window import FakeThread, update  # sets offscreen Qt and a temporary recordings folder
+
+from ocusense.core.models import PostureStatus
+from ocusense.core.posture import HEAD_DROPPED, SLUMPED, PostureCalibration
+from ocusense.monitoring.pipeline import MODEL_PATH, SCREEN_TILTED
+
+os.environ["OCUSENSE_NO_NOTIFICATIONS"] = "1"
+
+
+@unittest.skipUnless(MODEL_PATH.exists(), "model file missing - run download_model.py")
+class PostureUiTest(unittest.TestCase):
+    def setUp(self):
+        from ocusense.ui.main_window import MainWindow
+        self.window = MainWindow()
+        self.thread = FakeThread()
+        self.window._start_camera = lambda: (setattr(self.window, "thread", self.thread), True)[1]
+        self.notifications = []
+        self.window.notify = lambda message, title: self.notifications.append((title, message))
+        self.page = self.window.current_page
+        self.window.settings_page.posture.setChecked(True)  # off by default; these tests are about it being on
+
+    def tearDown(self):
+        self.window.settings_page.posture.setChecked(False)  # the test preferences file is shared: leave it off
+        self.window.close()
+
+    def monitoring(self):
+        self.window.monitor.calibration = object()
+        self.window.start()
+        self.window.show_page("current")
+
+    def send(self, **changes):
+        changes.setdefault("posture_enabled", True)
+        self.window._on_update(update(**changes))
+
+    def test_off_until_ticked(self):
+        self.window.settings_page.posture.setChecked(False)
+        self.assertEqual(self.page.posture_indicator.text.text(), "Posture monitoring is off")
+        self.assertFalse(self.page.posture_button.isEnabled())
+        self.assertFalse(self.window.monitor.posture_enabled)
+        self.window.settings_page.posture.setChecked(True)
+        self.assertTrue(self.window.monitor.posture_enabled)  # camera off: applied directly
+        self.assertTrue(self.page.posture_button.isEnabled())
+        from ocusense.preferences import Preferences
+        self.assertTrue(Preferences.load().posture_monitoring)  # remembered
+
+    def test_tick_while_monitoring_goes_to_the_camera_thread(self):
+        self.monitoring()
+        self.window.settings_page.posture.setChecked(False)
+        self.assertEqual(self.thread.posture_enabled_requests, [False])
+        self.send(posture_enabled=False, posture_cal_status=PostureCalibration.RUNNING)  # frames while off
+        self.assertEqual(self.page.posture_indicator.text.text(), "Posture monitoring is off")
+
+    def test_button_needs_a_running_session(self):
+        self.page.posture_button.click()
+        self.assertEqual(self.thread.posture_calibration_requests, 0)
+        self.assertIn("Start a session first", self.page.posture_detail.text())
+
+    def test_button_asks_the_camera_thread(self):
+        self.monitoring()
+        self.assertEqual(self.thread.posture_calibration_requests, 1)  # monitoring started without a baseline
+        self.page.posture_button.click()
+        self.assertEqual(self.thread.posture_calibration_requests, 2)
+        self.assertEqual(self.thread.calibration_requests, 0)  # the eye calibration isn't touched
+        self.assertEqual(self.window.state, "monitoring")
+
+    def test_calibrating_then_good_then_poor(self):
+        self.monitoring()
+        self.assertEqual(self.page.posture_button.text(), "Recalibrate posture")
+        self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=80.4)
+        self.assertEqual(self.page.posture_indicator.text.text(), "Recording your posture: 1:20 left")
+        self.assertIn("Keep working", self.page.posture_detail.text())
+
+        good = PostureStatus(tracked=True, pitch_change=-2.0, roll_change=1.0, distance_cm=63.0,
+                             baseline_distance_cm=65.0, centre_drop=0.01, size_ratio=1.02, lid_change=3.0)
+        self.send(posture_cal_status=PostureCalibration.DONE, posture_status=good)
+        self.assertEqual(self.page.posture_indicator.text.text(), "Good posture")
+        self.assertIn("head 2° higher", self.page.posture_detail.text())
+        self.assertIn("about 63 cm away (calibrated 65 cm)", self.page.posture_detail.text())
+        self.assertIn("screen tilted 3° back (corrected)", self.page.posture_detail.text())
+
+        brief = PostureStatus(tracked=True, outside=(HEAD_DROPPED,), longest_outside=4.0, pitch_change=20.0,
+                              roll_change=0.0, centre_drop=0.0)
+        self.send(posture_cal_status=PostureCalibration.DONE, posture_status=brief)
+        self.assertEqual(self.page.posture_indicator.text.text(), "Good · head dropped for 4 s")
+
+        poor = PostureStatus(tracked=True, poor=True, problems=(HEAD_DROPPED, SLUMPED), outside=(HEAD_DROPPED, SLUMPED),
+                             longest_outside=31.0, pitch_change=20.0, roll_change=0.0, centre_drop=0.1)
+        self.send(posture_cal_status=PostureCalibration.DONE, posture_status=poor)
+        self.assertEqual(self.page.posture_indicator.text.text(), "Poor posture: head dropped, slumped")
+        self.assertEqual(self.page.posture_indicator.glyph.kind, "warning")
+
+    def test_screen_tilt_sends_the_message(self):
+        self.monitoring()
+        self.send(events=[SCREEN_TILTED], posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=120)
+        self.assertEqual(self.notifications, [("OcuSense", "You tilted your screen, recalibrating now")])
+        self.assertIn("You tilted your screen, recalibrating now", self.window.study.message_label.text())
+        self.assertEqual(self.page.posture_indicator.text.text(), "Recording your posture: 2:00 left")
+        self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=119)
+        self.assertEqual(len(self.notifications), 1)  # once per tilt
+
+    def test_failed_calibration_and_lost_face(self):
+        self.monitoring()
+        self.send(posture_cal_status=PostureCalibration.FAILED, posture_cal_error="Your face wasn't seen clearly.")
+        self.assertEqual(self.page.posture_indicator.text.text(), "Posture calibration failed")
+        self.assertIn("seen clearly", self.page.posture_detail.text())
+        self.send(posture_cal_status=PostureCalibration.DONE, posture_status=PostureStatus(tracked=False),
+                  face_found=False)
+        self.assertEqual(self.page.posture_indicator.text.text(), "Face not tracked")
+
+
+if __name__ == "__main__":
+    unittest.main()

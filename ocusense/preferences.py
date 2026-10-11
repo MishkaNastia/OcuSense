@@ -3,8 +3,8 @@
     <OcuSense data folder>/preferences.json   (see ocusense/system.py: on a Mac
     ~/Library/Application Support/OcuSense, on Windows %LOCALAPPDATA%\\OcuSense)
 
-Reminder choices and the Pomodoro settings. Unknown or invalid values fall back
-to the defaults, so a damaged file never stops the app.
+Reminder choices, the Pomodoro settings and whether posture monitoring is on. Unknown or
+invalid values fall back to the defaults, so a damaged file never stops the app.
 """
 
 import json
@@ -59,6 +59,8 @@ class Preferences:
     runner_high_score: int = 0  # EyeGame
     # Your gallery
     display_name: str = ""  # optional local name for "<name>’s gallery" when no account name is available
+    # Posture
+    posture_monitoring: bool = False  # off until ticked in Settings › Monitoring
 
     def pomodoro(self) -> PomodoroSettings:
         return PomodoroSettings(self.focus_minutes, self.short_break_minutes, self.long_break_minutes,
@@ -79,6 +81,8 @@ class Preferences:
             return prefs  # no file yet, or unreadable: defaults
         if isinstance(values.get("distance_reminder"), bool):
             prefs.distance_reminder = values["distance_reminder"]
+        if isinstance(values.get("posture_monitoring"), bool):
+            prefs.posture_monitoring = values["posture_monitoring"]
         if values.get("distance_reminder_interval") in PROXIMITY_COOLDOWN_CHOICES:
             prefs.distance_reminder_interval = float(values["distance_reminder_interval"])
         for name, (low, high) in LIMITS.items():
