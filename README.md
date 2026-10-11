@@ -55,10 +55,11 @@ The sidebar on the left switches pages without interrupting monitoring:
 - **Statistics** (expands) — **Current session** (the running session's time,
   coverage and measurements), **All time** (totals, a date filter, a timeline
   with blink rate, median closure duration or time classified as closed, and
-  each session's summary) and **Understanding your patterns** (what each
-  measurement means; no personal findings until check-ins exist).
-- **Settings** — recalibration, measurement details, and data & privacy
-  (including clearing the session history).
+  each session's summary, and "What these numbers mean" at the bottom).
+- **Settings** — recalibration, measurement details, data & privacy (including
+  clearing the session history) and the **theme**: Miró (default) or one inspired by
+  Keith Haring (bold colours, thick black lines, dancers in the sidebar), applied after
+  a quick restart.
 - **Log in** — optional OcuSense accounts (the same as on the website): log in, create an
   account with a username for the game leaderboards, add friends, reset a password, log out.
   Set-up: [docs/accounts.md](docs/accounts.md).
@@ -280,7 +281,6 @@ ocusense/
     calibration_view.py guided calibration screen
     current_session_page.py  Statistics › Current session
     all_time_page.py   Statistics › All time
-    patterns_page.py   Statistics › Understanding your patterns
     distributions_panel.py  the "Blink distributions" histograms (live and imported)
     recordings_section.py   All time: import, choose and inspect recordings (background loading)
     pomodoro_page.py   Pomodoro (timer logic in core/pomodoro.py)
@@ -291,7 +291,7 @@ ocusense/
     settings_page.py   Settings
     account_page.py    Log in / Create account / your account (Supabase calls in accounts.py,
                        background running in account_service.py; friends in friends_panel.py)
-    theme.py           colours, fonts, style sheet
+    theme.py           colours (Miró and Keith Haring palettes), fonts, style sheet
     widgets/           drawing-only pieces (graph, chart, artwork, status, icons, page)
 supabase/schema.sql    profiles, game scores, friends and leaderboards for the accounts' Supabase project
 prototype/             original OpenCV window (python -m prototype)

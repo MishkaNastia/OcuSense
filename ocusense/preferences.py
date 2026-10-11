@@ -50,6 +50,8 @@ class Preferences:
     runner_high_score: int = 0  # EyeGame
     # Posture
     posture_monitoring: bool = False  # off until ticked in Settings › Monitoring
+    # Appearance
+    theme: str = "miro"  # "miro" or "haring" (Settings › Appearance; applied when OcuSense opens)
 
     def pomodoro(self) -> PomodoroSettings:
         return PomodoroSettings(self.focus_minutes, self.short_break_minutes, self.long_break_minutes,
@@ -70,6 +72,8 @@ class Preferences:
             return prefs  # no file yet, or unreadable: defaults
         if isinstance(values.get("distance_reminder"), bool):
             prefs.distance_reminder = values["distance_reminder"]
+        if values.get("theme") in ("miro", "haring"):
+            prefs.theme = values["theme"]
         if isinstance(values.get("posture_monitoring"), bool):
             prefs.posture_monitoring = values["posture_monitoring"]
         if values.get("distance_reminder_interval") in PROXIMITY_COOLDOWN_CHOICES:

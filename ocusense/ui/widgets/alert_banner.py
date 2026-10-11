@@ -12,7 +12,7 @@ from .. import theme
 from .artwork import draw_star
 from .common import label
 
-PAPER_LIGHT = "#FBF7EC"
+PAPER_LIGHT = theme.CARD
 
 
 class TooCloseMark(QWidget):

@@ -52,7 +52,7 @@ from ocusense.monitoring.pipeline import (
 )
 from ocusense.recording import EarRecording
 from ocusense.storage import SessionStore
-from ocusense.system import COMPUTER, camera_help, camera_permission, request_camera_permission
+from ocusense.system import COMPUTER, camera_help, camera_permission, relaunch, request_camera_permission
 
 from .account_page import AccountPage
 from .account_service import AccountService
@@ -235,6 +235,8 @@ class MainWindow(QMainWindow):
         self.settings_page.posture.toggled.connect(self._set_posture_monitoring)
         self.settings_page.clear_history_requested.connect(self.clear_history)
         self.settings_page.new_reference_requested.connect(self.make_new_reference)
+        self.settings_page.theme_chosen.connect(self._set_theme)
+        self.settings_page.restart_requested.connect(self.restart)
         self.settings_page.record.toggled.connect(self._set_recording)
         self.settings_page.distance.setChecked(self.distance_reminder)
         self.settings_page.set_distance_interval(self.preferences.distance_reminder_interval)
@@ -612,6 +614,16 @@ class MainWindow(QMainWindow):
             if self.in_background():
                 self.notify(EYE_REST_BODY, EYE_REST_TITLE)
 
+    def _set_theme(self, name: str) -> None:
+        self.preferences.theme = name
+        self.preferences.save()
+
+    def restart(self) -> None:
+        """Open a fresh OcuSense (for a new theme) and close this one; the session is saved on close."""
+        if relaunch():
+            self.close()
+            QApplication.instance().quit()
+
     def in_background(self) -> bool:
         """True when you're not looking at OcuSense (another app in front, or the window hidden)."""
         app = QApplication.instance()
@@ -871,8 +883,7 @@ class MainWindow(QMainWindow):
             self.status.set("ready", "Ready")
             self.study.graph_caption.setText("")
             first = not self.monitor.calibration
-            self.study.graph.clear("Press Start. The very first time, a quick calibration (25 seconds) lets OcuSense get to "
-                                   "know your eyes. After that, it remembers." if first
+            self.study.graph.clear("Press Start. First time? A quick calibration comes first." if first
                                    else "Press Start when you’re ready to study.")
             self.study.set_blinks(0)
             self.study.clear_measurements()

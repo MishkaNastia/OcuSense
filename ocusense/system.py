@@ -70,6 +70,33 @@ def camera_backends(platform: str | None = None) -> list[int | None]:
     return [None]
 
 
+def relaunch_command(argv=None, executable=None, frozen=None, platform=None) -> list[str]:
+    """How to open a fresh copy of OcuSense (after changing the theme)."""
+    argv = sys.argv if argv is None else argv
+    executable = executable or sys.executable
+    frozen = getattr(sys, "frozen", False) if frozen is None else frozen
+    platform = platform or sys.platform
+    if not frozen:
+        return [executable, "-m", "ocusense", *argv[1:]]
+    path = Path(executable)
+    if platform == "darwin" and len(path.parents) > 2 and path.parents[2].suffix == ".app":
+        return ["open", "-n", str(path.parents[2]), "--args", *argv[1:]]  # through Launch Services
+    return [executable, *argv[1:]]
+
+
+def relaunch() -> bool:
+    """Start a new OcuSense; the caller then quits this one."""
+    import subprocess
+    try:
+        if IS_WINDOWS:
+            subprocess.Popen(relaunch_command(), creationflags=0x00000008)  # DETACHED_PROCESS
+        else:
+            subprocess.Popen(relaunch_command(), start_new_session=True)
+    except OSError:
+        return False
+    return True
+
+
 _AV_LOADED = False
 
 

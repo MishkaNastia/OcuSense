@@ -15,11 +15,12 @@ from ocusense.config import (
     CAMERA_INDEX, PROXIMITY_COOLDOWN_CHOICES, PROXIMITY_COOLDOWN_SECONDS, PROXIMITY_SUSTAIN_SECONDS,
     PROXIMITY_WARN_RATIO, RECORDING_CHUNK_SECONDS,
 )
-from ocusense.system import COMPUTER, NOTIFICATION_NAME, THIS_APP, THIS_APP_START
+from ocusense.system import COMPUTER, NOTIFICATION_NAME, THIS_APP
 
 from . import theme
 from .widgets.common import label
 from .widgets.page import Page, paragraph, tag_label
+from .widgets.segmented import Segmented
 
 
 def setting_row(title: str, detail: str, control: QWidget | None = None, tag: str = "",
@@ -67,6 +68,8 @@ class SettingsPage(Page):
     lighting_changed = Signal(bool)  # lighting check switched on or off
     clear_history_requested = Signal()
     new_reference_requested = Signal()
+    theme_chosen = Signal(str)  # "miro" or "haring"
+    restart_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__("Settings", "Settings", "Reminder choices are remembered; the other settings apply while "
@@ -149,9 +152,27 @@ class SettingsPage(Page):
 
         # Appearance
         self.section("Appearance")
-        self.body.addWidget(setting_row("Theme", "OcuSense uses its light paper theme. A dark appearance isn’t "
-                                                 "available yet.", tag="Not available yet"))
-        self.body.addWidget(setting_row("Motion", f"{THIS_APP_START} uses no decorative animation."))
+        self.theme_switch = Segmented(tuple(theme.THEME_NAMES.items()), theme.ACTIVE, "Theme")
+        self.theme_switch.changed.connect(self._theme_picked)
+        self.restart_button = QPushButton("Restart now")
+        self.restart_button.setProperty("kind", "secondary")
+        self.restart_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.restart_button.clicked.connect(self.restart_requested.emit)
+        self.restart_button.setVisible(False)
+        theme_controls = QWidget()
+        theme_row = QHBoxLayout(theme_controls)
+        theme_row.setContentsMargins(0, 0, 0, 0)
+        theme_row.setSpacing(12)
+        theme_row.addWidget(self.theme_switch)
+        theme_row.addWidget(self.restart_button)
+        theme_row.addStretch(1)
+        self.theme_note = label("", "secondary", theme.ui_font(14), wrap=True)
+        self.body.addWidget(setting_row(
+            "Theme", "Miró: warm paper and calm colours. Keith Haring: bold colours, thick black lines and a "
+            "couple of dancers in the sidebar. A new theme shows up when OcuSense opens again.",
+            theme_controls, extra=(self.theme_note,)))
+        self.body.addWidget(setting_row("Motion", "Animations follow the Animations switch on the Pomodoro page, "
+                                                  "and turn off when your system asks for reduced motion."))
 
         # Data & privacy
         self.section("Data & privacy")
@@ -262,6 +283,13 @@ class SettingsPage(Page):
                     f"{reference.median:.1f} s between blinks. File: {shown}")
         self.reference_detail.setText(text)
         self.reference_button.setEnabled(reference is not None or bool(error))
+
+    def _theme_picked(self, name: str) -> None:
+        self.theme_chosen.emit(name)
+        changed = name != theme.ACTIVE
+        self.restart_button.setVisible(changed)
+        self.theme_note.setText(f"{theme.THEME_NAMES[name]} is saved. Restart OcuSense to see it (a running "
+                                "session is saved first)." if changed else "")
 
     def _open_folder(self) -> None:
         if self.folder is not None:

@@ -1,23 +1,51 @@
-"""Colours, fonts and the Qt style sheet for the Miró-inspired look.
+"""Colours, fonts and the Qt style sheet. Two looks, chosen in Settings › Appearance:
 
-Colour meanings stay the same everywhere (see the style board):
-cobalt = main action and the eye-openness line, vermilion = counted blink,
-golden + triangle = tracking needs attention, ink = text and structure.
+    miro     the original: warm paper, black ink, restrained cobalt, vermilion and gold
+    haring   inspired by Keith Haring: white page, bold saturated colours, thicker black
+             lines and a dancing figure in the sidebar (our own drawing, no copied artwork)
+
+Colour meanings stay the same in both (see the style board): cobalt = main action and
+the eye-openness line, vermilion = counted blink, golden + triangle = tracking needs
+attention, ink = text and structure. The theme is read from preferences.json when this
+module is first imported, before any window exists, so every page uses one palette.
 """
 
 from PySide6.QtGui import QColor, QFont, QFontDatabase
 
-PAPER = "#F6F0E1"
-PAPER_DEEP = "#EDE3CC"
-INK = "#1A1714"
-GRAPHITE = "#5A5148"
-RULE = "#CFC3A8"
-COBALT = "#1F43B8"
-COBALT_DARK = "#16328A"
-COBALT_PRESSED = "#112870"
-VERMILION = "#D2381F"
-GOLDEN = "#F2B705"
-GREEN = "#2E7A4D"
+THEMES = {
+    "miro": dict(
+        PAPER="#F6F0E1", PAPER_DEEP="#EDE3CC", PAPER_HOVER="#EFE7D4", CARD="#FBF7EC",
+        INK="#1A1714", GRAPHITE="#5A5148", RULE="#CFC3A8",
+        COBALT="#1F43B8", COBALT_DARK="#16328A", COBALT_PRESSED="#112870",
+        VERMILION="#D2381F", GOLDEN="#F2B705", GREEN="#2E7A4D", PINK="#E07AA0",
+        LINE=2,
+    ),
+    "haring": dict(
+        PAPER="#FFFDF7", PAPER_DEEP="#FFE135", PAPER_HOVER="#FFF3A6", CARD="#FFFFFF",
+        INK="#000000", GRAPHITE="#383838", RULE="#BDBDBD",
+        COBALT="#0050FF", COBALT_DARK="#003DC4", COBALT_PRESSED="#002C8F",
+        VERMILION="#FF1E1E", GOLDEN="#FFC800", GREEN="#00A651", PINK="#FF3EA5",
+        LINE=3,
+    ),
+}
+THEME_NAMES = {"miro": "Miró", "haring": "Keith Haring"}
+DEFAULT_THEME = "miro"
+
+
+def _chosen_theme() -> str:
+    try:
+        from ocusense.preferences import Preferences
+        name = Preferences.load().theme
+    except Exception:  # unreadable preferences never stop the app
+        name = DEFAULT_THEME
+    return name if name in THEMES else DEFAULT_THEME
+
+
+ACTIVE = _chosen_theme()
+PAPER = PAPER_DEEP = PAPER_HOVER = CARD = INK = GRAPHITE = RULE = ""
+COBALT = COBALT_DARK = COBALT_PRESSED = VERMILION = GOLDEN = GREEN = PINK = ""
+LINE = 2
+globals().update(THEMES[ACTIVE])
 
 
 def color(hex_value):
@@ -52,14 +80,14 @@ QPushButton {{
     min-height: 40px; padding: 0 18px; border-radius: 10px;
     font-size: 15px; font-weight: 700;
 }}
-QPushButton[kind="primary"] {{ background: {COBALT}; color: {PAPER}; border: 2px solid {COBALT}; }}
+QPushButton[kind="primary"] {{ background: {COBALT}; color: {PAPER}; border: {LINE}px solid {COBALT}; }}
 QPushButton[kind="primary"]:hover {{ background: {COBALT_DARK}; border-color: {COBALT_DARK}; }}
 QPushButton[kind="primary"]:pressed {{ background: {COBALT_PRESSED}; }}
 QPushButton[kind="primary"]:focus {{ border-color: {INK}; }}
-QPushButton[kind="secondary"] {{ background: transparent; color: {INK}; border: 2px solid {INK}; }}
+QPushButton[kind="secondary"] {{ background: transparent; color: {INK}; border: {LINE}px solid {INK}; }}
 QPushButton[kind="secondary"]:hover {{ background: {PAPER_DEEP}; }}
 QPushButton[kind="secondary"]:focus {{ border-color: {COBALT}; }}
-QPushButton[kind="quiet"] {{ background: transparent; color: {INK}; border: 2px solid transparent; font-weight: 500; }}
+QPushButton[kind="quiet"] {{ background: transparent; color: {INK}; border: {LINE}px solid transparent; font-weight: 500; }}
 QPushButton[kind="quiet"]:hover {{ background: {PAPER_DEEP}; }}
 QPushButton[kind="quiet"]:focus {{ border-color: {COBALT}; }}
 
@@ -67,31 +95,31 @@ QScrollArea {{ background: {PAPER}; border: none; }}
 /* No scroll bars anywhere: pages still scroll with the trackpad, the mouse wheel and the keyboard. */
 QScrollBar:vertical {{ width: 0px; background: transparent; border: none; }}
 QScrollBar:horizontal {{ height: 0px; background: transparent; border: none; }}
-QWidget#Segmented {{ border: 2px solid {INK}; border-radius: 11px; background: transparent; }}
+QWidget#Segmented {{ border: {LINE}px solid {INK}; border-radius: 11px; background: transparent; }}
 QPushButton[kind="segment"] {{
-    min-height: 32px; padding: 0 14px; border-radius: 8px; border: 2px solid transparent;
+    min-height: 32px; padding: 0 14px; border-radius: 8px; border: {LINE}px solid transparent;
     background: transparent; color: {INK}; font-size: 14px; font-weight: 500;
 }}
 QPushButton[kind="segment"]:hover {{ background: {PAPER_DEEP}; }}
 QPushButton[kind="segment"]:checked {{ background: {INK}; color: {PAPER}; font-weight: 700; }}
 QPushButton[kind="segment"]:focus {{ border-color: {COBALT}; }}
 QPushButton[kind="row"] {{
-    text-align: left; min-height: 48px; padding: 0 6px; border-radius: 6px; border: 2px solid transparent;
+    text-align: left; min-height: 48px; padding: 0 6px; border-radius: 6px; border: {LINE}px solid transparent;
     background: transparent; color: {INK}; font-size: 15px; font-weight: 700;
 }}
-QPushButton[kind="row"]:hover {{ background: #EFE7D4; }}
+QPushButton[kind="row"]:hover {{ background: {PAPER_HOVER}; }}
 QPushButton[kind="row"]:focus {{ border-color: {COBALT}; }}
 
 QWidget#Sidebar {{ background: {PAPER_DEEP}; }}
 QCheckBox {{ color: {INK}; font-size: 15px; spacing: 8px; }}
-QCheckBox::indicator {{ width: 18px; height: 18px; border: 2px solid {INK}; border-radius: 5px; background: {PAPER}; }}
+QCheckBox::indicator {{ width: 18px; height: 18px; border: {LINE}px solid {INK}; border-radius: 5px; background: {PAPER}; }}
 QCheckBox::indicator:checked {{ background: {COBALT}; border-color: {COBALT}; image: none; }}
 QCheckBox:focus {{ outline: none; }}
 QCheckBox::indicator:focus {{ border-color: {COBALT}; }}
-QPushButton:disabled {{ color: {GRAPHITE}; background: transparent; border: 2px dashed {RULE}; }}
+QPushButton:disabled {{ color: {GRAPHITE}; background: transparent; border: {LINE}px dashed {RULE}; }}
 
 QComboBox {{
-    min-height: 36px; padding: 0 12px; border: 2px solid {INK}; border-radius: 10px;
+    min-height: 36px; padding: 0 12px; border: {LINE}px solid {INK}; border-radius: 10px;
     background: {PAPER}; color: {INK}; font-size: 14px;
 }}
 QComboBox:focus {{ border-color: {COBALT}; }}
@@ -102,17 +130,17 @@ QComboBox QAbstractItemView {{ background: {PAPER}; color: {INK}; selection-back
     selection-color: {PAPER}; border: 1px solid {INK}; }}
 QSlider::groove:horizontal {{ height: 4px; background: {RULE}; border-radius: 2px; }}
 QSlider::handle:horizontal {{ width: 18px; height: 18px; margin: -8px 0; border-radius: 9px;
-    background: {COBALT}; border: 2px solid {INK}; }}
+    background: {COBALT}; border: {LINE}px solid {INK}; }}
 QSlider:focus {{ outline: none; }}
 QSlider::handle:horizontal:focus {{ border-color: {COBALT}; background: {PAPER}; }}
 
 QSpinBox {{
-    min-height: 36px; padding: 0 8px 0 12px; border: 2px solid {INK}; border-radius: 10px;
+    min-height: 36px; padding: 0 8px 0 12px; border: {LINE}px solid {INK}; border-radius: 10px;
     background: {PAPER}; color: {INK}; font-size: 14px; font-weight: 600;
 }}
 QSpinBox:focus {{ border-color: {COBALT}; }}
 QLineEdit {{
-    min-height: 38px; padding: 0 12px; border: 2px solid {INK}; border-radius: 10px;
+    min-height: 38px; padding: 0 12px; border: {LINE}px solid {INK}; border-radius: 10px;
     background: {PAPER}; color: {INK}; font-size: 15px; selection-background-color: {COBALT};
 }}
 QLineEdit:focus {{ border-color: {COBALT}; }}
@@ -121,7 +149,7 @@ QSpinBox::up-button, QSpinBox::down-button {{ width: 0; border: none; }}  /* −
 QSpinBox::up-arrow, QSpinBox::down-arrow {{ image: none; width: 0; height: 0; }}
 QPushButton[kind="step"] {{
     min-height: 36px; min-width: 36px; max-width: 36px; padding: 0; border-radius: 18px;
-    border: 2px solid {INK}; background: transparent; color: {INK}; font-size: 18px; font-weight: 700;
+    border: {LINE}px solid {INK}; background: transparent; color: {INK}; font-size: 18px; font-weight: 700;
 }}
 QPushButton[kind="step"]:hover {{ background: {PAPER_DEEP}; }}
 QPushButton[kind="step"]:pressed {{ background: {INK}; color: {PAPER}; }}

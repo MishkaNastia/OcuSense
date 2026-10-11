@@ -455,7 +455,7 @@ class GamesPage(Page):
         card = QWidget()
         card.setObjectName("GameCard")
         card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
-        card.setStyleSheet(f"QWidget#GameCard {{ background: #FBF7EC; border: 2px solid {theme.INK}; "
+        card.setStyleSheet(f"QWidget#GameCard {{ background: {theme.CARD}; border: {theme.LINE}px solid {theme.INK}; "
                            "border-radius: 14px; }")
         layout = QVBoxLayout(card)
         layout.setContentsMargins(22, 20, 22, 20)

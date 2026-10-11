@@ -107,7 +107,7 @@ class PainterCharacter(QWidget):
         p.drawLine(QPointF(122, 112), QPointF(140, 20))
         p.drawLine(QPointF(176, 112), QPointF(158, 20))
         p.drawLine(QPointF(149, 70), QPointF(149, 112))
-        p.setBrush(QBrush(_c("#FBF7EC")))
+        p.setBrush(QBrush(_c(theme.CARD)))
         p.drawRect(canvas)
 
         # the painting so far (the mark being dabbed grows in)
@@ -171,7 +171,7 @@ class PainterCharacter(QWidget):
 
         head = QPointF(52, 46)  # the head, with a vermilion beret
         p.setPen(_pen(_c(theme.INK), 2.2))
-        p.setBrush(QBrush(_c("#FBF7EC")))
+        p.setBrush(QBrush(_c(theme.CARD)))
         p.drawEllipse(head, 13, 13)
         beret = QPainterPath(QPointF(37, 38))
         beret.cubicTo(38, 26, 64, 24, 68, 36)

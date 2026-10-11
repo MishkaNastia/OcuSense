@@ -24,6 +24,7 @@ from . import theme
 from .widgets.artwork import LogoMark
 from .widgets.common import label, rule
 from .widgets.icons import draw_chevron, draw_icon
+from .widgets.haring_dancer import HaringDancer
 from .widgets.painter_character import PainterCharacter
 from .widgets.status_indicator import StatusIndicator
 
@@ -177,7 +178,8 @@ class Sidebar(QWidget):
         self.paintings_layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(self.paintings_layout)
         layout.addStretch(1)
-        self.painter = PainterCharacter()  # a little Miró painter at his easel, just above Settings
+        # Just above Settings: a little Miró painter at his easel, or dancers in the Keith Haring theme.
+        self.painter = HaringDancer() if theme.ACTIVE == "haring" else PainterCharacter()
         layout.addWidget(self.painter)
         layout.addSpacing(6)
         layout.addWidget(rule(1, "hairline"))
