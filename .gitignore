@@ -232,5 +232,5 @@ packaging/OcuSense.ico
 # macOS Finder files
 .DS_Store
 
-# The Supabase project for accounts (public values, but set per copy; see docs/accounts.md)
-ocusense/supabase.json
+# ocusense/supabase.json is committed on purpose: it holds only the project URL and the
+# PUBLISHABLE key, which are public by design (they ship inside every app). Never the secret key.

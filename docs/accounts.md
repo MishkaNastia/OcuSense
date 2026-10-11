@@ -59,8 +59,10 @@ The website (`website/`) and the app use **one** Supabase project, so one accoun
    - creates `website/.env.local` if it doesn't exist
    - rebuilds the app
 
-   Both files are git-ignored. The publishable key is designed to be public: what users can do is
-   limited by the database rules in `schema.sql`.
+   `ocusense/supabase.json` is committed to the repository, so every copy and every GitHub build
+   has login without extra setup; `website/.env.local` stays git-ignored. The publishable key is
+   designed to be public: what users can do is limited by the database rules in `schema.sql`.
+   Never commit the secret key.
 
 Other ways to point a copy of the app at a project:
 
