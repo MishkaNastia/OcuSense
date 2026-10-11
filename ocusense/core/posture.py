@@ -30,9 +30,9 @@ import statistics
 
 from ocusense.config import (
     FOCAL_LENGTH_PER_FRAME_WIDTH, IRIS_DIAMETER_MM, LID_RECALIBRATE_DEGREES, LID_SETTLE_SECONDS,
-    POSTURE_CALIBRATION_SECONDS, POSTURE_CENTRE_DROP, POSTURE_CLOSER_FRACTION, POSTURE_MAX_PITCH_SPREAD,
-    POSTURE_MIN_DISTANCE_CM, POSTURE_MIN_SAMPLES, POSTURE_PITCH_DROP_DEGREES, POSTURE_REMINDER_GAP_SECONDS,
-    POSTURE_ROLL_DEGREES, POSTURE_SLUMP_GROWTH, POSTURE_SUSTAIN_SECONDS,
+    POSTURE_CALIBRATION_SECONDS, POSTURE_CENTRE_DROP, POSTURE_CLOSER_FRACTION, POSTURE_GRACE_SECONDS,
+    POSTURE_MAX_PITCH_SPREAD, POSTURE_MIN_DISTANCE_CM, POSTURE_MIN_SAMPLES, POSTURE_PITCH_DROP_DEGREES,
+    POSTURE_REMINDER_GAP_SECONDS, POSTURE_ROLL_DEGREES, POSTURE_SLUMP_GROWTH, POSTURE_SUSTAIN_SECONDS,
 )
 
 from .models import PostureBaseline, PostureReading, PostureStatus
@@ -189,23 +189,31 @@ class PostureCalibration:
 
 # ------------------------------------------------------------------ monitoring
 class PostureMonitor:
-    """Compares each frame with the baseline; poor only after a limit stays exceeded long enough."""
+    """Compares each frame with the baseline; poor only after a limit stays exceeded long enough.
+
+    "Without a break" allows for the camera's wobble: a limit's count only starts again after
+    being back within it for more than `grace_seconds`, and lost tracking only resets the
+    counts after `grace_seconds` without a face (a blink of lost tracking isn't sitting up).
+    """
 
     def __init__(self, baseline: PostureBaseline, sustain_seconds: float = POSTURE_SUSTAIN_SECONDS,
                  pitch_drop: float = POSTURE_PITCH_DROP_DEGREES, roll_limit: float = POSTURE_ROLL_DEGREES,
                  min_distance_cm: float = POSTURE_MIN_DISTANCE_CM, closer_fraction: float = POSTURE_CLOSER_FRACTION,
-                 centre_drop: float = POSTURE_CENTRE_DROP, slump_growth: float = POSTURE_SLUMP_GROWTH):
+                 centre_drop: float = POSTURE_CENTRE_DROP, slump_growth: float = POSTURE_SLUMP_GROWTH,
+                 grace_seconds: float = POSTURE_GRACE_SECONDS):
         self.baseline = baseline
-        self.sustain_seconds = sustain_seconds
+        self.sustain_seconds, self.grace_seconds = sustain_seconds, grace_seconds
         self.pitch_drop, self.roll_limit = pitch_drop, roll_limit
         self.min_distance_cm, self.closer_fraction = min_distance_cm, closer_fraction
         self.centre_drop, self.slump_growth = centre_drop, slump_growth
-        self._since: dict[str, float] = {}  # limit → when it started being exceeded (this time)
+        self._since: dict[str, float] = {}  # limit → when this run of exceeding it started
+        self._last_out: dict[str, float] = {}  # limit → the last frame it was exceeded
+        self._last_seen: float | None = None  # the last frame with a face
 
     def exceeded(self, reading: PostureReading) -> set[str]:
         """The limits this reading exceeds right now (head angle and face height corrected for screen tilt)."""
         b = self.baseline
-        pitch, centre_y, _ = corrected_for_tilt(reading, b)
+        pitch, centre_y, lid_change = corrected_for_tilt(reading, b)
         out = set()
         if angle_difference(pitch, b.pitch) > self.pitch_drop:
             out.add(HEAD_DROPPED)
@@ -214,21 +222,26 @@ class PostureMonitor:
         d = reading.distance_cm
         if d is not None and (d < self.min_distance_cm or d < b.distance_cm * (1 - self.closer_fraction)):
             out.add(TOO_CLOSE)
-        if centre_y - b.centre_y > self.centre_drop and b.size and reading.size / b.size >= 1 + self.slump_growth:
-            out.add(SLUMPED)  # lower AND bigger: lower alone is more likely the camera than the person
+        lower = centre_y - b.centre_y > self.centre_drop
+        bigger = bool(b.size) and reading.size / b.size >= 1 + self.slump_growth
+        if lower and (bigger or lid_change is not None):
+            out.add(SLUMPED)  # lower alone only when the screen tilt is known and corrected
         return out
 
     def update(self, now: float, reading: PostureReading | None) -> PostureStatus:
+        if self._last_seen is not None and now - self._last_seen > self.grace_seconds:
+            self.reset()  # no face for too long (or a gap): start counting again
         if reading is None or reading.pitch is None:
-            self.reset()  # like lost tracking: forget the half-finished counts
             return PostureStatus(tracked=False)
+        self._last_seen = now
         outside = self.exceeded(reading)
         for name in LIMITS:
-            if name not in outside:
-                self._since.pop(name, None)  # back within the limit: start counting again next time
-            else:
+            if name in outside:
                 self._since.setdefault(name, now)
-        problems = tuple(n for n in LIMITS if n in outside and now - self._since[n] >= self.sustain_seconds)
+                self._last_out[name] = now
+            elif name in self._since and now - self._last_out[name] > self.grace_seconds:
+                del self._since[name], self._last_out[name]  # really back within the limit
+        problems = tuple(n for n in LIMITS if n in self._since and now - self._since[n] >= self.sustain_seconds)
         b = self.baseline
         pitch, centre_y, lid_change = corrected_for_tilt(reading, b)
         return PostureStatus(
@@ -244,8 +257,10 @@ class PostureMonitor:
         )
 
     def reset(self) -> None:
-        """No face, or monitoring paused: forget how long limits have been exceeded."""
+        """Monitoring paused, or no face for too long: forget how long limits have been exceeded."""
         self._since.clear()
+        self._last_out.clear()
+        self._last_seen = None
 
 
 # ------------------------------------------------------------------ screen tilt

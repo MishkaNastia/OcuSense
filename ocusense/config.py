@@ -73,14 +73,17 @@ FOCAL_LENGTH_PER_FRAME_WIDTH = 1.0
 POSTURE_CALIBRATION_SECONDS = 60.0
 POSTURE_MIN_SAMPLES = 300  # frames with everything measured needed in that minute (~10 s at 30 frames/s)
 POSTURE_MAX_PITCH_SPREAD = 5.0  # degrees (robust spread); more = the posture kept changing, not one baseline
-POSTURE_SUSTAIN_SECONDS = 30.0  # a limit must be exceeded this long, without a break, to count
-POSTURE_PITCH_DROP_DEGREES = 15.0  # head dropped: chin this much lower than at calibration
+POSTURE_SUSTAIN_SECONDS = 20.0  # a limit must be exceeded this long, without a real break, to count…
+POSTURE_GRACE_SECONDS = 3.0  # …where back inside the limit (or no face) for up to this long isn't a break:
+#                              the camera's frame-to-frame wobble near a limit mustn't restart the count
+POSTURE_PITCH_DROP_DEGREES = 12.0  # head dropped: chin this much lower than at calibration
 POSTURE_ROLL_DEGREES = 10.0  # head tilted sideways this much from calibration, either way
 POSTURE_MIN_DISTANCE_CM = 50.0  # closer than this to the screen…
 POSTURE_CLOSER_FRACTION = 0.20  # …or this much closer than at calibration (0.20 = 20 %)
-POSTURE_CENTRE_DROP = 0.08  # slumped: face centre this much lower in the picture (fraction of the frame height)…
-POSTURE_SLUMP_GROWTH = 0.10  # …AND the face this much bigger (sliding down almost always brings the head forward;
-#                              lower but not bigger is more likely the camera than the person)
+POSTURE_CENTRE_DROP = 0.05  # slumped: face centre this much lower in the picture (fraction of the frame height)…
+POSTURE_SLUMP_GROWTH = 0.05  # …AND the face this much bigger (sliding down almost always brings the head forward;
+#                              lower but not bigger could be a tilted screen). With the lid angle sensor the tilt is
+#                              corrected, so lower alone is enough.
 
 POSTURE_REMINDER_GAP_SECONDS = 600.0  # a message when posture turns poor: one per poor stretch, at most every 10 min
 

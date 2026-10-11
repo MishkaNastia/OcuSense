@@ -159,8 +159,8 @@ class LimitTest(unittest.TestCase):
         self.assertEqual(self.check(), set())
 
     def test_head_dropped_only_downwards(self):
-        self.assertEqual(self.check(pitch=2.0 + 15.5), {HEAD_DROPPED})
-        self.assertEqual(self.check(pitch=2.0 + 14.5), set())
+        self.assertEqual(self.check(pitch=2.0 + 12.5), {HEAD_DROPPED})
+        self.assertEqual(self.check(pitch=2.0 + 11.5), set())
         self.assertEqual(self.check(pitch=2.0 - 25), set())  # looking up isn't "dropped"
 
     def test_tilt_either_way(self):
@@ -176,10 +176,14 @@ class LimitTest(unittest.TestCase):
         self.assertEqual(far.exceeded(reading(distance=79.0)), {TOO_CLOSE})  # 21 % closer, still far away
 
     def test_slumped_means_lower_and_bigger(self):
-        self.assertEqual(self.check(centre_y=0.45 + 0.09, size=0.30 * 1.11), {SLUMPED})
-        self.assertEqual(self.check(centre_y=0.45 + 0.09, size=0.30), set())  # lower only: more likely the camera
-        self.assertEqual(self.check(centre_y=0.45 + 0.07, size=0.40), set())
+        self.assertEqual(self.check(centre_y=0.45 + 0.06, size=0.30 * 1.06), {SLUMPED})
+        self.assertEqual(self.check(centre_y=0.45 + 0.09, size=0.30), set())  # lower only: could be a tilted screen
+        self.assertEqual(self.check(centre_y=0.45 + 0.04, size=0.40), set())
         self.assertEqual(self.check(centre_y=0.45 - 0.2, size=0.40), set())  # higher (sitting up more) is fine
+
+    def test_with_the_lid_sensor_lower_alone_is_slumped(self):
+        base = PostureBaseline(pitch=2.0, roll=1.0, distance_cm=65.0, centre_y=0.45, size=0.30, lid_angle=118.0)
+        self.assertEqual(PostureMonitor(base).exceeded(reading(centre_y=0.45 + 0.06, lid=118.0)), {SLUMPED})
 
 
 class SustainedRuleTest(unittest.TestCase):
@@ -189,17 +193,24 @@ class SustainedRuleTest(unittest.TestCase):
             status = monitor.update(start + i / fps, reading(**change))
         return status
 
-    def test_poor_only_after_thirty_seconds(self):
+    def test_poor_only_after_twenty_seconds(self):
         monitor = PostureMonitor(BASE)
-        status = self.run_frames(monitor, 29.9, **SLUMP)
+        status = self.run_frames(monitor, 19.9, **SLUMP)
         self.assertFalse(status.poor)
         self.assertEqual(status.outside, (SLUMPED,))
-        self.assertGreater(status.longest_outside, 29)
-        status = monitor.update(30.0, reading(**SLUMP))
+        self.assertGreater(status.longest_outside, 19)
+        status = monitor.update(20.0, reading(**SLUMP))
         self.assertTrue(status.poor)
         self.assertEqual(status.problems, (SLUMPED,))
         self.assertAlmostEqual(status.centre_drop, 0.15)
         self.assertAlmostEqual(status.size_ratio, 1.2)
+
+    def test_camera_wobble_doesnt_restart_the_count(self):
+        monitor = PostureMonitor(BASE)
+        status = None
+        for i in range(int(21 * 30)):  # slumped for 21 s, but every 10th frame measures just inside the limit
+            status = monitor.update(i / 30, reading() if i % 10 == 0 else reading(**SLUMP))
+        self.assertTrue(status.poor)
 
     def test_short_glance_never_counts(self):
         monitor = PostureMonitor(BASE)
@@ -212,24 +223,32 @@ class SustainedRuleTest(unittest.TestCase):
 
     def test_back_within_limits_clears_and_restarts_the_count(self):
         monitor = PostureMonitor(BASE)
-        self.assertTrue(self.run_frames(monitor, 31, pitch=30.0).poor)
-        status = monitor.update(31.0, reading())
+        self.assertTrue(self.run_frames(monitor, 21, pitch=30.0).poor)
+        status = self.run_frames(monitor, 3.5, start=21.0)  # sitting up again for more than the 3 s grace
         self.assertFalse(status.poor)
         self.assertEqual(status.outside, ())
-        self.assertFalse(self.run_frames(monitor, 20, start=32.0, pitch=30.0).poor)  # counting from zero again
+        self.assertFalse(self.run_frames(monitor, 15, start=25.0, pitch=30.0).poor)  # counting from zero again
 
-    def test_lost_face_resets_like_lost_tracking(self):
+    def test_brief_tracking_loss_is_bridged(self):
         monitor = PostureMonitor(BASE)
-        self.run_frames(monitor, 20, **SLUMP)
-        self.assertFalse(monitor.update(20.0, None).tracked)
-        status = self.run_frames(monitor, 20, start=20.1, **SLUMP)  # 40 s slumped in total, but not in a row
+        self.run_frames(monitor, 15, **SLUMP)
+        self.assertFalse(monitor.update(15.0, None).tracked)  # face lost for 2 s
+        self.assertFalse(monitor.update(16.9, None).tracked)
+        self.assertTrue(self.run_frames(monitor, 6, start=17.0, **SLUMP).poor)  # 15 + 2 + 6 s: still one stretch
+
+    def test_lost_face_for_longer_resets_like_lost_tracking(self):
+        monitor = PostureMonitor(BASE)
+        self.run_frames(monitor, 15, **SLUMP)
+        monitor.update(15.0, None)
+        monitor.update(19.0, None)  # 4 s without a face: more than the grace
+        status = self.run_frames(monitor, 15, start=19.1, **SLUMP)  # 30 s slumped in total, but not in a row
         self.assertFalse(status.poor)
 
     def test_each_limit_has_its_own_timer(self):
         monitor = PostureMonitor(BASE)
-        self.run_frames(monitor, 20, **SLUMP)  # slumped from 0 s
-        status = self.run_frames(monitor, 15, start=20.0, roll=20.0, **SLUMP)  # also tilted from 20 s
-        self.assertEqual(status.problems, (SLUMPED,))  # slumped 35 s; tilted only 15 s
+        self.run_frames(monitor, 15, **SLUMP)  # slumped from 0 s
+        status = self.run_frames(monitor, 10, start=15.0, roll=20.0, **SLUMP)  # also tilted from 15 s
+        self.assertEqual(status.problems, (SLUMPED,))  # slumped 25 s; tilted only 10 s
         self.assertEqual(set(status.outside), {SLUMPED, HEAD_TILTED})
 
 

@@ -84,13 +84,14 @@ calibration values are measured, not set.
 | `POSTURE_CALIBRATION_SECONDS` | 60 s | the posture baseline: the first minute of each study session (or after Recalibrate posture or a screen tilt) |
 | `POSTURE_MIN_SAMPLES` | 300 frames | frames with everything measured needed in that minute |
 | `POSTURE_MAX_PITCH_SPREAD` | 5° | head angle spread above this = no single posture: baseline rejected |
-| `POSTURE_SUSTAIN_SECONDS` | 30 s | a posture limit must be exceeded this long in a row to count |
-| `POSTURE_PITCH_DROP_DEGREES` | 15° | head dropped: chin this much lower than at calibration |
+| `POSTURE_SUSTAIN_SECONDS` | 20 s | a posture limit must be exceeded this long in a row to count… |
+| `POSTURE_GRACE_SECONDS` | 3 s | …where back within it (or no face) for up to this long doesn't restart the count |
+| `POSTURE_PITCH_DROP_DEGREES` | 12° | head dropped: chin this much lower than at calibration |
 | `POSTURE_ROLL_DEGREES` | 10° | head tilted this much either way |
 | `POSTURE_MIN_DISTANCE_CM` | 50 cm | closer than this counts as too close… |
 | `POSTURE_CLOSER_FRACTION` | 0.20 | …as does being 20 % closer than at calibration |
-| `POSTURE_CENTRE_DROP` | 0.08 | slumped: face centre 8 % of the frame height lower… |
-| `POSTURE_SLUMP_GROWTH` | 0.10 | …and the face at least 10 % bigger |
+| `POSTURE_CENTRE_DROP` | 0.05 | slumped: face centre 5 % of the frame height lower… |
+| `POSTURE_SLUMP_GROWTH` | 0.05 | …and the face at least 5 % bigger (lower alone with the lid sensor) |
 | `POSTURE_REMINDER_GAP_SECONDS` | 600 s | the "stop slouching" message: one per poor stretch, at least 10 minutes apart |
 | `LID_RECALIBRATE_DEGREES` | 5° | screen tilted this much from the baseline… |
 | `LID_SETTLE_SECONDS` | 2 s | …and left there this long: "You tilted your screen, recalibrating now" |
@@ -647,30 +648,33 @@ It is recorded fresh for each session, rather than once like the 10-minute blink
 (section 11.7), because posture is measured relative to the camera: a different desk, chair or
 screen angle changes it, while blink timing doesn't.
 
-**Limits.** Posture is marked **poor** when one of these has been exceeded for **30 seconds
-in a row**:
+**Limits.** Posture is marked **poor** when one of these has been exceeded for **20 seconds
+in a row** (see below for what counts as "in a row"):
 
 | Name | Rule (compared with the baseline) |
 | --- | --- |
-| head dropped | pitch more than **15°** lower (chin down) |
+| head dropped | pitch more than **12°** lower (chin down) |
 | head tilted | roll more than **10°** either way |
 | too close | closer than **50 cm**, or more than **20 %** closer than in the baseline |
-| slumped | face centre more than **8 %** of the frame height lower **and** the face at least **10 %** bigger |
+| slumped | face centre more than **5 %** of the frame height lower **and** the face at least **5 %** bigger; with the lid angle sensor, **5 % lower** is enough |
 
-"Slumped" needs both, because sliding down in a chair almost always brings the head forward
-too, while a face that is only lower is more often the camera (a tilted screen) than the person.
+Without the sensor "slumped" needs both, because sliding down in a chair almost always brings
+the head forward too, while a face that is only lower could be a tilted screen. With the sensor
+the screen tilt is corrected, so lower alone counts.
 
 **Message.** When posture turns poor, a Mac notification (title "Posture") says **"Stop
 slouching, hunchbacks are not particularly sexy you know"**, and the same note appears under the
 Study page buttons. At most one per poor stretch (it ends when posture is good again; a lost
 face doesn't end it) and at least **10 minutes** apart (`POSTURE_REMINDER_GAP_SECONDS`).
 
-Each limit has its own timer. Back within a limit for a single frame → that timer starts
-again, so glancing down at your phone or stretching for a few seconds never counts. A frame
-without a face (or without a head angle) is handled like lost tracking in the blink counter:
-all timers start again, and nothing is judged until the face is back. Pausing does the same.
-While a limit is exceeded but not yet for 30 s, the page shows it with its time so far
-("Good · head dropped for 12 s").
+Each limit has its own timer. Its count starts again only after being back within the limit for
+more than **3 seconds**: the camera's measurements wobble a little from frame to frame, and
+near a limit single frames would otherwise keep restarting it. Sitting up for longer than that,
+glancing down at your phone or stretching for a few seconds never adds up to 20 s. Frames
+without a face (or without a head angle) aren't judged; after more than 3 s without a face all
+timers start again, like lost tracking in the blink counter. Pausing resets them too. While a
+limit is exceeded but not yet for 20 s, the page shows it with its time so far ("Good · head
+dropped for 12 s").
 
 **Screen tilt (MacBooks with a lid angle sensor).** The built-in camera sits in the screen, so
 tilting the screen moves your face up or down in the picture (about 2 % of the picture height
@@ -689,7 +693,7 @@ with an external camera, or if it can't be read, posture uses the camera alone.
 
 **Not the distance reminder.** The distance reminder (section 13) compares apparent face size
 with the eye calibration and reacts after 3 s; the posture "too close" limit uses the
-estimated centimetres and the 30 s rule. They can disagree a little.
+estimated centimetres and the 20 s rule. They can disagree a little.
 
 **Limits of the method.** The head angle and iris points come from a single 2D camera, so
 expect a few degrees and several centimetres of noise. Glasses can hide the iris edges. Moving
