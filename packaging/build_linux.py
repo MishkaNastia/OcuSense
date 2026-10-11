@@ -32,6 +32,11 @@ def main() -> int:
     subprocess.run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean",
                     str(ROOT / "packaging" / "OcuSense-linux.spec")], check=True, cwd=ROOT)
     app = DIST / "OcuSense" / "OcuSense"
+    engine = DIST / "OcuSense" / "_internal" / "mediapipe" / "tasks" / "c" / "libmediapipe.so"
+    missing = subprocess.run(["ldd", str(engine)], capture_output=True, text=True).stdout
+    missing = [line.strip() for line in missing.splitlines() if "not found" in line]
+    if missing:  # say exactly which system library the face tracking engine can't find
+        print("The face tracking engine needs system libraries that are missing:\n  " + "\n  ".join(missing))
     log = DIST / "self-test.txt"
     log.unlink(missing_ok=True)
     env = dict(os.environ, QT_QPA_PLATFORM="offscreen", OCUSENSE_SELF_TEST_LOG=str(log),

@@ -45,15 +45,18 @@ def user_data_dir(platform: str | None = None, environ=None, home: Path | None =
     """
     platform = platform or sys.platform
     environ = os.environ if environ is None else environ
-    home = home or Path.home()
     override = environ.get("OCUSENSE_DATA_DIR")
     if override:
         return Path(override)
+    if platform == "win32":
+        base = environ.get("LOCALAPPDATA") or environ.get("APPDATA")
+        if base:
+            return Path(base) / "OcuSense"
+    home = home or Path.home()  # only when needed: it fails if the system gives no home folder
     if platform == "darwin":
         return home / "Library" / "Application Support" / "OcuSense"
     if platform == "win32":
-        base = environ.get("LOCALAPPDATA") or environ.get("APPDATA")
-        return (Path(base) if base else home / "AppData" / "Local") / "OcuSense"
+        return home / "AppData" / "Local" / "OcuSense"
     base = environ.get("XDG_DATA_HOME")
     return (Path(base) if base else home / ".local" / "share") / "OcuSense"
 

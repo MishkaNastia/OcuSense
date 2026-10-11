@@ -326,7 +326,8 @@ class GameHooksTest(unittest.TestCase):
         self.assertEqual((entry.score, entry.details), (140, {"words": 2, "best_combo": 6}))
         game.challenge.score = 90
         game._challenge_over()
-        self.assertIn("#2 on this Mac", game.canvas.message)
+        from ocusense.system import COMPUTER
+        self.assertIn(f"#2 on this {COMPUTER}", game.canvas.message)
         runner = self.page.eye_runner
         runner.game.state, runner.game.score = "play", 321.7
         runner.game.update = lambda dt, down=False: setattr(runner.game, "state", "over")  # the run ends now

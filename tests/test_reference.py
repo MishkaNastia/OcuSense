@@ -2,6 +2,7 @@
 
 import math
 import os
+import sys
 import tempfile
 import unittest
 from datetime import datetime
@@ -60,9 +61,10 @@ class ReferenceFileTest(unittest.TestCase):
         reference_file.discard(self.path)  # nothing to remove: no error
 
     def test_default_path(self):
-        with mock.patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(reference_file.default_path(),
-                             Path.home() / "Library" / "Application Support" / "OcuSense" / "reference.json")
+        if sys.platform == "darwin":  # the Mac's standard folder; Windows and Linux are checked in test_system
+            with mock.patch.dict(os.environ, {}, clear=True):
+                self.assertEqual(reference_file.default_path(),
+                                 Path.home() / "Library" / "Application Support" / "OcuSense" / "reference.json")
         with mock.patch.dict(os.environ, {"OCUSENSE_RECORDINGS_DIR": "/tmp/x"}, clear=True):
             self.assertEqual(reference_file.default_path(), Path("/tmp/x/reference.json"))  # tests stay inside
         with mock.patch.dict(os.environ, {"OCUSENSE_REFERENCE_FILE": "/tmp/r.json"}, clear=True):
