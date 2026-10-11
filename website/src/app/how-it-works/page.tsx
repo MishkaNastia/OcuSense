@@ -26,7 +26,7 @@ export default function HowItWorksPage() {
       <section className="section-rule prose" aria-labelledby="pipeline">
         <h2 id="pipeline">From camera picture to numbers</h2>
         <ol>
-          <li><b>Find the face.</b> Google’s MediaPipe Face Landmarker places 478 points on the face, on your device.</li>
+          <li><b>Find the face.</b> A face tracking model places 478 points on the face, right on your device.</li>
           <li><b>Measure each eye.</b> Six eyelid points give the Eye Aspect Ratio (EAR): eye height divided by eye width, measured in pixels.</li>
           <li><b>Check the picture is usable.</b> Measurement pauses if the face is missing, too small, or turned too far.</li>
           <li><b>Make it personal.</b> Each eye’s EAR is compared with your own calibrated open and closed values.</li>

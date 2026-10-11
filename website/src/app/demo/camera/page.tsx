@@ -16,7 +16,7 @@ export default function CameraDemoPage() {
           same rules as the desktop app, then thrown away. Nothing is recorded or uploaded.
         </p>
         <p className="muted">
-          This page downloads the MediaPipe face model (about 4 MB) and its program files from this website. Prefer not
+          This page downloads a face tracking model (about 4 MB) and its program files from this website. Prefer not
           to use your camera? <Link href="/demo/sample">Explore the sample session.</Link>
         </p>
       </header>

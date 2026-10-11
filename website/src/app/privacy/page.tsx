@@ -25,7 +25,7 @@ export default function PrivacyPage() {
         <dl className="def">
           <dt>Camera demo (this website)</dt>
           <dd>
-            The camera starts only after you press “Start camera”. Frames are analysed in your browser with MediaPipe
+            The camera starts only after you press “Start camera”. Frames are analysed in your browser by a face tracking model
             and immediately discarded. No image, video or face landmark is uploaded, recorded or stored.
           </dd>
           <dt>Desktop app</dt>
@@ -44,8 +44,8 @@ export default function PrivacyPage() {
         <dl className="def">
           <dt>Network requests</dt>
           <dd>
-            Your browser downloads this site’s pages and fonts, and for the camera demo the MediaPipe program files and
-            the face model, all from this website. Nothing goes the other way: no images are sent back.
+            Your browser downloads this site’s pages and fonts, and for the camera demo the face tracking program files and
+            model, all from this website. Nothing goes the other way: no images are sent back.
           </dd>
           <dt>Demo data</dt>
           <dd>

@@ -38,7 +38,7 @@ export const releases: Release[] = [
     platform: "macOS",
     status: "coming-soon",
     verified: [
-      "Builds as a Mac app from the source code (Python, PySide6, MediaPipe).",
+      "Builds as a Mac app from the source code.",
       "Built and run so far on an Apple Silicon Mac only.",
       "Not yet signed with an Apple Developer ID or notarised, so macOS will warn before opening it.",
     ],
