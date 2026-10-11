@@ -20,13 +20,13 @@ export default function DemoPage() {
       </header>
       <div className={styles.options}>
         <section aria-labelledby="opt-a" className={styles.option}>
-          <StepMark step="reflect" size={88} />
+          <StepMark step="notice" size={88} />
           <p className="eyebrow">Option A</p>
           <h2 id="opt-a">Explore a sample session</h2>
           <ul>
             <li>Works without camera permission.</li>
             <li>Clearly labelled synthetic data, measured with the real rules.</li>
-            <li>Trigger reminders instantly, take a break, rate it, and explore sample patterns.</li>
+            <li>Make the app’s reminders pop up whenever you like, and watch the numbers change.</li>
           </ul>
           <Link href="/demo/sample" className="btn btn-primary">Explore the sample</Link>
         </section>

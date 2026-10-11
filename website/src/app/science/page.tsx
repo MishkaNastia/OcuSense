@@ -62,7 +62,7 @@ export default function SciencePage() {
             your own calibration. When your blinking slows down compared with your own reference, it suggests a break.
           </p>
           <p>
-            The studies describe patterns across groups of people, mostly in laboratory settings. OcuSense is not a
+            These studies describe what happens on average in groups of people, mostly in laboratory settings. OcuSense is not a
             medical device: it does not diagnose tiredness, dry eye or any other condition, and its suggestions are
             not clinically validated. If your eyes often feel dry or sore, talk to an optician or doctor.
           </p>

@@ -49,9 +49,10 @@ export default function Home() {
         <div className={styles.heroText}>
           <h1>Big Brother watches you. OcuSense looks out for you.</h1>
           <p className="lead">
-            A study app for people who open their laptop for “one quick hour” and look up at midnight. It watches
-            your blinks through your webcam, reminds you to take breaks before your eyes turn into raisins, and
-            makes those breaks something you actually want to take.
+            OcuSense is a study app for long days at your laptop. It uses your webcam to count your blinks and
+            reminds you to rest your eyes before they feel dry and tired. It also looks after your setup: it tells you when you lean in too close, slump in your chair or study in a
+            room that’s too dark. On top of that you get a Pomodoro
+            timer, a time log, small games for your breaks and a little garden to look after.
           </p>
           <div className={styles.ctas}>
             <Link href="/demo" className="btn btn-primary">Try the demo</Link>

@@ -53,7 +53,7 @@ export const SCIENCE_WHY = [
 export const SCIENCE_HIGHLIGHTS = [
   {
     title: "Screens change how we blink",
-    text: "Studies of computer work found that people blink less, and less completely, while looking at a screen. That pattern is linked to dry, tired feeling eyes.",
+    text: "Studies of computer work found that people blink less, and less completely, while looking at a screen. This is linked to dry, tired feeling eyes.",
   },
   {
     title: "Drowsiness shows in the eyelids",

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { EyeMonitorCore, LiveSession } from "@/lib/measurement/monitor";
 
-import { SAMPLE_BREAKS, STILL_LEARNING_BELOW, summarise } from "../sampleHistory";
 import { SampleSession, SyntheticEyes } from "../sampleSession";
 
 describe("synthetic sample session", () => {
@@ -58,18 +57,5 @@ describe("full browser pipeline (calibration → monitoring)", () => {
     monitor.counter.state = "closed";
     monitor.interrupt();
     expect(monitor.counter.state).toBe("unknown");
-  });
-});
-
-describe("sample break history", () => {
-  it("summarises self-reports and keeps 'still learning' below the threshold", () => {
-    const walking = summarise(SAMPLE_BREAKS, "sleepy").find((s) => s.activity === "walking")!;
-    expect(walking.logged).toBe(5);
-    expect(walking.complete).toBe(5);
-    expect(walking.improved).toBe(3); // 4→3, 4→2, 4→2 (3→3 and 3→4 are not improvements)
-    expect(walking.stillLearning).toBe(false); // 5 complete breaks reach STILL_LEARNING_BELOW
-    expect(STILL_LEARNING_BELOW).toBe(5);
-    const rest = summarise(SAMPLE_BREAKS, "comfort").find((s) => s.activity === "rest")!;
-    expect(rest.complete).toBe(1); // one rest break skipped the after check-in
   });
 });

@@ -12,8 +12,8 @@ export default function SampleDemoPage() {
         <p className="eyebrow"><Link href="/demo">Demo</Link> · Option A</p>
         <h1>Explore a sample session</h1>
         <p className="lead">
-          No camera needed. A simulated person studies while the real OcuSense measurement rules run on their
-          synthetic eye data. Trigger prompts, take a break, and explore their patterns.
+          No camera needed. A simulated person studies while the real OcuSense measurement rules run on their made up
+          eye data. Make the app’s reminders pop up and see how the numbers react.
         </p>
       </header>
       <SampleDemo />

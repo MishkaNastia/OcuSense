@@ -140,7 +140,7 @@ export function CameraDemo() {
           ) : null}
           {state.phase === "idle" ? (
             <p className="muted">
-              You’ll calibrate first (about 30 seconds): eyes open, gently closed, then a few natural blinks. Sit facing the
+              You’ll calibrate first (under half a minute): eyes open, gently closed, then a few natural blinks. Sit facing the
               screen with light on your face.
             </p>
           ) : null}
@@ -154,7 +154,7 @@ export function CameraDemo() {
             label="Your personal eye openness over the last 10 seconds" />
           <MeasurementPanel snapshot={state.snapshot} opennessRaw={latest?.valid ? [latest.leftRaw!, latest.rightRaw!] : null} source="camera" />
           <p className="muted">
-            <span className="tag">Experimental</span> Pattern feedback (like “A quick check-in?”) isn’t switched on in this demo. Try it in the{" "}
+            The reminders (too close, blinking slower, Pomodoro) live in the desktop app; you can preview them in the{" "}
             <Link href="/demo/sample">sample session</Link>. Nothing here diagnoses tiredness or any condition.
           </p>
           <button type="button" className="btn btn-quiet btn-small" aria-expanded={showDetails} onClick={() => setShowDetails((v) => !v)} style={{ alignSelf: "flex-start" }}>

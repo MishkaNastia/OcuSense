@@ -49,8 +49,8 @@ export default function PrivacyPage() {
           </dd>
           <dt>Demo data</dt>
           <dd>
-            Sample-session data, break feedback and check-ins you enter in the demo live only in this tab’s memory. They
-            disappear when you press “Reset demo”, reload, or close the tab. Nothing is saved to cookies, local storage
+            The sample session and the camera demo keep everything in this tab’s memory only. It disappears when you press
+            “Reset demo”, reload, or close the tab. Nothing is saved to cookies, local storage
             or our servers.
           </dd>
           <dt>Cookies</dt>
