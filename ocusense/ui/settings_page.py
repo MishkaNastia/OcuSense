@@ -142,13 +142,10 @@ class SettingsPage(Page):
         self.body.addWidget(setting_row(
             "Lighting check",
             "Off unless you switch it on. Then, if your room stays dark for a minute while you study, a card "
-            "suggests a lamp — a bright screen in a dark room is hard on the eyes. Uses only the picture’s "
+            "suggests a lamp (a bright screen in a dark room is hard on the eyes; you’re not a bat). Uses only the picture’s "
             "average brightness (never saved); webcams adjust their exposure, so it is a rough guide.",
             self.lighting))
         self.lighting.toggled.connect(self.lighting_changed.emit)
-        self.body.addWidget(setting_row("Check-ins",
-                                        f"Not in {THIS_APP} yet. The planned gentle prompts can be tried in the "
-                                        "sample session on the OcuSense website.", tag="Not available yet"))
 
         # Appearance
         self.section("Appearance")
@@ -159,7 +156,7 @@ class SettingsPage(Page):
         # Data & privacy
         self.section("Data & privacy")
         self.body.addWidget(paragraph(
-            f"Camera images are analysed in memory on this {COMPUTER} and thrown away immediately — they are never saved "
+            f"Camera images are analysed in memory on this {COMPUTER} and thrown away immediately. They are never saved "
             "or uploaded. Statistics (session times, blink counts, closure durations) are <b>kept only until you "
             f"quit OcuSense</b>. Saved on this {COMPUTER}: your calibration (a few numbers, reused every time OcuSense "
             "opens), the raw EAR recording, your reference for blink timing (below) and your reminder choices.",

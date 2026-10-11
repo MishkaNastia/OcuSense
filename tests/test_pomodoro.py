@@ -152,12 +152,25 @@ class PomodoroPageTest(unittest.TestCase):
         self.assertEqual(w.sidebar.items["pomodoro"].text(), "Pomodoro · paused")
         self.assertFalse(self.page.dial.grab().isNull())
 
-    def test_phase_end_notifies_when_not_in_view(self):
+    def test_phase_end_notifies(self):
         self.page.spins["focus_minutes"].setValue(1)
         self.page.main_button.click()
         self.advance(61)
         self.assertEqual(self.page.timer.phase, SHORT_BREAK)
-        self.assertEqual(self.sent[0][0], "Focus round done")  # the window isn't active in tests
+        self.assertEqual(self.sent[0][0], "Focus round done, nice work!")
+
+    def test_phase_end_notifies_even_on_the_pomodoro_page(self):
+        w = self.window
+        w.show_page("pomodoro")
+        w.isActiveWindow = lambda: True  # as if you're looking right at it
+        self.page.spins["focus_minutes"].setValue(1)
+        self.page.main_button.click()
+        self.advance(61)
+        self.assertEqual(len(self.sent), 1)
+        self.page.checks["pomodoro_notify"].setChecked(False)
+        self.page.timer.skip(self.page.now())  # the break ends early
+        self.page.refresh()
+        self.assertEqual(len(self.sent), 1)  # switched off: nothing more
 
     def test_settings_presets_and_animations_are_remembered(self):
         self.page.presets.buttons["deep"].click()

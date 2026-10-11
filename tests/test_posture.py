@@ -3,6 +3,7 @@
 import math
 import unittest
 
+from ocusense.config import POSTURE_SUSTAIN_SECONDS as SUSTAIN
 from ocusense.core.models import PostureBaseline, PostureReading
 from ocusense.core.posture import (
     HEAD_DROPPED, HEAD_TILTED, IRIS_EDGES, SLUMPED, TOO_CLOSE, PostureCalibration, PostureMonitor, TiltWatcher,
@@ -188,13 +189,14 @@ class SustainedRuleTest(unittest.TestCase):
             status = monitor.update(start + i / fps, reading(**change))
         return status
 
-    def test_poor_only_after_thirty_seconds(self):
+    def test_poor_only_after_the_sustain_time(self):
+        self.assertEqual(SUSTAIN, 15.0)
         monitor = PostureMonitor(BASE)
-        status = self.run_frames(monitor, 29.9, **SLUMP)
+        status = self.run_frames(monitor, SUSTAIN - 0.1, **SLUMP)
         self.assertFalse(status.poor)
         self.assertEqual(status.outside, (SLUMPED,))
-        self.assertGreater(status.longest_outside, 29)
-        status = monitor.update(30.0, reading(**SLUMP))
+        self.assertGreater(status.longest_outside, SUSTAIN - 1)
+        status = monitor.update(SUSTAIN, reading(**SLUMP))
         self.assertTrue(status.poor)
         self.assertEqual(status.problems, (SLUMPED,))
         self.assertAlmostEqual(status.centre_drop, 0.15)
@@ -211,24 +213,26 @@ class SustainedRuleTest(unittest.TestCase):
 
     def test_back_within_limits_clears_and_restarts_the_count(self):
         monitor = PostureMonitor(BASE)
-        self.assertTrue(self.run_frames(monitor, 31, pitch=30.0).poor)
-        status = monitor.update(31.0, reading())
+        self.assertTrue(self.run_frames(monitor, SUSTAIN + 1, pitch=30.0).poor)
+        status = monitor.update(SUSTAIN + 1, reading())
         self.assertFalse(status.poor)
         self.assertEqual(status.outside, ())
-        self.assertFalse(self.run_frames(monitor, 20, start=32.0, pitch=30.0).poor)  # counting from zero again
+        self.assertFalse(self.run_frames(monitor, SUSTAIN * 2 / 3, start=SUSTAIN + 2, pitch=30.0).poor)  # from zero again
 
     def test_lost_face_resets_like_lost_tracking(self):
         monitor = PostureMonitor(BASE)
-        self.run_frames(monitor, 20, **SLUMP)
-        self.assertFalse(monitor.update(20.0, None).tracked)
-        status = self.run_frames(monitor, 20, start=20.1, **SLUMP)  # 40 s slumped in total, but not in a row
+        part = SUSTAIN * 2 / 3
+        self.run_frames(monitor, part, **SLUMP)
+        self.assertFalse(monitor.update(part, None).tracked)
+        status = self.run_frames(monitor, part, start=part + 0.1, **SLUMP)  # longer than the limit, but not in a row
         self.assertFalse(status.poor)
 
     def test_each_limit_has_its_own_timer(self):
         monitor = PostureMonitor(BASE)
-        self.run_frames(monitor, 20, **SLUMP)  # slumped from 0 s
-        status = self.run_frames(monitor, 15, start=20.0, roll=20.0, **SLUMP)  # also tilted from 20 s
-        self.assertEqual(status.problems, (SLUMPED,))  # slumped 35 s; tilted only 15 s
+        part = SUSTAIN * 2 / 3
+        self.run_frames(monitor, part, **SLUMP)  # slumped from 0 s
+        status = self.run_frames(monitor, part, start=part, roll=20.0, **SLUMP)  # also tilted from then on
+        self.assertEqual(status.problems, (SLUMPED,))  # slumped long enough; tilted not yet
         self.assertEqual(set(status.outside), {SLUMPED, HEAD_TILTED})
 
 

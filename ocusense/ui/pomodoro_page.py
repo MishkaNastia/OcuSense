@@ -130,7 +130,7 @@ class PomodoroPage(Page):
         for name, text in (("pomodoro_monitoring", "Run eye monitoring in focus rounds and pause it in breaks"),
                            ("auto_start_breaks", "Start breaks automatically"),
                            ("auto_start_focus", "Start the next focus round automatically"),
-                           ("pomodoro_notify", f"{NOTIFICATION_START} when a phase ends (when OcuSense isn’t in view)"),
+                           ("pomodoro_notify", f"{NOTIFICATION_START} when a focus round or a break ends"),
                            ("pomodoro_sound", "A short sound when a phase ends"),
                            ("animations", "Animations")):
             box = QCheckBox(text)

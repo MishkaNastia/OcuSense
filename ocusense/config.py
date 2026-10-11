@@ -72,7 +72,7 @@ FOCAL_LENGTH_PER_FRAME_WIDTH = 1.0
 POSTURE_CALIBRATION_SECONDS = 120.0
 POSTURE_MIN_SAMPLES = 300  # frames with everything measured needed in those 2 min (~10 s at 30 frames/s)
 POSTURE_MAX_PITCH_SPREAD = 5.0  # degrees (robust spread); more = the posture kept changing, not one baseline
-POSTURE_SUSTAIN_SECONDS = 30.0  # a limit must be exceeded this long, without a break, to count
+POSTURE_SUSTAIN_SECONDS = 15.0  # a limit must be exceeded this long, without a break, to count
 POSTURE_PITCH_DROP_DEGREES = 15.0  # head dropped: chin this much lower than at calibration
 POSTURE_ROLL_DEGREES = 10.0  # head tilted sideways this much from calibration, either way
 POSTURE_MIN_DISTANCE_CM = 50.0  # closer than this to the screen…

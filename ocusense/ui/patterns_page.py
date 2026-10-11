@@ -10,13 +10,12 @@ from PySide6.QtGui import QFont
 from ocusense.config import CLOSE_BELOW, MIN_VALID_SECONDS_FOR_RATE, REOPEN_ABOVE, ROLLING_WINDOW_SECONDS
 from ocusense.core.models import SessionSummary
 from ocusense.core.stats import METRICS
-from ocusense.system import THIS_APP_START
 
 from . import theme
 from .widgets.common import label
 from .widgets.page import Page, paragraph
 
-PLACEHOLDER = "Your patterns will appear as you complete sessions and check-ins."
+PLACEHOLDER = "Your patterns will appear as you complete sessions."
 
 
 class PatternsPage(Page):
@@ -68,6 +67,6 @@ class PatternsPage(Page):
         self.observations.setText(PLACEHOLDER)
         count = len(sessions)
         self.observations_detail.setText(
-            f"{THIS_APP_START} doesn’t record check-ins yet, so OcuSense doesn’t draw personal conclusions. "
+            "OcuSense describes what it measures and doesn’t draw personal conclusions (it’s an app, not a fortune teller). "
             + (f"Your measured numbers from {count} session{'s' if count != 1 else ''} are under All time."
                if count else "Your measured numbers will be under All time after your first session."))

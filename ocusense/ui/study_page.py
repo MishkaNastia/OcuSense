@@ -66,7 +66,7 @@ class StudyPage(QScrollArea):
         self.stop_button = button("Stop", "quiet")
         self.recalibrate_button = button("Recalibrate", "quiet")
         self.stop_button.setToolTip("Stop and end this session (⌘.)")
-        self.pause_button.setToolTip("Pause — the camera turns off until you resume")
+        self.pause_button.setToolTip("Pause: the camera turns off until you resume")
         self.buttons = {"start": self.start_button, "pause": self.pause_button, "resume": self.resume_button,
                         "stop": self.stop_button, "recalibrate": self.recalibrate_button}
         for widget in self.buttons.values():
@@ -112,8 +112,8 @@ class StudyPage(QScrollArea):
         self.openness_value.setMinimumWidth(130)
         self.openness_value.setAccessibleName("Personal eye openness, both eyes")
         readout.addWidget(self.openness_value, 0, Qt.AlignmentFlag.AlignVCenter)
-        readout.addWidget(label("Relative to your calibrated open and closed positions. "
-                                "Not a fatigue score and not a literal anatomical percentage.",
+        readout.addWidget(label("Compared with your own open and closed eyes from calibration. "
+                                "Not a tiredness score, and not a ruler for your eyelids.",
                                 "secondary", theme.ui_font(14), wrap=True), 1, Qt.AlignmentFlag.AlignVCenter)
         layout.addLayout(readout)
         self.graph = OpennessGraph()
@@ -131,10 +131,10 @@ class StudyPage(QScrollArea):
         stats_row = QHBoxLayout()
         stats_row.setSpacing(0)
         self.stat_values = {}
-        cells = (("rate", "Blink rate", "completed blinks per minute of valid observation"),
-                 ("closure", "Median closure duration", "time between the detector’s closing and reopening "
-                                                        "thresholds — not the whole blink movement"),
-                 ("closed", "Time classified as closed", "share of valid observation in the detector’s closed state"))
+        cells = (("rate", "Blink rate", "blinks per minute while your eyes were tracked"),
+                 ("closure", "Median closure duration", "how long a typical blink keeps your eyes shut, "
+                                                        "from closing to reopening"),
+                 ("closed", "Time classified as closed", "how much of the tracked time your eyes were closed"))
         for i, (key, title, explain) in enumerate(cells):
             if i:
                 stats_row.addWidget(vline())
@@ -179,7 +179,8 @@ class StudyPage(QScrollArea):
         footer.addWidget(self.preview)
         privacy = QVBoxLayout()
         privacy.addWidget(label("Camera preview", font=theme.ui_font(14, QFont.Weight.Bold)))
-        privacy.addWidget(label(f"Processed on this {COMPUTER}. Images are never saved or uploaded.", "secondary", theme.ui_font(13)))
+        privacy.addWidget(label(f"Everything stays on this {COMPUTER}. No pictures are saved or sent anywhere.",
+                                "secondary", theme.ui_font(13)))
         footer.addLayout(privacy)
         footer.addStretch(1)
         layout.addLayout(footer)
@@ -220,7 +221,7 @@ class StudyPage(QScrollArea):
             self.precision_note.setText(
                 f"Durations are timed between camera frames ({snap.processing_rate:.0f} per second), so they are "
                 f"accurate to about ±{frame_ms:.0f} ms. Blink rate and closed time appear after "
-                f"{MIN_VALID_SECONDS_FOR_RATE:.0f} s of valid observation (an MVP engineering choice).")
+                f"{MIN_VALID_SECONDS_FOR_RATE:.0f} s of valid observation.")
 
     def show_reminder(self, text: str) -> None:
         self.reminder_label.setText(text)

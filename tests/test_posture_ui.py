@@ -8,6 +8,7 @@ from tests.test_main_window import FakeThread, update  # sets offscreen Qt and a
 from ocusense.core.models import PostureStatus
 from ocusense.core.posture import HEAD_DROPPED, SLUMPED, PostureCalibration
 from ocusense.monitoring.pipeline import MODEL_PATH, SCREEN_TILTED
+from ocusense.ui.main_window import TILT_MESSAGE
 
 os.environ["OCUSENSE_NO_NOTIFICATIONS"] = "1"
 
@@ -97,8 +98,8 @@ class PostureUiTest(unittest.TestCase):
     def test_screen_tilt_sends_the_message(self):
         self.monitoring()
         self.send(events=[SCREEN_TILTED], posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=120)
-        self.assertEqual(self.notifications, [("OcuSense", "You tilted your screen, recalibrating now")])
-        self.assertIn("You tilted your screen, recalibrating now", self.window.study.message_label.text())
+        self.assertEqual(self.notifications, [("OcuSense", TILT_MESSAGE)])
+        self.assertIn(TILT_MESSAGE, self.window.study.message_label.text())
         self.assertEqual(self.page.posture_indicator.text.text(), "Recording your posture: 2:00 left")
         self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=119)
         self.assertEqual(len(self.notifications), 1)  # once per tilt

@@ -1,6 +1,7 @@
 """macOS notifications: the text goes in as arguments, never into the script."""
 
 import os
+import sys
 import unittest
 from unittest import mock
 
@@ -121,3 +122,28 @@ class NativeNotificationTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(sys.platform == "darwin", "macOS notification centre only")
+class ShowInFrontTest(unittest.TestCase):
+    """macOS hides an app's notifications while it is in front unless a delegate says otherwise."""
+
+    def test_delegate_asks_for_a_banner(self):
+        import UserNotifications as api
+        from ocusense import notifications
+        delegate = notifications.front_delegate(api)
+        shown = []
+        delegate.userNotificationCenter_willPresentNotification_withCompletionHandler_(None, None, shown.append)
+        self.assertEqual(shown, [notifications.presentation_options(api)])
+        self.assertTrue(shown[0] & int(api.UNNotificationPresentationOptionBanner))
+
+
+class EveryNotificationTest(unittest.TestCase):
+    def test_test_mode_covers_every_kind(self):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from ocusense.ui.app import all_notifications
+        titles = [title for title, _ in all_notifications()]
+        self.assertEqual(len(titles), len(set(titles)))  # each kind its own notification
+        for expected in ("Trying to lick the screen?", "Time for a break", "Break’s over"):
+            self.assertIn(expected, titles)
+        self.assertEqual(len(titles), 8)

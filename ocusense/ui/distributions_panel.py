@@ -33,15 +33,15 @@ EYES = (("left", "Left eye"), ("right", "Right eye"), ("both", "Both eyes"))
 UNITS = (("minute", "Per minute"), ("second", "Per second"))  # for the two frequency measures
 
 EXPLAIN = {
-    "closure": "Time between the detector’s closing and reopening thresholds — not the full blink movement. "
+    "closure": "Time from the eyes closing to reopening (the detector’s thresholds, not the whole blink movement). "
                "Measured from frame time stamps, so each value is only as precise as the time between frames "
                "(about ±33 ms at 30 frames per second).",
     "interval": "Time from the start of one completed blink to the start of the next, counted only within "
-                "uninterrupted tracking — never across a gap, pause or recalibration.",
+                "uninterrupted tracking, never across a gap, pause or recalibration.",
     "rate": f"Completed blinks per minute of valid tracking, in separate {WINDOW_SECONDS:.0f}-second windows. "
             f"A window counts only if it is finished and has at least {MIN_VALID_SECONDS_FOR_RATE:.0f} s of valid "
             "tracking. Per second = per minute ÷ 60.",
-    "instant": "60 ÷ the time between two consecutive blinks, in blinks per minute (per second: 1 ÷ that time) — "
+    "instant": "60 ÷ the time between two consecutive blinks, in blinks per minute (per second: 1 ÷ that time). "
                "one value per pair of blinks, so it appears after a short recording. Much noisier than the per-minute rate: a single "
                "long pause gives one very low value, a quick double blink a very high one.",
     "openness": "Relative to your calibrated eye positions. Not a fatigue score or literal percentage of "
@@ -57,7 +57,7 @@ def _iqr_text(values: list[float], unit: str, decimals: int) -> str:
     fmt = f"{{:.{decimals}f}}"
     sep = "" if unit == "%" else " "
     return (f"median {fmt.format(q[1])}{sep}{unit} · interquartile range "
-            f"{fmt.format(q[0])}–{fmt.format(q[2])}{sep}{unit}")
+            f"{fmt.format(q[0])} to {fmt.format(q[2])}{sep}{unit}")
 
 
 class DistributionsPanel(QWidget):

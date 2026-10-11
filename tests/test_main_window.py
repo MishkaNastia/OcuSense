@@ -381,7 +381,7 @@ class SidebarNavigationTest(unittest.TestCase):
         w.show_page("all_time")
         page = w.stats_page
         self.assertEqual(page.summary_values["sessions"].text(), "1")
-        self.assertEqual(page.summary_values["breaks"].text(), "—")  # breaks aren't recorded yet
+        self.assertNotIn("breaks", page.summary_values)  # breaks aren't shown at all
         self.assertIn("memory only", page.memory_note.text())
 
     def test_patterns_page_never_invents_findings(self):
@@ -730,13 +730,14 @@ class SavedCalibrationTest(unittest.TestCase):
         w.monitor.calibration, w.monitor.calibration_info = self.cal, self.info  # what the worker produces
         w._on_update(update(events=[CALIBRATION_DONE]))
         self.assertEqual(self.store.load().calibration, self.cal)
-        self.assertIn("saved", w.study.message_label.text())
+        self.assertIn("pretty eyes", w.study.message_label.text())
+        self.assertIn("next time you can start right away", w.study.message_label.text())
 
     def test_next_launch_starts_monitoring_right_away(self):
         self.store.save(self.cal, self.info)
         w = self.open_window()
         self.assertEqual(w.monitor.calibration, self.cal)
-        self.assertIn("saved calibration from 10 Oct 2026", w.study.message_label.text())
+        self.assertIn("your calibration from 10 Oct 2026", w.study.message_label.text())
         self.assertFalse(w.study.recalibrate_button.isHidden())  # recalibration is always possible
         w.start()
         self.assertEqual(w.state, "monitoring")
@@ -751,7 +752,7 @@ class SavedCalibrationTest(unittest.TestCase):
         w.monitor.calibration = None  # the worker forgets the old one when calibration starts
         w.cancel_calibration()
         self.assertEqual(w.monitor.calibration, self.cal)
-        self.assertIn("saved calibration is still in use", w.study.message_label.text())
+        self.assertIn("saved calibration is still on duty", w.study.message_label.text())
 
     def test_failed_recalibration_does_not_replace_the_file(self):
         self.store.save(self.cal, self.info)

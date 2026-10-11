@@ -3,7 +3,8 @@
 Options:
   --demo-history   fill Statistics with clearly labelled demo sessions
   --self-test      check a build without a camera: model loads, one frame is analysed
-  --notification-test  send one test Mac notification and quit (check name, icon and permission)
+  --notification-test  send every kind of notification once (test copies) and quit: check the
+                       name, icon, permission and wording of each
 """
 
 import os
@@ -43,13 +44,28 @@ def _fail(message: str, details: str = "") -> int:
     return 1
 
 
+def all_notifications() -> list[tuple[str, str]]:
+    """Every notification OcuSense can send, as (title, message), for --notification-test."""
+    from .eye_rest_card import BODY as EYE_REST_BODY, TITLE as EYE_REST_TITLE
+    from .lighting_card import BODY as LIGHTING_BODY, TITLE as LIGHTING_TITLE
+    from .main_window import BREAK_MESSAGE, DISTANCE_BODY, DISTANCE_TITLE, POMODORO_MESSAGES, TILT_MESSAGE
+    return ([(DISTANCE_TITLE, DISTANCE_BODY), ("Time for a break", BREAK_MESSAGE),
+             (EYE_REST_TITLE, EYE_REST_BODY), (LIGHTING_TITLE, LIGHTING_BODY), ("OcuSense", TILT_MESSAGE)]
+            + [POMODORO_MESSAGES[phase] for phase in ("short_break", "long_break", "focus")])
+
+
 def _notification_test() -> int:
+    """Send every kind of notification once, a couple of seconds apart, then quit."""
     import time
 
     from ocusense import notifications
-    sent = notifications.post("Go easy on your eyes and move back a little. (Test)", "Trying to lick the screen?")
+    sent = 0
+    for title, message in all_notifications():
+        if notifications.post(f"{message} (Test)", title):
+            sent += 1
+        time.sleep(2)  # one at a time, so each can be read
     time.sleep(3)  # macOS answers asynchronously; give it a moment before quitting
-    print("notification requested" if sent else "notifications unavailable here")
+    print(f"{sent} notifications requested" if sent else "notifications unavailable here")
     return 0 if sent else 1
 
 

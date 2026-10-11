@@ -1,7 +1,7 @@
 """Statistics › Current session: the running (or paused) session, from the live recorder.
 
 Every number comes from SessionRecorder.summary() (the same data the All time page
-uses once the session ends). Unavailable values are "—", never 0. The comparison
+uses once the session ends). Unavailable values read "not yet", never 0. The comparison
 with the saved reference comes from core/baseline_drift.LiveDrift.
 """
 
@@ -17,7 +17,6 @@ from ocusense.core.models import SessionSummary
 from ocusense.core.posture import PostureCalibration
 from ocusense.reference import MIN_REFERENCE_INTERVALS
 from ocusense.core.stats import METRICS, format_duration, format_metric
-from ocusense.system import THIS_APP
 
 from . import theme
 from .distributions_panel import DistributionsPanel
@@ -27,7 +26,11 @@ from .widgets.openness_graph import OpennessGraph
 from .widgets.page import Page, paragraph
 from .widgets.status_indicator import StatusIndicator
 
-UNAVAILABLE = "—"
+UNAVAILABLE = "not yet"
+
+
+def _value(key: str, value) -> str:
+    return UNAVAILABLE if value is None else format_metric(key, value)
 
 
 def value_row(cells) -> tuple[QWidget, dict]:
@@ -71,9 +74,9 @@ class CurrentSessionPage(Page):
         empty.setSpacing(36)
         empty.addWidget(Composition(), 0, Qt.AlignmentFlag.AlignTop)
         text = QVBoxLayout()
-        text.addWidget(label("No session is running.", font=theme.ui_font(26, QFont.Weight.Bold), wrap=True))
-        text.addWidget(paragraph("Start a session on the Study page. Its time, tracking coverage and "
-                                 "measurements appear here while it runs.", 16, secondary=True))
+        text.addWidget(label("No session running right now.", font=theme.ui_font(26, QFont.Weight.Bold), wrap=True))
+        text.addWidget(paragraph("Start one on the Study page and its numbers show up here live. Like a "
+                                 "scoreboard, but for your eyes.", 16, secondary=True))
         go = QPushButton("Go to Study")
         go.setProperty("kind", "primary")
         go.clicked.connect(self.go_to_study.emit)
@@ -108,7 +111,7 @@ class CurrentSessionPage(Page):
         body.addWidget(self.graph_caption)
         self.graph = OpennessGraph()
         body.addWidget(self.graph)
-        body.addWidget(label("Relative to your calibrated open and closed positions — not a fatigue score.",
+        body.addWidget(label("Compared with your own open and closed eyes. Not a tiredness score.",
                              "secondary", theme.ui_font(13), wrap=True))
 
         self.section("Posture", body)
@@ -136,18 +139,18 @@ class CurrentSessionPage(Page):
                              f"{POSTURE_SUSTAIN_SECONDS:.0f} seconds in a row to count, so "
                              "glancing away doesn't. On MacBooks that report the screen angle, small screen tilts "
                              f"are corrected and a tilt of {LID_RECALIBRATE_DEGREES:.0f}° or more records a new "
-                             "baseline. Shown live only — never saved. Not a health assessment.",
+                             "baseline. Shown live only and never saved. Not a health assessment.",
                              "secondary", theme.ui_font(13), wrap=True))
 
         self.section("Blink distributions", body)
-        body.addWidget(label("How your blinks vary within this session — descriptive only, not a fatigue "
-                             "assessment. Updates every few seconds.", "secondary", theme.ui_font(14), wrap=True))
+        body.addWidget(label("How your blinks vary in this session. It describes, it doesn’t judge, and it’s not a "
+                             "tiredness test. Updates every few seconds.", "secondary", theme.ui_font(14), wrap=True))
         self.distributions = DistributionsPanel()
         body.addWidget(self.distributions)
 
         self.section("Compared with your reference", body)
-        body.addWidget(label("Is the time between your blinks still distributed like in your reference — the "
-                             "first 10 minutes of one session, saved (Settings › Data & privacy)? Every 30 seconds "
+        body.addWidget(label("Are the gaps between your blinks still like in your reference (the first 10 "
+                             "minutes of one session, saved in Settings › Data & privacy)? Every 30 seconds "
                              "the last 5 minutes are compared with it (likelihood-ratio test on log-normal fits); 3 windows in a "
                              "row below p = 0.01 count as different. "
                              "A statistical comparison of timing, not a fatigue assessment.",
@@ -158,9 +161,6 @@ class CurrentSessionPage(Page):
         for widget in (self.drift_baseline, self.drift_latest, self.drift_counts):
             body.addWidget(widget)
 
-        self.section("Breaks and check-ins", body)
-        body.addWidget(paragraph(f"Breaks and check-ins aren’t recorded by {THIS_APP} yet, so none are shown "
-                                 "for this session.", secondary=True))
         self.body.addWidget(self.content)
         self.finish()
         self.show_session(None)
@@ -178,7 +178,7 @@ class CurrentSessionPage(Page):
         self.time_values["coverage"].setText(UNAVAILABLE if coverage is None else f"{coverage * 100:.0f}%")
         self.time_values["blinks"].setText(str(summary.blinks))
         for key, value in self.metric_values.items():
-            value.setText(format_metric(key, summary.metric(key)))
+            value.setText(_value(key, summary.metric(key)))
 
     def show_drift(self, drift: LiveDrift, interval_pairs, now: float, reference=None, error: str = "") -> None:
         """reference: the saved ocusense.reference.Reference (None if there is none yet)."""
@@ -212,7 +212,7 @@ class CurrentSessionPage(Page):
             else:
                 saved = f"not saved as your reference: at least {MIN_REFERENCE_INTERVALS} intervals are needed"
             self.drift_baseline.setText(f"This session's first 10 min: {fit.n} intervals · median "
-                                        f"{math.exp(fit.mu):.1f} s between blinks — {saved}.")
+                                        f"{math.exp(fit.mu):.1f} s between blinks, {saved}.")
         results = drift.results
         if not results:
             self.drift_latest.setText("The first comparison appears 5 minutes into the session." if drift.fixed
@@ -220,9 +220,9 @@ class CurrentSessionPage(Page):
             self.drift_counts.setText("")
             return
         w = results[-1]
-        minutes = f"{(w.start - drift.start) / 60:.1f}–{(w.end - drift.start) / 60:.1f} min"
+        minutes = f"{(w.start - drift.start) / 60:.1f} to {(w.end - drift.start) / 60:.1f} min"
         if w.status == NOT_ENOUGH_DATA:
-            text = (f"Latest window ({minutes}): not enough data — {w.n} intervals, at least "
+            text = (f"Latest window ({minutes}): not enough data yet, {w.n} intervals and at least "
                     f"{drift.min_intervals} needed.")
         elif w.status != TESTED:
             text = f"Latest window ({minutes}): not tested ({w.status})."
@@ -236,7 +236,7 @@ class CurrentSessionPage(Page):
             else:
                 verdict = f"similar to {compared}"
             text = (f"Latest window ({minutes}): {w.n} intervals · median {math.exp(w.fit.mu):.1f} s · "
-                    f"p = {w.p:.2g} — {verdict}.")
+                    f"p = {w.p:.2g}, so {verdict}.")
         if w.overlaps_baseline:
             text += " This window overlaps the first 10 minutes it is compared with."
         self.drift_latest.setText(text)

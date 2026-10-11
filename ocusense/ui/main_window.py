@@ -52,7 +52,7 @@ from ocusense.monitoring.pipeline import (
 )
 from ocusense.recording import EarRecording
 from ocusense.storage import SessionStore
-from ocusense.system import COMPUTER, NOTIFICATION_NAME, camera_help
+from ocusense.system import COMPUTER, camera_help
 
 from .account_page import AccountPage
 from .account_service import AccountService
@@ -74,12 +74,14 @@ from .time_log_page import TimeLogPage
 from .widgets.alert_banner import AlertBanner, TooCloseMark
 from .widgets.common import vline
 
-TILT_MESSAGE = "You tilted your screen, recalibrating now"
+TILT_MESSAGE = "Screen tilted! Relearning how you sit, give me 2 minutes"
 BREAK_MESSAGE = "Hey, you should take a break, else your eyes will become drier than the Sahara desert."
 POMODORO_MESSAGES = {  # next phase → (title, message)
-    "short_break": ("Focus round done", "Time for a short break — look into the distance and rest your eyes."),
-    "long_break": ("Focus rounds complete", "Time for a long break — step away from the screen for a while."),
-    "focus": ("Break over", "Ready for the next focus round."),
+    "short_break": ("Focus round done, nice work!", "Short break time. Look out of a window: your eyes have been "
+                    "staring at pixels for a while."),
+    "long_break": ("That’s a full set of focus rounds!", "Long break time. Stand up, stretch, find a snack. "
+                   "The screen will still be here, we promise."),
+    "focus": ("Break’s over", "Back to it! The next focus round is ready when you are."),
 }
 DISTANCE_TITLE = "Trying to lick the screen?"
 DISTANCE_BODY = "Go easy on your eyes and move back a little."
@@ -316,7 +318,7 @@ class MainWindow(QMainWindow):
         saved = self._finish_session()
         self.monitor.reset_session()
         self.elapsed = 0.0
-        self._set_state("ready", "Session ended — see it under Statistics." if saved else "")
+        self._set_state("ready", "Session saved. Have a peek under Statistics whenever you like." if saved else "")
         if saved:
             self._show_session_summary()
 
@@ -342,12 +344,12 @@ class MainWindow(QMainWindow):
         self._stop_camera()
         self._save_recording()
         if self._load_saved_calibration():  # a cancelled recalibration keeps the saved calibration
-            self._set_state("ready", "Recalibration cancelled — your saved calibration is still in use.")
+            self._set_state("ready", "No worries, recalibration cancelled. Your saved calibration is still on duty.")
         else:
-            self._set_state("ready", "Calibration cancelled. Press Start to calibrate again.")
+            self._set_state("ready", "Calibration cancelled. Press Start whenever you want to try again.")
 
     def _load_saved_calibration(self, announce: bool = False) -> bool:
-        ""f"Use the calibration saved on this {COMPUTER}, if there is a valid one. Only while the camera is off."""
+        """Use the calibration saved on this computer, if there is a valid one. Only while the camera is off."""
         saved = self.calibration_store.load()
         if saved is None:
             if announce and self.calibration_store.last_error:
@@ -355,8 +357,8 @@ class MainWindow(QMainWindow):
             return False
         self.monitor.use_calibration(saved.calibration, saved.calibrated_at)
         if announce:
-            self._set_state("ready", f"Using your saved calibration from {saved.calibrated_at.day} {saved.calibrated_at:%b %Y}. "
-                                     "Recalibrate if your lighting, glasses or seat changed.")
+            self._set_state("ready", f"Welcome back! Using your calibration from {saved.calibrated_at.day} "
+                                     f"{saved.calibrated_at:%b %Y}. New lamp, glasses or chair? Recalibrate.")
         return True
 
     def _begin_calibration(self) -> None:
@@ -437,7 +439,7 @@ class MainWindow(QMainWindow):
         self.study.set_blinks(update.blinks)
         if not update.face_found:
             self.status.set("warning", "Face not tracked")
-            self.study.graph_caption.setText("Measurement paused — face the camera")
+            self.study.graph_caption.setText("Measurement paused. Come back, the camera misses you")
         elif not update.reliable:
             self.status.set("warning", "Measurement paused")
             self.study.graph_caption.setText(f"Paused — {update.reason}")
@@ -467,8 +469,8 @@ class MainWindow(QMainWindow):
             self.current_page.posture_detail.setText(self.current_page.posture_off_text)
             return
         if self.state != "monitoring" or self.thread is None:
-            self.current_page.posture_detail.setText("Start a session first: posture is calibrated while the "
-                                                     "camera is on.")
+            self.current_page.posture_detail.setText("Start a session first: posture can only be learned while "
+                                                     "the camera is watching.")
             return
         self.thread.request_posture_calibration()
 
@@ -483,7 +485,8 @@ class MainWindow(QMainWindow):
             self.elapsed = 0.0
             self._enter_monitoring()
             self.study.message_label.setText(
-                "Calibration complete and saved — next time you can start right away." if saved
+                "Has anyone told you you have pretty eyes? We’re calibrated, and next time you can start right away."
+                if saved
                 else self.calibration_store.last_error or "Calibration complete.")
         elif CALIBRATION_FAILED in update.events:
             self.calibration.show_failure(update.cal_error)
@@ -603,8 +606,9 @@ class MainWindow(QMainWindow):
         elif state == "running" or state == "paused":  # a break running, or the Pomodoro paused
             if self.state == "monitoring":
                 self.pause()
-                self.study.message_label.setText("Paused for your break — the camera is off." if phase != "focus"
-                                                 else "Paused with the Pomodoro.")
+                self.study.message_label.setText("Paused for your break. The camera is off, so go look at "
+                                                 "something that isn’t a screen." if phase != "focus"
+                                                 else "Paused along with the Pomodoro.")
 
     def _time_log_running(self, running: bool) -> None:
         """A time-log timer started → eye monitoring starts (or resumes); stopped → the session ends."""
@@ -619,7 +623,7 @@ class MainWindow(QMainWindow):
             self.stop()  # saved under Statistics, with the summary card
 
     def _pomodoro_phase_ended(self, ended) -> None:
-        ""f"A Pomodoro phase finished: a {NOTIFICATION_NAME} if OcuSense isn't in view, and an optional sound."""
+        """A Pomodoro phase finished: a notification (whether or not OcuSense is in view) and an optional sound."""
         prefs = self.preferences
         if ended.phase == "focus" and ended.completed and self.recorder is not None:
             self.session_extras.focus_rounds += 1
@@ -627,11 +631,6 @@ class MainWindow(QMainWindow):
             QApplication.beep()
         if not prefs.pomodoro_notify:
             return
-        app = QApplication.instance()
-        in_view = (app.applicationState() == Qt.ApplicationState.ApplicationActive and self.isActiveWindow()
-                   and self.view == "pomodoro")
-        if in_view:
-            return  # the page itself shows the change
         title, message = POMODORO_MESSAGES[ended.next_phase]
         if not ended.started_automatically:
             message += " Press Start in OcuSense when you’re ready."
@@ -839,8 +838,9 @@ class MainWindow(QMainWindow):
             self.status.set("ready", "Ready")
             self.study.graph_caption.setText("")
             first = not self.monitor.calibration
-            self.study.graph.clear("Press Start. The first time, a short calibration (about 25 s) comes first; it is saved for next time." if first
-                                   else "Press Start to begin a new session.")
+            self.study.graph.clear("Press Start. The very first time, a 25-second calibration lets OcuSense get to "
+                                   "know your eyes. After that, it remembers." if first
+                                   else "Press Start when you’re ready to study.")
             self.study.set_blinks(0)
             self.study.clear_measurements()
             self.study.start_button.setFocus()
@@ -849,7 +849,7 @@ class MainWindow(QMainWindow):
             self.study.graph.clear("")
         elif state == "paused":
             self.status.set("paused", "Paused")
-            self.study.graph_caption.setText("Paused — the camera is off")
+            self.study.graph_caption.setText("Paused. The camera is off and resting too")
             self.study.set_live_openness(None)
             if self.last_update:
                 self.study.graph.set_data(self.last_update.samples, self.last_update.now, dimmed=True)
@@ -878,7 +878,7 @@ class MainWindow(QMainWindow):
         if not self._start_camera():
             return "The camera couldn’t be opened."
         self.monitor.interrupt()
-        self._set_state("playing", "A game is using the camera — your study session is paused.")
+        self._set_state("playing", "A game is borrowing the camera. Your study session is paused and waiting.")
         return ""
 
     def stop_game_camera(self) -> None:

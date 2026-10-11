@@ -13,7 +13,6 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QPushButton, QScrollArea, QVB
 
 from ocusense.core.models import SessionSummary
 from ocusense.core.stats import METRICS, combined_metric, format_duration, format_metric, period_stats
-from ocusense.system import THIS_APP
 
 from . import theme
 from .widgets.activity_chart import DAY_LABEL_WIDTH, ActivityChart, day_name
@@ -116,8 +115,7 @@ class AllTimePage(QScrollArea):
         summary_row.setSpacing(0)
         self.summary_values = {}
         for i, (key, text, note) in enumerate((("study", "Total study time", "includes a session in progress"),
-                                               ("sessions", "Completed sessions", ""),
-                                               ("breaks", "Recorded breaks", f"not recorded by {THIS_APP} yet"))):
+                                               ("sessions", "Completed sessions", ""))):
             cell = QWidget()
             col = QVBoxLayout(cell)
             col.setContentsMargins(0 if i == 0 else 24, 18, 24, 18)
@@ -171,7 +169,7 @@ class AllTimePage(QScrollArea):
         self.details.setTextFormat(Qt.TextFormat.RichText)
         body.addWidget(_rule(1, "hairline"))
         body.addWidget(self.details)
-        body.addWidget(_label("Measured relative to your own calibration. These describe what the camera saw — "
+        body.addWidget(_label("Measured relative to your own calibration. These describe what the camera saw, "
                               "not a tiredness or health score.", "secondary", theme.ui_font(13), wrap=True))
         body.addSpacing(30)
 
@@ -227,15 +225,14 @@ class AllTimePage(QScrollArea):
         has_any = bool(everything)
         self.empty.setVisible(not has_any)
         self.body.setVisible(has_any)
-        self.empty_detail.setText("Press Start on the Study page. Sessions are kept only until you quit "
-                                  "OcuSense — earlier runs are not shown here.")
+        self.empty_detail.setText("Press Start on the Study page and your sessions will line up here. They’re kept "
+                                  "until you quit OcuSense, like a goldfish with a good excuse.")
         if not has_any:
             return
 
         total = sum(s.study_seconds for s in everything)
         self.summary_values["study"].setText(format_duration(total) if total else "—")
         self.summary_values["sessions"].setText(str(sum(1 for s in everything if not s.in_progress)))
-        self.summary_values["breaks"].setText("—")
 
         stats = period_stats(everything, self.period, today)
         completed = [s for s in stats.sessions if not s.in_progress]
@@ -278,8 +275,7 @@ class AllTimePage(QScrollArea):
                 + (f", {format_duration(paused)} paused" if paused >= 60 else "") + "<br>"
                 f"<span style='color:{theme.GRAPHITE}'>Measurement</span>&nbsp; "
                 f"blink rate {format_metric('rate', s.metric('rate'))} · median closure {format_metric('closure', s.metric('closure'))} · "
-                f"{format_metric('closed', s.metric('closed'), with_unit=False)} closed · {coverage} tracked<br>"
-                f"<span style='color:{theme.GRAPHITE}'>Breaks and check-ins</span>&nbsp; not recorded yet"
+                f"{format_metric('closed', s.metric('closed'), with_unit=False)} closed · {coverage} tracked"
             )
             self.session_box.addWidget(SessionRow(key, when, subtitle, details, key in self.expanded, self._toggle))
 

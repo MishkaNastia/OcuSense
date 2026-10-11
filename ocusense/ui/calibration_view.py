@@ -72,7 +72,7 @@ class CalibrationView(QScrollArea):
         actions.addWidget(self.cancel_button)
         actions.addStretch(1)
         left.addLayout(actions)
-        left.addWidget(label("Measured against your own eyes, not a fixed average. Images are never saved.",
+        left.addWidget(label("OcuSense learns your eyes, not some average person’s. No pictures are saved.",
                              "secondary", theme.ui_font(13), wrap=True))
         left_widget = QWidget()
         left_widget.setLayout(left)
@@ -110,14 +110,14 @@ class CalibrationView(QScrollArea):
             widget.setText(prefix + STEP_TEXT[i][0])
             widget.setFont(theme.ui_font(16, QFont.Weight.Bold if i == step else QFont.Weight.Normal))
         if not face_found:
-            self.face.setText("Face not found — move into the camera’s view.")
+            self.face.setText("Can’t see you! Move into the camera’s view.")
         elif not reliable:
             self.face.setText(f"Hold on — {reason}.")
         else:
             self.face.setText("Face tracked.")
 
     def show_failure(self, reason: str) -> None:
-        self.error.setText("Calibration didn’t work: " + reason)
+        self.error.setText("That didn’t quite work: " + reason)
         self.countdown.setText("")
         self.phase.setText("")
         self.try_again_button.setVisible(True)
