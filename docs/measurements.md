@@ -676,8 +676,8 @@ While a limit is exceeded but not yet for 30 s, the page shows it with its time 
 tilting the screen moves your face up or down in the picture (about 2 % of the picture height
 per degree) and changes the measured head angle by the same number of degrees. Recent MacBook
 Pros have a hinge sensor that macOS exposes as an Apple HID device (vendor 0x05AC, product
-0x8104, sensor page 0x20, usage 0x8A); OcuSense reads it with `hidapi`
-(`ocusense/lid_sensor.py`). Apple doesn't document it, so it is optional: on Macs without it,
+0x8104, sensor page 0x20, usage 0x8A); OcuSense reads it directly through IOKit with
+synchronous calls only (`ocusense/lid_sensor.py`; no extra package). Apple doesn't document it, so it is optional: on Macs without it,
 with an external camera, or if it can't be read, posture uses the camera alone.
 - **Small tilts are corrected**: with δ = screen angle now − at the baseline (+ = opened
   further, camera looking more upwards), pitch is taken as `pitch − δ` and the face centre as

@@ -54,6 +54,7 @@ class BreakFieldTest(unittest.TestCase):
         self.window.show_page("games")
         self.page = self.window.games_page
         self.field = self.page.break_field
+        self.value, self.caption = self.page.break_value, self.page.break_caption
 
     def tearDown(self):
         self.window.close()
@@ -68,19 +69,23 @@ class BreakFieldTest(unittest.TestCase):
 
     def test_no_break_means_back_to_work(self):
         self.page.open_blink_code()
-        self.assertEqual(self.field.text(), "Get back to work my little genius")
+        self.assertEqual(self.value.text(), "Get back to work my little genius")
+        self.assertTrue(self.caption.isHidden())
+        self.assertGreaterEqual(self.value.font().pixelSize(), 20)  # larger than body text
 
     def test_break_time_left_top_right(self):
         import time
         self.window.pomodoro_page.timer = timer_in_break(time.monotonic() - 60)  # a break that started 1 min ago
         self.page.open_blink_garden()
-        self.assertEqual(self.field.text(), "Break: 04:00 left")
+        self.assertEqual(self.value.text(), "04:00")
+        self.assertEqual(self.caption.text(), "of your break left")
         right = self.field.x() + self.field.width()
-        self.assertGreater(right, self.page.viewport().width() - 60)  # in the top-right corner
+        self.assertAlmostEqual(right, self.page.viewport().width() - 48, delta=2)  # top right, inside the margin
         self.assertLess(self.field.y(), 60)
         self.window.pomodoro_page.timer.pause(time.monotonic())
         self.page.update_break_field()
-        self.assertTrue(self.field.text().startswith("Break paused: 04:0"))
+        self.assertTrue(self.value.text().startswith("04:0"))
+        self.assertEqual(self.caption.text(), "of your break left · paused")
 
 
 if __name__ == "__main__":

@@ -457,11 +457,20 @@ class GamesPage(Page):
         self._fit_stack()
 
         # Top right, over the page while a game is open: the Pomodoro break left, or a nudge back to work.
-        self.break_field = label("", font=theme.ui_font(15, QFont.Weight.Bold))
-        self.break_field.setParent(self)
+        self.break_field = QWidget(self)
         self.break_field.setObjectName("BreakField")
-        self.break_field.setStyleSheet(f"#BreakField {{ background: {theme.PAPER_DEEP}; color: {theme.INK}; "
-                                       f"border: 2px solid {theme.INK}; border-radius: 10px; padding: 6px 12px; }}")
+        self.break_field.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
+        self.break_field.setStyleSheet(f"#BreakField {{ background: {theme.PAPER_DEEP}; border: 2px solid {theme.INK}; "
+                                       "border-radius: 14px; }")
+        box = QVBoxLayout(self.break_field)
+        box.setContentsMargins(20, 12, 20, 12)
+        box.setSpacing(0)
+        self.break_value = label("")  # the time left (big digits) or the nudge
+        self.break_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.break_caption = label("", "secondary", theme.ui_font(14))
+        self.break_caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        box.addWidget(self.break_value)
+        box.addWidget(self.break_caption)
         self.break_field.setAccessibleName("Pomodoro break")
         self.break_field.hide()
         self.break_ticker = QTimer(self)
@@ -497,18 +506,24 @@ class GamesPage(Page):
         timer = self.window.pomodoro_page.timer
         left = timer.break_remaining(time.monotonic())
         if left is None:
-            text = NO_BREAK_TEXT
+            value, caption, font = NO_BREAK_TEXT, "", theme.ui_font(22, QFont.Weight.Bold)
         else:
-            text = f"Break{' paused' if timer.state == PAUSED else ''}: {clock(left)} left"
-        if text != self.break_field.text():
-            self.break_field.setText(text)
+            value, font = clock(left), theme.number_font(40)
+            caption = "of your break left" + (" · paused" if timer.state == PAUSED else "")
+        if (value, caption) != (self.break_value.text(), self.break_caption.text()):
+            self.break_value.setFont(font)
+            self.break_value.setText(value)
+            self.break_caption.setText(caption)
+            self.break_caption.setVisible(bool(caption))
+            self.break_field.setAccessibleDescription(f"{value} {caption}".strip())
             self._place_break_field()
         self.break_field.raise_()
 
     def _place_break_field(self) -> None:
+        """In line with the page's margins (48 px), level with the title — not squeezed into the corner."""
         field = self.break_field
         field.adjustSize()
-        field.move(max(0, self.viewport().width() - field.width() - 24), 20)
+        field.move(max(0, self.viewport().width() - field.width() - 48), 34)
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
