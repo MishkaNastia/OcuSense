@@ -81,8 +81,8 @@ calibration values are measured, not set.
 | `RECORDING_CHUNK_SECONDS` | 600 s | a new recording file every 10 minutes |
 | `IRIS_DIAMETER_MM` | 11.7 mm | assumed iris width, the ruler for the posture distance |
 | `FOCAL_LENGTH_PER_FRAME_WIDTH` | 1.0 | webcam focal length ÷ frame width (≈ 53° view); tune if the cm are off |
-| `POSTURE_CALIBRATION_SECONDS` | 120 s | the posture baseline: the first 2 minutes after each eye calibration (or Recalibrate posture) |
-| `POSTURE_MIN_SAMPLES` | 300 frames | frames with everything measured needed in those 2 minutes |
+| `POSTURE_CALIBRATION_SECONDS` | 60 s | the posture baseline: the first minute of each study session (or after Recalibrate posture or a screen tilt) |
+| `POSTURE_MIN_SAMPLES` | 300 frames | frames with everything measured needed in that minute |
 | `POSTURE_MAX_PITCH_SPREAD` | 5° | head angle spread above this = no single posture: baseline rejected |
 | `POSTURE_SUSTAIN_SECONDS` | 30 s | a posture limit must be exceeded this long in a row to count |
 | `POSTURE_PITCH_DROP_DEGREES` | 15° | head dropped: chin this much lower than at calibration |
@@ -341,7 +341,7 @@ files rotate every **10 minutes**.
 | Study time, tracking coverage, blinks counted | for the whole session so far (section 7, 8.1) |
 | Eye measurements · whole session so far | blink rate, median closure duration and time classified as closed over **all** valid observation of the session (not just the last 60 s) |
 | Personal eye openness graph | the same 10 s live graph as on the Study page |
-| Posture | when ticked in Settings: good / poor (with the limits exceeded), the current changes from your posture baseline (including a corrected screen tilt), the 2-minute baseline's progress, and a **Recalibrate posture** button — see [14](#14-posture) |
+| Posture | when ticked in Settings: good / poor (with the limits exceeded), the current changes from your posture baseline (including a corrected screen tilt), the 1-minute baseline's progress, and a **Recalibrate posture** button — see [14](#14-posture) |
 | Blink distributions | five histograms, updated every 2 s — see [11](#11-blink-distributions-histograms) |
 | Compared with your reference | the saved reference (or, without one, this session's first 10 minutes), the latest 5-minute window's test result and a count of windows so far — see [11.7](#117-compared-with-your-reference) |
 
@@ -608,7 +608,7 @@ MacBooks that report it, the screen's angle. Nothing posture-related is saved.
 **On and off.** Posture monitoring is **off** until you tick **Settings › Monitoring › Posture
 monitoring** (remembered between launches in `preferences.json`). While it is off nothing
 posture-related runs: no measurements, no baseline, no screen-angle readings, no messages.
-Ticking it during a session starts the 2-minute baseline straight away; with the camera off,
+Ticking it during a session starts the 1-minute baseline straight away; with the camera off,
 it starts when monitoring does. Unticking forgets the baseline.
 
 **What is measured** on every frame with a face:
@@ -629,10 +629,11 @@ The focal length is **not measured** for your camera: if the centimetres look of
 `FOCAL_LENGTH_PER_FRAME_WIDTH` (0.87 for a 60° camera). The limits compare with your own
 baseline, so a constant error in centimetres mostly cancels out, except for the fixed 50 cm limit.
 
-**The posture baseline.** After each eye calibration, the **first 2 minutes** of work are
-recorded: sit the way you want to, at a good distance, and keep working normally (reading is
+**The posture baseline.** At the start of **every study session**, the **first minute** of work
+is recorded: sit the way you want to, at a good distance, and keep working normally (reading is
 fine; that's what it should describe). The **median** pitch, roll, distance, face centre, face
-size and screen angle become the baseline; posture isn't judged during those 2 minutes.
+size and screen angle become the baseline; posture isn't judged during that minute. Resuming
+after a pause keeps it (unless the pause interrupted it, then it starts again).
 **Recalibrate posture** records it again (for example after moving your chair or desk) without
 touching the eye calibration. It is rejected, and the previous baseline kept, when:
 - fewer than **300** frames had everything measured (face mostly out of view), or
@@ -640,9 +641,9 @@ touching the eye calibration. It is rejected, and the previous baseline kept, wh
   The interquartile range is used rather than the median deviation because it also notices two
   alternating postures.
 
-It belongs to the eye calibration rather than to the 10-minute blink reference (section 11.7)
-because posture is measured relative to the camera: a different desk, chair or screen angle
-changes it, while blink timing doesn't.
+It is recorded fresh for each session, rather than once like the 10-minute blink reference
+(section 11.7), because posture is measured relative to the camera: a different desk, chair or
+screen angle changes it, while blink timing doesn't.
 
 **Limits.** Posture is marked **poor** when one of these has been exceeded for **30 seconds
 in a row**:
@@ -677,7 +678,7 @@ with an external camera, or if it can't be read, posture uses the camera alone.
 - **A clear tilt records a new baseline**: when the screen has moved **5°** or more from the
   baseline's angle and then stayed within ±1° for **2 seconds** (so adjusting it gives one
   message, at the end), a Mac notification says **"You tilted your screen, recalibrating now"**
-  (also shown under the Study page buttons), and the 2-minute baseline starts again.
+  (also shown under the Study page buttons), and the 1-minute baseline starts again.
 
 **Not the distance reminder.** The distance reminder (section 13) compares apparent face size
 with the eye calibration and reacts after 3 s; the posture "too close" limit uses the

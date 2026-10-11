@@ -16,8 +16,8 @@ numbers (no camera, no MediaPipe objects):
   angle, so both are corrected for the change in lid angle since the baseline; a clear,
   settled tilt (TiltWatcher) asks for a new baseline instead.
 
-The baseline (PostureCalibration) is the median of each value over 2 minutes of normal
-work, normally right after the eye calibration. PostureMonitor then marks posture as
+The baseline (PostureCalibration) is the median of each value over the first minute of
+normal work in each study session. PostureMonitor then marks posture as
 poor when a limit stays exceeded for POSTURE_SUSTAIN_SECONDS without a break, so a
 glance away or a quick stretch never counts. A frame without a face is handled like
 lost tracking in the blink counter: the half-finished count is forgotten and starts again.

@@ -118,7 +118,7 @@ class CalibrationTest(unittest.TestCase):
         cal.update(seconds, readings(n))
         return cal
 
-    def test_medians_after_two_minutes(self):
+    def test_medians_after_the_recording(self):
         cal = self.record(lambda i: reading(pitch=50.0 if i % 100 == 0 else 2.0 + (i % 3) - 1,  # odd frames ignored
                                             distance=64.0 + (i % 3), lid=118.0))
         self.assertEqual(cal.status, PostureCalibration.DONE)
@@ -130,9 +130,9 @@ class CalibrationTest(unittest.TestCase):
     def test_still_running_before_the_end(self):
         cal = PostureCalibration()
         cal.start(0.0)
-        cal.update(119.0, reading())
+        cal.update(59.0, reading())
         self.assertEqual(cal.status, PostureCalibration.RUNNING)
-        self.assertAlmostEqual(cal.seconds_left(100.0), 20.0)
+        self.assertAlmostEqual(cal.seconds_left(40.0), 20.0)
         self.assertEqual(PostureCalibration().seconds_left(5.0), 0.0)
 
     def test_fails_without_enough_measured_frames(self):

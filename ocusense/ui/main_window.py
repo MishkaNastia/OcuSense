@@ -367,7 +367,8 @@ class MainWindow(QMainWindow):
     def _enter_monitoring(self) -> None:
         now = time.monotonic()
         self.running_since = now
-        if self.recorder is None:
+        new_session = self.recorder is None
+        if new_session:
             self.recorder = SessionRecorder(now, calibration=self.monitor.calibration_info)
             self.session_extras = SessionExtras()
             self.study.clear_measurements()
@@ -375,9 +376,12 @@ class MainWindow(QMainWindow):
             self.recorder.resume(now)
         self._set_state("monitoring")
         m = self.monitor
-        if (m.posture_enabled and m.calibration is not None and m.posture_monitor is None
-                and m.posture_calibrator.status != PostureCalibration.RUNNING and self.thread is not None):
-            self.thread.request_posture_calibration()  # ticked while the camera was off, or after a pause
+        if not (m.posture_enabled and m.calibration is not None and self.thread is not None):
+            return
+        if new_session or (m.posture_monitor is None and m.posture_calibrator.status != PostureCalibration.RUNNING):
+            # Every study session starts with a fresh 1-minute posture baseline; after a pause, only if it
+            # had none yet (the pause interrupted it).
+            self.thread.request_posture_calibration()
 
     def _finish_session(self) -> bool:
         """End the recorded session; keep it for Statistics if it was long enough."""
@@ -429,7 +433,7 @@ class MainWindow(QMainWindow):
         if self.recorder:
             self.recorder.add_observation(update.observation)
         if SCREEN_TILTED in update.events:
-            self.notify(TILT_MESSAGE, "OcuSense")  # the posture baseline is recorded again (2 min)
+            self.notify(TILT_MESSAGE, "OcuSense")  # the posture baseline is recorded again (1 min)
             self.study.message_label.setText(f"{TILT_MESSAGE} ({datetime.now():%H:%M}).")
         self._check_distance(update.now, update.closeness)
         self._check_lighting(update.now, update.brightness)
@@ -462,7 +466,7 @@ class MainWindow(QMainWindow):
             self.monitor.set_posture_enabled(False, time.monotonic())
 
     def calibrate_posture(self) -> None:
-        """A new 2-minute posture baseline, recorded on the camera thread while monitoring; the eye calibration is kept."""
+        """A new 1-minute posture baseline, recorded on the camera thread while monitoring; the eye calibration is kept."""
         if not self.settings_page.posture.isChecked():
             self.current_page.posture_detail.setText(self.current_page.posture_off_text)
             return

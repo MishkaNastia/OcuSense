@@ -67,10 +67,11 @@ IRIS_DIAMETER_MM = 11.7  # average adult iris diameter
 # 1.0 ≈ a 53° horizontal field of view, typical for laptop webcams (a 60° camera would be 0.87).
 # Not measured per camera, so the cm values are approximate; tune this if they are off.
 FOCAL_LENGTH_PER_FRAME_WIDTH = 1.0
-# The posture baseline: the first 2 minutes after each eye calibration (or after "Recalibrate posture"),
-# working normally in the posture you want to keep. Long enough to show how you really sit.
-POSTURE_CALIBRATION_SECONDS = 120.0
-POSTURE_MIN_SAMPLES = 300  # frames with everything measured needed in those 2 min (~10 s at 30 frames/s)
+# The posture baseline: the first minute of every study session (or after "Recalibrate posture"),
+# working normally in the posture you want to keep. Fresh each session, because the laptop, chair
+# or screen may have moved since the last one; long enough to show how you really sit.
+POSTURE_CALIBRATION_SECONDS = 60.0
+POSTURE_MIN_SAMPLES = 300  # frames with everything measured needed in that minute (~10 s at 30 frames/s)
 POSTURE_MAX_PITCH_SPREAD = 5.0  # degrees (robust spread); more = the posture kept changing, not one baseline
 POSTURE_SUSTAIN_SECONDS = 30.0  # a limit must be exceeded this long, without a break, to count
 POSTURE_PITCH_DROP_DEGREES = 15.0  # head dropped: chin this much lower than at calibration

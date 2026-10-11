@@ -170,8 +170,6 @@ class EyeMonitor:
                 self.calibration = calibrator.result
                 self.calibration_info = self._info(self.calibration, datetime.now())
                 result.events.append(CALIBRATION_DONE)
-                if self.posture_enabled:
-                    self.start_posture_calibration(now)  # the next 2 min of work become the posture baseline
             elif calibrator.status == GuidedCalibration.FAILED:
                 result.events.append(CALIBRATION_FAILED)
         raw = None

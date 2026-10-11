@@ -129,7 +129,7 @@ class PostureReading:
 
 @dataclass(frozen=True)
 class PostureBaseline:
-    """The posture reference: median values from the posture calibration (2 min of normal work)."""
+    """The posture reference: median values from the posture calibration (1 min of normal work)."""
     pitch: float
     roll: float
     distance_cm: float

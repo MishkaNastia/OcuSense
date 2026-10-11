@@ -123,10 +123,10 @@ class CurrentSessionPage(Page):
         self.posture_button.clicked.connect(self.calibrate_posture.emit)
         posture_row.addWidget(self.posture_button, 0, Qt.AlignmentFlag.AlignTop)
         body.addLayout(posture_row)
-        minutes = POSTURE_CALIBRATION_SECONDS / 60
         self.posture_off_text = "Turn it on in Settings › Monitoring › Posture monitoring."
-        self.posture_on_text = (f"After each eye calibration, the first {minutes:.0f} minutes of work become your "
-                                    "posture baseline: sit the way you want to, at a good distance from the screen. "
+        self.posture_on_text = (f"At the start of each study session, the first "
+                                f"{format_duration(POSTURE_CALIBRATION_SECONDS)} of work becomes your posture "
+                                "baseline: sit the way you want to, at a good distance from the screen. "
                                 "Moved your chair or desk? Press Recalibrate posture.")
         self.posture_detail = label(self.posture_off_text, "secondary", theme.ui_font(14), wrap=True)
         body.addWidget(self.posture_detail)

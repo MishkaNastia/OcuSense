@@ -64,11 +64,11 @@ class EyeMonitorTest(unittest.TestCase):
         self.assertEqual(self.monitor.calibrator.status, GuidedCalibration.IDLE)
         frame = np.zeros((480, 640, 3), np.uint8)
         self.monitor.process(frame, now=2.0)
-        self.monitor.process(frame, now=122.0)  # 2 min without a face
+        self.monitor.process(frame, now=62.0)  # 1 min without a face
         self.assertEqual(self.monitor.posture_calibrator.status, PostureCalibration.FAILED)
         self.assertIsNone(self.monitor.posture_monitor)
 
-    def test_eye_calibration_starts_the_posture_baseline(self):
+    def test_eye_calibration_leaves_the_posture_baseline_to_the_session(self):
         class Calibrator:  # finishes on the next frame, like the real one at the end of its last step
             status, step, result = GuidedCalibration.RUNNING, SimpleNamespace(name="blinks"), None
 
@@ -81,7 +81,7 @@ class EyeMonitorTest(unittest.TestCase):
         self.monitor.posture_enabled = True
         result = self.monitor.process(np.zeros((480, 640, 3), np.uint8), now=1.0)
         self.assertIn(CALIBRATION_DONE, result.events)
-        self.assertEqual(self.monitor.posture_calibrator.status, PostureCalibration.RUNNING)
+        self.assertEqual(self.monitor.posture_calibrator.status, PostureCalibration.IDLE)  # the session start asks
 
     def test_posture_is_off_by_default(self):
         result = self.monitor.process(np.zeros((480, 640, 3), np.uint8), now=1.0, lid_angle=118.0)

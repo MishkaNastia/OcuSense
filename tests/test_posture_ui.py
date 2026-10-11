@@ -55,6 +55,19 @@ class PostureUiTest(unittest.TestCase):
         self.send(posture_enabled=False, posture_cal_status=PostureCalibration.RUNNING)  # frames while off
         self.assertEqual(self.page.posture_indicator.text.text(), "Posture monitoring is off")
 
+    def test_every_session_starts_with_a_new_baseline(self):
+        from ocusense.core.models import PostureBaseline
+        from ocusense.core.posture import PostureMonitor
+        self.monitoring()
+        self.assertEqual(self.thread.posture_calibration_requests, 1)  # session 1 starts
+        self.window.monitor.posture_monitor = PostureMonitor(PostureBaseline(0.0, 0.0, 60.0, 0.5, 0.3))
+        self.window.pause()
+        self.window.resume()
+        self.assertEqual(self.thread.posture_calibration_requests, 1)  # resumed with a baseline: kept
+        self.window.stop()
+        self.window.start()
+        self.assertEqual(self.thread.posture_calibration_requests, 2)  # session 2: a fresh minute, baseline or not
+
     def test_button_needs_a_running_session(self):
         self.page.posture_button.click()
         self.assertEqual(self.thread.posture_calibration_requests, 0)
@@ -96,11 +109,11 @@ class PostureUiTest(unittest.TestCase):
 
     def test_screen_tilt_sends_the_message(self):
         self.monitoring()
-        self.send(events=[SCREEN_TILTED], posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=120)
+        self.send(events=[SCREEN_TILTED], posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=60)
         self.assertEqual(self.notifications, [("OcuSense", "You tilted your screen, recalibrating now")])
         self.assertIn("You tilted your screen, recalibrating now", self.window.study.message_label.text())
-        self.assertEqual(self.page.posture_indicator.text.text(), "Recording your posture: 2:00 left")
-        self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=119)
+        self.assertEqual(self.page.posture_indicator.text.text(), "Recording your posture: 1:00 left")
+        self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=59)
         self.assertEqual(len(self.notifications), 1)  # once per tilt
 
     def test_failed_calibration_and_lost_face(self):
