@@ -42,6 +42,7 @@ class Preferences:
     # Games
     morse_dash_ms: int = 450  # Blink Code: closures at least this long are dashes
     morse_high_score: int = 0
+    runner_high_score: int = 0  # EyeGame
 
     def pomodoro(self) -> PomodoroSettings:
         return PomodoroSettings(self.focus_minutes, self.short_break_minutes, self.long_break_minutes,
@@ -78,6 +79,9 @@ class Preferences:
         best = values.get("morse_high_score")
         if isinstance(best, int) and not isinstance(best, bool) and best >= 0:
             prefs.morse_high_score = best
+        best = values.get("runner_high_score")
+        if isinstance(best, int) and not isinstance(best, bool) and best >= 0:
+            prefs.runner_high_score = best
         return prefs
 
     def save(self, path: Path | None = None) -> bool:

@@ -1,0 +1,43 @@
+[
+  {
+    "id": "toilet",
+    "file": "toilet.png",
+    "joke": "Grades went down the drain",
+    "effect": "poop"
+  },
+  {
+    "id": "textbook",
+    "file": "textbook.png",
+    "joke": "Crushed by the required reading"
+  },
+  {
+    "id": "exam",
+    "file": "exam.png",
+    "joke": "Got a 1/6 on the exam"
+  },
+  {
+    "id": "laptop",
+    "file": "laptop.png",
+    "joke": "Laptop died at 1%"
+  },
+  {
+    "id": "chair",
+    "file": "chair.png",
+    "joke": "Broken auditorium chair"
+  },
+  {
+    "id": "printer",
+    "file": "printer.png",
+    "joke": "Attacked by the library printer"
+  },
+  {
+    "id": "eduroam",
+    "file": "eduroam.png",
+    "joke": "eduroam disconnected"
+  },
+  {
+    "id": "chemistry",
+    "file": "chemistry.png",
+    "joke": "The chemistry lab exploded"
+  }
+]

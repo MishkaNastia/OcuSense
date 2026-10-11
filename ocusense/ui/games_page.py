@@ -1,6 +1,7 @@
 """Games: little breaks for your eyes and your head, in the OcuSense (Miró) style.
 
-The first game is Blink Code — Morse code with your blinks (core/morse.py). While a
+Blink Code — Morse code with your blinks (core/morse.py) — and EyeGame, our
+teammate MishkaNastia's blink runner (core/runner.py, eye_runner_page.py). While a
 game uses the camera the window is in its "playing" state: frames go only to the
 game, nothing is recorded in the study session or the EAR recording, and reminders
 stay quiet. Leaving the page turns the game camera off again. The space bar works
@@ -9,15 +10,17 @@ as an alternative input (tap = dot, hold = dash).
 
 import time
 
-from PySide6.QtCore import QPointF, Qt, QTimer, Signal
-from PySide6.QtGui import QBrush, QFont, QPainter, QPainterPath, QPen
+from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
+from PySide6.QtGui import QBrush, QFont, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox, QGridLayout, QHBoxLayout, QPushButton, QSizePolicy, QSlider, QStackedWidget, QVBoxLayout, QWidget,
 )
 
 from ocusense.core.morse import DASH_MS, LEARN_ORDER, MORSE, ChallengeGame, LearnGame, MorseDecoder
+from ocusense.core.runner import ASSETS as RUNNER_ASSETS
 
 from . import theme
+from .eye_runner_page import EyeRunnerGame
 from .pomodoro_page import system_reduce_motion
 from .widgets.artwork import draw_star
 from .widgets.common import label, rule
@@ -67,6 +70,31 @@ class BlinkCodeMark(QWidget):
         draw_star(p, 82, 10, 6, theme.INK, 2)
         p.setBrush(QBrush(theme.color(theme.GOLDEN)))
         p.drawEllipse(QPointF(14, 62), 6, 6)
+        p.end()
+
+
+class EyeGameMark(QWidget):
+    """The EyeGame card's mark: her runner (the OcuSense eye on legs) jumping over a textbook."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(96, 72)
+        folder = RUNNER_ASSETS
+        self.avatar = QPixmap(str(folder / "avatar.png"))
+        self.book = QPixmap(str(folder / "obstacles" / "textbook.png"))
+
+    def paintEvent(self, event) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        p.setPen(QPen(theme.color(theme.INK), 2.5))
+        p.drawLine(QPointF(2, 68), QPointF(94, 68))
+        p.drawPixmap(QRectF(52, 42, 38, 26), self.book, QRectF(self.book.rect()))
+        p.drawPixmap(QRectF(8, 2, 46, 46 * self.avatar.height() / self.avatar.width()), self.avatar,
+                     QRectF(self.avatar.rect()))
+        p.setPen(QPen(theme.color(theme.INK), 3))
+        p.drawLine(QPointF(26, 38), QPointF(22, 50))
+        p.drawLine(QPointF(36, 38), QPointF(40, 50))
         p.end()
 
 
@@ -377,6 +405,10 @@ class GamesPage(Page):
                                  "Learn Morse code with your eyes: a short blink is a dot, a long blink a dash. "
                                  "Unlock letters, chase combos in the 90-second challenge, or blink-type freely.",
                                  "Play", self.open_blink_code), 0, Qt.AlignmentFlag.AlignTop)
+        hub.addWidget(self._card(EyeGameMark(), "EyeGame",
+                                 "An endless runner by MishkaNastia: blink to jump over exams, angry printers and "
+                                 "eduroam, blink twice for an extra jump, and grab coffee for double points.",
+                                 "Play", self.open_eye_runner), 0, Qt.AlignmentFlag.AlignTop)
         more = QWidget()
         more_layout = QVBoxLayout(more)
         more_layout.addWidget(label("More games coming soon", font=theme.ui_font(18, QFont.Weight.Bold)))
@@ -392,6 +424,9 @@ class GamesPage(Page):
         self.blink_code = BlinkCodeGame(window)
         self.blink_code.back.connect(self.show_hub)
         self.stack.addWidget(self.blink_code)
+        self.eye_runner = EyeRunnerGame(window)
+        self.eye_runner.back.connect(self.show_hub)
+        self.stack.addWidget(self.eye_runner)
         self.body.addWidget(self.stack)
         self.finish()
         self._fit_stack()
@@ -430,6 +465,12 @@ class GamesPage(Page):
         self.blink_code.setFocus()
         self.fit_height()
 
+    def open_eye_runner(self) -> None:
+        self.stack.setCurrentWidget(self.eye_runner)
+        self._fit_stack()
+        self.eye_runner.setFocus()
+        self.fit_height()
+
     def show_hub(self) -> None:
         self.window.stop_game_camera()
         self.stack.setCurrentWidget(self.hub)
@@ -437,7 +478,10 @@ class GamesPage(Page):
         self.fit_height()
 
     def feed(self, update) -> None:
-        self.blink_code.feed(update)
+        if self.stack.currentWidget() is self.eye_runner:
+            self.eye_runner.feed(update)
+        else:
+            self.blink_code.feed(update)
 
     def hideEvent(self, event) -> None:
         super().hideEvent(event)

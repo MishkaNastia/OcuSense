@@ -98,6 +98,14 @@ beret dabs a circle, a dot, a star, a crescent and a curve onto his canvas, then
 starts a new painting. He is only decoration: he stands still when the Pomodoro
 page's Animations switch is off or macOS Reduce motion is on.
 
+**EyeGame** (Games). An endless runner made by our teammate MishkaNastia
+([github.com/MishkaNastia/EyeGame](https://github.com/MishkaNastia/EyeGame)), ported from
+Pygame into the app: blink to jump over exams, angry printers and eduroam, blink twice
+quickly for an extra jump in mid-air, grab coffee, a croissant or a Blink Mate can for
+double points. Blinks come from OcuSense's calibrated detector (the jump fires the moment
+your eyes close); Space / ↑ / ↓ / P work too. Like Blink Code, it never counts towards your
+study statistics, and the high score is remembered.
+
 **Distance reminder.** Calibration asks you to sit about an arm's length away. If
 your face later looks 1.6× as big for 3 s, OcuSense shows "Trying to lick the
 screen? Go easy on your eyes and move back a little." in the window, and as a macOS
@@ -251,7 +259,9 @@ ocusense/
     distributions_panel.py  the "Blink distributions" histograms (live and imported)
     recordings_section.py   All time: import, choose and inspect recordings (background loading)
     pomodoro_page.py   Pomodoro (timer logic in core/pomodoro.py)
-    games_page.py      Games: Blink Code (Morse logic in core/morse.py)
+    games_page.py      Games: Blink Code (Morse logic in core/morse.py) and the hub
+    eye_runner_page.py EyeGame by MishkaNastia (rules in core/runner.py, drawing in
+                       widgets/runner_canvas.py, art in ocusense/assets/eye_runner/)
     settings_page.py   Settings
     account_page.py    Log in / Create account / your account (Supabase calls in accounts.py,
                        background running in account_service.py)
