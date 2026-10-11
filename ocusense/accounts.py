@@ -1,8 +1,9 @@
 """OcuSense accounts in the Mac app: the same Supabase sign-in as the website.
 
 One account works on the website and in the app. It is optional — monitoring,
-Statistics and the games all work without one — and it is what the game
-leaderboards will hang on later (see supabase/schema.sql and docs/accounts.md).
+Statistics and the games all work without one — and it is what the online game
+leaderboards and friends hang on (ocusense/leaderboards.py, supabase/schema.sql,
+docs/accounts.md).
 
 Where things are kept:
     the Supabase project      OCUSENSE_SUPABASE_URL + OCUSENSE_SUPABASE_KEY, or
@@ -45,7 +46,16 @@ USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_]{3,20}$")  # what leaderboards will
 
 
 class AuthError(Exception):
-    """A message that can be shown to the person as it is."""
+    """A message that can be shown to the person as it is.
+
+    status and raw keep what the server said (HTTP status, error code and message), so
+    callers such as ocusense/leaderboards.py can tell specific failures apart.
+    """
+
+    def __init__(self, message: str = "", status: int | None = None, raw: str = ""):
+        super().__init__(message)
+        self.status = status
+        self.raw = raw
 
 
 class NetworkError(AuthError):
@@ -165,8 +175,9 @@ class AuthClient:
         self.config = config
         self._context = _ssl_context()
 
-    def _request(self, method: str, path: str, body: dict | None = None, token: str | None = None):
-        headers = {"apikey": self.config.key, "Content-Type": "application/json"}
+    def _request(self, method: str, path: str, body: dict | None = None, token: str | None = None,
+                 headers: dict | None = None):
+        headers = {"apikey": self.config.key, "Content-Type": "application/json", **(headers or {})}
         if token:
             headers["Authorization"] = f"Bearer {token}"
         data = json.dumps(body).encode() if body is not None else None
@@ -184,9 +195,9 @@ class AuthClient:
                 error.close()
             message = ""
             if isinstance(details, dict):
-                message = " ".join(str(details.get(k, "")) for k in ("error_code", "msg", "message",
+                message = " ".join(str(details.get(k, "")) for k in ("error_code", "code", "msg", "message",
                                                                        "error_description", "error"))
-            raise AuthError(friendly_error(message)) from error
+            raise AuthError(friendly_error(message), error.code, message) from error
         except (urllib.error.URLError, TimeoutError, OSError) as error:
             raise NetworkError(friendly_error("network")) from error
         except ValueError as error:

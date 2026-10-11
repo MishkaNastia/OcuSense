@@ -1,9 +1,11 @@
 """EyeGame in the Games section: our teammate MishkaNastia's blink runner (core/runner.py).
 
-Blinks come from OcuSense's calibrated detector through the window's "playing"
-state, like Blink Code: the jump fires the moment your eyes close, nothing is
-recorded in the study session, and leaving the game turns the camera off.
-Keys work too: Space / Up = jump (double-tap = extra jump), Down = duck, P = pause.
+Blinks come from OcuSense's calibrated personal eye openness through the window's
+"playing" state, like Blink Code: the jump fires the moment your eyes close, nothing is
+recorded in the study session, and leaving the game turns the camera off. The game
+counts closures with its own, quicker rule (core/runner.py EyeClosures), so a fast
+second blink isn't missed. Blinking again in the air = the extra jump.
+Keys work too: Space / Up = jump (again in the air = extra jump), Down = duck, P = pause.
 """
 
 import time
@@ -11,7 +13,7 @@ import time
 from PySide6.QtCore import QElapsedTimer, Qt, QTimer, Signal
 from PySide6.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QWidget
 
-from ocusense.core.runner import DoubleBlink, RunnerGame, Sizes
+from ocusense.core.runner import EyeClosures, Presses, RunnerGame, Sizes
 
 from . import theme
 from .widgets.common import label
@@ -30,12 +32,14 @@ def _button(text: str, kind: str) -> QPushButton:
 class EyeRunnerGame(QWidget):
     back = Signal()
 
-    def __init__(self, window, parent=None):
+    def __init__(self, window, scores=None, parent=None):
         super().__init__(parent)
         self.window = window
+        self.scores = scores  # ScoreKeeper: every finished run goes to the leaderboards
         self.game = RunnerGame(Sizes.load(), highscore=window.preferences.runner_high_score)
-        self.blinks = DoubleBlink()  # eye closures → jump / extra jump
-        self.keys = DoubleBlink(cooldown_s=0.0)  # Space taps → jump / extra jump
+        self.closures = EyeClosures()  # personal openness → the moment the eyes close
+        self.blinks = Presses()  # eye closures → jumps (one per blink)
+        self.keys = Presses(cooldown_s=0.0)  # Space taps → jumps
         self.down = False
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
@@ -43,7 +47,7 @@ class EyeRunnerGame(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(12)
         top = QHBoxLayout()
-        top.addWidget(label("Blink to jump, blink twice quickly to jump again in mid-air.", "secondary",
+        top.addWidget(label("Blink to jump, blink again in the air for an extra jump.", "secondary",
                             theme.ui_font(15)))
         top.addStretch(1)
         back = _button("← All games", "quiet")
@@ -69,7 +73,7 @@ class EyeRunnerGame(QWidget):
         self.status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.status)
         layout.addWidget(paragraph(
-            "Made by our teammate MishkaNastia. Keys work too: Space or ↑ jumps (tap twice for the extra jump), "
+            "Made by our teammate MishkaNastia. Keys work too: Space or ↑ jumps (again in the air for the extra jump), "
             "↓ ducks, P pauses. If your eyes feel tired or dry, stop and rest them — game blinks never count in "
             "your study statistics.", 13, secondary=True))
         layout.addStretch(1)
@@ -101,21 +105,21 @@ class EyeRunnerGame(QWidget):
 
     def feed(self, update) -> None:
         """A camera frame while playing (called by the window on the interface thread)."""
-        obs = update.observation
-        if obs is None or not obs.valid:
+        both = update.openness[2] if update.openness else None  # both eyes, clipped; None = not measurable
+        closing = self.closures.update(both)
+        if both is None:
             self.canvas.eyes = "looking for your eyes…" if not update.face_found else "eyes not clear"
             self.canvas.eyes_closed = False
             return
-        self.canvas.eyes_closed = obs.detector_closed
-        self.canvas.eyes = "eyes closed" if obs.detector_closed else "eyes open"
-        if obs.closing_started:  # jump the instant the eyes close, no lag
-            self._press(self.blinks, obs.t)
+        self.canvas.eyes_closed = self.closures.closed
+        self.canvas.eyes = "eyes closed" if self.closures.closed else "eyes open"
+        if closing:  # jump the instant the eyes close, no lag
+            self._press(self.blinks, update.now)
 
     # ------------------------------------------------------------ keys
-    def _press(self, pairing: DoubleBlink, t: float) -> None:
-        event = pairing.press(t)
-        if event:
-            self.game.jump(double=event == "double_blink")
+    def _press(self, presses: Presses, t: float) -> None:
+        if presses.press(t):
+            self.game.jump()
 
     def keyPressEvent(self, event) -> None:
         key = event.key()
@@ -156,10 +160,13 @@ class EyeRunnerGame(QWidget):
         dt = max(0.0, min(self.clock.restart() / 1000, 1 / 20))  # clamp, so a hiccup can't teleport things
         was_over = self.game.state == "over"
         self.game.update(dt, self.down)
-        if self.game.state == "over" and not was_over and self.game.new_record:
-            prefs = self.window.preferences
-            prefs.runner_high_score = self.game.highscore
-            prefs.save()
+        if self.game.state == "over" and not was_over:
+            if self.game.new_record:
+                prefs = self.window.preferences
+                prefs.runner_high_score = self.game.highscore
+                prefs.save()
+            if self.scores is not None and int(self.game.score) > 0:
+                self.scores.record("eye_runner", int(self.game.score))
         self.pause_button.setEnabled(self.game.state == "play")
         if self.game.state != "play" and self.game.paused:
             self.game.paused = False

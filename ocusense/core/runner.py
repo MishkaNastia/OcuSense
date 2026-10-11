@@ -5,10 +5,11 @@ and ported here so it runs inside OcuSense: the rules, numbers and art are hers;
 drawing lives in ui/widgets/runner_canvas.py, and blinks come from OcuSense's own
 calibrated detector instead of a second camera.
 
-The OcuSense eye runs along the ground. A blink (or Space) = jump, a quick second
-blink = one extra jump in mid-air, Down = duck. Exams, printers and eduroam routers
-scroll in; touching one ends the run. Coffee, a croissant or a Blink Mate can give
-double points for 5 s. After 300 points some obstacles fly: jump the low ones, run
+The OcuSense eye runs along the ground. A blink (or Space) = jump, another blink while
+in the air = one extra jump (however long after the first), Down = duck. Toilets scroll in (the only obstacle in
+assets/eye_runner/obstacles/obstacles.json; her other obstacle art is still in that folder);
+touching one ends the run with a splat. Coffee, a croissant or a Blink Mate can give
+double points for 5 s. After 300 points some toilets fly: jump the low ones, run
 under the high ones.
 
 Coordinates are a fixed 960 × 360 scene (y down, like the screen); the canvas scales it.
@@ -20,6 +21,10 @@ import random
 import struct
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from ocusense.config import CLOSE_BELOW
+
+from .blink_counter import BlinkCounter
 
 ASSETS = Path(__file__).resolve().parent.parent / "assets" / "eye_runner"
 
@@ -63,7 +68,12 @@ HIGH_FLY_BOTTOM = 82
 
 # --- Blinks ---
 BLINK_COOLDOWN_S = 0.1  # one blink can't give two jumps
-DOUBLE_BLINK_WINDOW_S = 0.5  # a 2nd blink this soon after the 1st = extra jump
+# The game's own blink rule: the study detector's closing threshold, but the eyes count as
+# open again from 50 % (the study detector waits for 65 %). In a quick double blink the eyes
+# often only half-open in between, and the second blink must still count. Study measurements
+# keep the study detector unchanged.
+GAME_CLOSE_BELOW = CLOSE_BELOW
+GAME_REOPEN_ABOVE = 0.5
 
 N_DOODLES = 9
 RESTART_DELAY_S = 0.6  # so the blink you crashed with doesn't restart the run
@@ -118,24 +128,39 @@ def load_obstacles(folder: Path = ASSETS / "obstacles") -> list[ObstacleKind]:
             for it in items]
 
 
-class DoubleBlink:
-    """Turns eye closures (or Space presses) into "blink" / "double_blink" (her BlinkDetector's pairing)."""
+class Presses:
+    """One jump per blink or key press: presses closer together than the cooldown are the same one."""
 
-    def __init__(self, cooldown_s: float = BLINK_COOLDOWN_S, window_s: float = DOUBLE_BLINK_WINDOW_S):
-        self.cooldown_s, self.window_s = cooldown_s, window_s
+    def __init__(self, cooldown_s: float = BLINK_COOLDOWN_S):
+        self.cooldown_s = cooldown_s
         self._last = -1e9
-        self._pair_open = False
 
-    def press(self, t: float) -> str | None:
-        gap = t - self._last
-        if gap < self.cooldown_s:
-            return None
+    def press(self, t: float) -> bool:
+        if t - self._last < self.cooldown_s:
+            return False
         self._last = t
-        if self._pair_open and gap <= self.window_s:
-            self._pair_open = False  # a 3rd quick blink starts a new pair
-            return "double_blink"
-        self._pair_open = True
-        return "blink"
+        return True
+
+
+class EyeClosures:
+    """When the eyes close, for the game: OcuSense's BlinkCounter with the game's thresholds.
+
+    Fed the personal openness of both eyes (clipped, as the study detector gets it), or None
+    when the eyes can't be measured. update() is True on the frame the eyes close, so the
+    jump comes without waiting for them to reopen.
+    """
+
+    def __init__(self, close_below: float = GAME_CLOSE_BELOW, reopen_above: float = GAME_REOPEN_ABOVE):
+        self.counter = BlinkCounter(close_below, reopen_above)
+
+    @property
+    def closed(self) -> bool:
+        return self.counter.state == BlinkCounter.CLOSED
+
+    def update(self, openness: float | None) -> bool:
+        before = self.counter.state
+        self.counter.update(openness)
+        return before == BlinkCounter.OPEN and self.closed
 
 
 # ------------------------------------------------------------------ things in the scene
@@ -346,16 +371,16 @@ class RunnerGame:
         self.double_kind: str | None = None
         self.new_record = False
 
-    def jump(self, double: bool = False) -> None:
-        """A blink, Space or Up. double = the 2nd quick one: an extra jump in mid-air."""
+    def jump(self) -> None:
+        """A blink, Space or Up: a jump on the ground, the one extra jump in mid-air."""
         if self.paused:
             return
         if self.state == "title":
             self.state = "play"
             self.player.jump()
         elif self.state == "play":
-            if not self.player.jump() and double:
-                self.player.extra_jump()
+            if not self.player.jump():
+                self.player.extra_jump()  # does nothing if this jump already had its extra one
         elif self.state == "over" and self.over_timer > RESTART_DELAY_S:
             self.reset()
             self.state = "play"

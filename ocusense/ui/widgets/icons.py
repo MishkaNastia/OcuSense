@@ -70,8 +70,23 @@ def _games(p):  # a game pad: rounded body, a plus and two buttons
     p.drawEllipse(QPointF(15.5, 12), 0.9, 0.9)
 
 
-ICONS = {"study": _study, "pomodoro": _pomodoro, "games": _games, "statistics": _statistics, "settings": _settings,
-         "account": _account}
+def _time_log(p):  # a stopwatch: dial, crown and one hand
+    p.drawEllipse(QPointF(10, 11.5), 6.6, 6.6)
+    p.drawLine(QPointF(10, 4.9), QPointF(10, 2.8))
+    p.drawLine(QPointF(8, 2.5), QPointF(12, 2.5))
+    p.drawLine(QPointF(15.2, 5.6), QPointF(16.4, 4.4))
+    p.drawLine(QPointF(10, 11.5), QPointF(12.6, 8.9))
+
+
+def _library(p):
+    p.drawRect(QRectF(2, 3, 16, 14))
+    p.drawEllipse(QPointF(7, 7), 1.5, 1.5)
+    p.drawLine(QPointF(3, 15), QPointF(10, 9))
+    p.drawLine(QPointF(10, 9), QPointF(17, 15))
+
+
+ICONS = {"library": _library, "study": _study, "pomodoro": _pomodoro, "time_log": _time_log, "games": _games, "statistics": _statistics,
+         "settings": _settings, "account": _account}
 
 
 def draw_icon(painter, name: str, rect: QRectF, color, background) -> None:

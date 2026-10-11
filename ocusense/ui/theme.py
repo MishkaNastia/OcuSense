@@ -64,6 +64,9 @@ QPushButton[kind="quiet"]:hover {{ background: {PAPER_DEEP}; }}
 QPushButton[kind="quiet"]:focus {{ border-color: {COBALT}; }}
 
 QScrollArea {{ background: {PAPER}; border: none; }}
+/* No scroll bars anywhere: pages still scroll with the trackpad, the mouse wheel and the keyboard. */
+QScrollBar:vertical {{ width: 0px; background: transparent; border: none; }}
+QScrollBar:horizontal {{ height: 0px; background: transparent; border: none; }}
 QWidget#Segmented {{ border: 2px solid {INK}; border-radius: 11px; background: transparent; }}
 QPushButton[kind="segment"] {{
     min-height: 32px; padding: 0 14px; border-radius: 8px; border: 2px solid transparent;
@@ -92,6 +95,9 @@ QComboBox {{
     background: {PAPER}; color: {INK}; font-size: 14px;
 }}
 QComboBox:focus {{ border-color: {COBALT}; }}
+/* No separate grey arrow box: the whole rounded field opens the list. */
+QComboBox::drop-down {{ width: 0px; border: none; background: transparent; }}
+QComboBox::down-arrow {{ image: none; width: 0px; height: 0px; }}
 QComboBox QAbstractItemView {{ background: {PAPER}; color: {INK}; selection-background-color: {INK};
     selection-color: {PAPER}; border: 1px solid {INK}; }}
 QSlider::groove:horizontal {{ height: 4px; background: {RULE}; border-radius: 2px; }}

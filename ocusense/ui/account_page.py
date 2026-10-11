@@ -1,8 +1,9 @@
 """Account: log in or create an OcuSense account (the same account as on the website).
 
 Optional — monitoring, Statistics and the games all work without one. An account
-gives you a username for the game leaderboards that are coming. Eye data never
-leaves this Mac; an account holds only an email address and a username.
+gives you a username on the online game leaderboards and lets you add friends
+(friends_panel.py). Eye data never leaves this Mac; an account holds only an email
+address, a username, game scores and friends.
 
 Three views: not set up (this copy has no Supabase project, see docs/accounts.md),
 signed out (Log in / Create account), and signed in.
@@ -18,6 +19,7 @@ from ocusense.accounts import (
 
 from . import theme
 from .account_service import AccountService
+from .friends_panel import FriendsPanel
 from .widgets.common import button, label
 from .widgets.page import Page, paragraph
 from .widgets.segmented import Segmented
@@ -76,8 +78,9 @@ class AccountPage(Page):
         box.setContentsMargins(0, 0, 0, 0)
         box.setSpacing(10)
         box.addWidget(paragraph(
-            "An account is optional. It gives you a username for the Blink Code leaderboards (coming soon), "
-            "and the same account works on the OcuSense website. Your eye data never leaves this Mac."))
+            "An account is optional. It puts your game scores on the online leaderboards and lets you compare "
+            "them with friends, and the same account works on the OcuSense website. Your eye data never leaves "
+            "this Mac."))
         box.addSpacing(4)
         self.mode_switch = Segmented(MODES, self.mode, "Log in or create an account")
         self.mode_switch.changed.connect(self.set_mode)
@@ -136,10 +139,12 @@ class AccountPage(Page):
         box.addLayout(row)
         self.username_status = _message()
         box.addWidget(self.username_status)
-        self.section("Leaderboards", box)
+        self.section("Friends", box)
+        self.friends = FriendsPanel(self.service)
+        box.addWidget(self.friends)
         box.addWidget(paragraph(
-            "Coming soon: your best Blink Code scores next to other players’. Only your username and game scores "
-            "will be shared — never eye measurements, recordings or calibration."))
+            "The leaderboards are in Games. Only your username and game scores are shared — never eye "
+            "measurements, recordings or calibration.", 13, secondary=True))
         box.addSpacing(8)
         self.logout_button = button("Log out", "secondary")
         self.logout_button.clicked.connect(self.service.sign_out)
@@ -148,7 +153,7 @@ class AccountPage(Page):
         for panel in (self.unconfigured, self.signed_out, self.signed_in):
             self.body.addWidget(panel)
         self.finish()
-        self.service.changed.connect(lambda _account: self.refresh())
+        self.service.changed.connect(lambda _account: (self.refresh(), self.friends.load()))
         self.set_mode(self.mode)
         self.refresh()
 

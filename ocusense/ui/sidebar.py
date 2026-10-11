@@ -2,6 +2,7 @@
 
   Study
   Pomodoro (shows the time left while it runs)
+  Time log (shows the running timer)
   Games
   Statistics ›  Current session / All time / Understanding your patterns
   ...
@@ -166,11 +167,16 @@ class Sidebar(QWidget):
         self.items: dict[str, SidebarItem] = {}
         self._add(layout, SidebarItem("study", "Study", "study"))
         self._add(layout, SidebarItem("pomodoro", "Pomodoro", "pomodoro"))
+        self._add(layout, SidebarItem("time_log", "Time log", "time_log"))
         self._add(layout, SidebarItem("games", "Games", "games"))
+        self._add(layout, SidebarItem("library", "Gallery", "library"))
         self._add(layout, SidebarItem("statistics", "Statistics", "statistics", expandable=True))
         for key, text in (("current", "Current session"), ("all_time", "All time"),
                           ("patterns", "Understanding your patterns")):
             self._add(layout, SidebarItem(key, text, level=1))
+        self.paintings_layout = QVBoxLayout()
+        self.paintings_layout.setContentsMargins(0, 0, 0, 0)
+        layout.addLayout(self.paintings_layout)
         layout.addStretch(1)
         self.painter = PainterCharacter()  # a little Miró painter at his easel, just above Settings
         layout.addWidget(self.painter)
@@ -215,6 +221,10 @@ class Sidebar(QWidget):
     def set_pomodoro_status(self, status: str) -> None:
         """e.g. "18:42" while a Pomodoro phase runs, "" when it isn't."""
         self.items["pomodoro"].set_text(f"Pomodoro · {status}" if status else "Pomodoro")
+
+    def set_time_log_status(self, status: str) -> None:
+        """e.g. "0:12:03" while a time-log timer runs, "" when none does."""
+        self.items["time_log"].set_text(f"Time log · {status}" if status else "Time log")
 
     def set_account_label(self, text: str) -> None:
         self.items["account"].set_text(text)
