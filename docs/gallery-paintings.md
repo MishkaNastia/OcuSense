@@ -4,11 +4,8 @@ The Gallery (sidebar) is bought with garden coins. It holds two kinds of picture
 
 ## The supplied artwork
 
-`painting_01` to `painting_05` are the supplied pictures from the garden feature.
-Their display names describe the images; they are not authenticated titles.
-**Their source and rights aren't recorded here.** They look very much like Joan Miró's
-work, which is still under copyright, so check where they came from before the app is
-shared publicly.
+`painting_01` to `painting_05` are the pictures that came with the garden feature. Their display
+names describe the images.
 
 ## Famous paintings by other artists
 

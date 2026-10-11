@@ -1,336 +1,125 @@
 # OcuSense
 
-Live webcam blink counter using OpenCV, Google MediaPipe Face Landmarker
-(to locate eyelid points) and the Eye Aspect Ratio (EAR) with personal
-calibration. All video is processed locally in memory: camera images are never
-saved or uploaded. Only the raw EAR recording (see below), your personal calibration
-(`calibration.json`, reused every time the app opens), your reference for blink
-timing (`reference.json`) your reminder choices (`preferences.json`), and game progress (`garden.json` and
-`scores.json`) are written to disk.
+**Big Brother watches you. OcuSense looks out for you.**
 
-For how every measurement and graph works (methods, time windows, histograms,
-saved files), see [docs/measurements.md](docs/measurements.md).
+OcuSense is a study app for long days at your laptop. It uses your webcam to count your blinks
+and reminds you to rest your eyes before they feel dry and tired. It also looks after your setup:
+it tells you when you lean in too close, slump in your chair or study in a room that's too dark.
+On top of that you get a Pomodoro timer, a time log, small games for your breaks and a little
+garden to look after.
 
-## Setup (once)
+Camera pictures are analysed on your computer and thrown away straight away. OcuSense is a
+student project, not a medical device.
 
-```
-cd ~/Projects/OcuSense
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python download_model.py
-```
+<p>
+  <img src="docs/images/statistics.png" alt="Statistics: study time and blink rate over the day" width="32%">
+  <img src="docs/images/games.png" alt="Games: Blink Code, EyeGame and OcuSense Garden" width="32%">
+  <img src="docs/images/pomodoro-haring.png" alt="The Pomodoro timer in the Keith Haring theme" width="32%">
+</p>
 
-## Run the desktop app (PySide6)
+## What it does
 
-```
-source .venv/bin/activate
-python -m ocusense
-```
+- **Counts your blinks.** A 25 second calibration learns your own open and closed eyes, then
+  OcuSense measures blink rate, how long blinks last and how much of the time your eyes are
+  closed. All of it is compared with you, never with an average person.
+- **Reminds you, kindly.** "Trying to lick the screen?" when you're too close, a break reminder
+  when you blink slower than usual, and optional eye rest, lighting and posture checks. They show
+  in the window and as notifications when OcuSense is in the background.
+- **Keeps time.** A Pomodoro timer that starts and pauses eye monitoring for you, and a time log
+  for your subjects and projects.
+- **Makes breaks fun.** Blink Code (Morse code with your blinks), EyeGame (an endless runner you
+  play by blinking, by our teammate MishkaNastia) and OcuSense Garden (water crops with a gentle
+  eye exercise and harvest them for coins).
+- **Pays you in paintings.** Spend garden coins on a gallery of paintings and hang your favourites
+  in the sidebar. With an account, compare game scores on the leaderboards and with friends.
+- **Two looks.** Calm Miró or loud Keith Haring, switched instantly in Settings.
 
-Press **Start**. The very first time, a short calibration (about 25 s) comes first.
-It is saved on this Mac (`~/Library/Application Support/OcuSense/calibration.json`)
-and reused every time OcuSense opens, so later sessions start right away; use
-**Recalibrate** (Study page or Settings) when your lighting, glasses or seat change. After
-that you see the timer, Pause / Stop / Recalibrate and the live eye-openness
-graph. Pause turns the camera off; Stop ends the session (calibration is kept).
-The sidebar on the left switches pages without interrupting monitoring:
+## Download
 
-- **Study** — timer, controls, calibration and the live graph.
-- **Pomodoro** — a customisable focus timer (focus, short and long breaks, presets,
-  auto-start, Mac notification and optional sound when a phase ends) with animated
-  Miró pictures; the sidebar shows the time left. Animations follow macOS
-  "Reduce motion". Focus rounds run eye monitoring and breaks pause it (switchable).
-- **Games** — **Blink Code**: learn Morse code with your eyes (short blink = dot,
-  long blink = dash; the space bar works too). Learn mode unlocks letters, the
-  90-second Challenge scores combos and keeps a high score, Free blink types what you
-  blink. Miró animations; game blinks are never recorded in your study statistics
-  or the EAR recording. **Leaderboards** under the games: your top 10 per game on this
-  Mac, and, signed in, your friends' and everyone's best scores (details in
-  [docs/accounts.md](docs/accounts.md)).
-- **Gallery** — spend Garden harvest coins on 5 framed paintings (25–135 coins).
-  Keep a collection and display up to two paintings beneath Statistics in the
-  sidebar, staggered upper left and lower right. Purchases and placements are saved locally with the
-  Garden balance; moving or removing a painting is free.
-- **Statistics** (expands) — **Current session** (the running session's time,
-  coverage and measurements), **All time** (totals, a date filter, a timeline
-  with blink rate, median closure duration or time classified as closed, and
-  each session's summary, and "What these numbers mean" at the bottom).
-- **Settings** — recalibration, measurement details, data & privacy (including
-  clearing the session history) and the **theme**: Miró (default) or one inspired by
-  Keith Haring (bold colours, thick black lines, dancers in the sidebar). It switches
-  instantly; nothing closes.
-- **Log in** — optional OcuSense accounts (the same as on the website): log in, create an
-  account with a username for the game leaderboards, add friends, reset a password, log out.
-  Set-up: [docs/accounts.md](docs/accounts.md).
+| System | Status |
+| --- | --- |
+| macOS (Apple Silicon) | Download coming soon. Build it yourself below in the meantime. |
+| Windows 10 and 11 (64 bit) | Beta: built automatically, not yet tested with a real webcam. |
+| Linux (x86_64) | Beta: built automatically, not yet tested with a real webcam. |
 
-**Raw EAR recording.** While the camera is on, the app saves the left and right
-Eye Aspect Ratio of every frame to CSV files in
-`~/Library/Application Support/OcuSense/recordings/` — a new file every 10
-minutes and whenever you pause, stop, quit or recalibrate. Columns:
+The builds aren't signed by Apple or Microsoft yet, so your computer warns you the first time you
+open one. On a Mac: right click OcuSense, choose **Open**, then **Open** again.
 
-- `unix_time` — seconds, millisecond precision
-- `left_ear`, `right_ear` — raw EAR (empty when no face was found)
-- `reliable` — 0 when the head was turned or the face too small; filter these out
-- `left_openness`, `right_openness` — personal openness from the calibration in
-  use, `(EAR − closed EAR) / (open EAR − closed EAR)`, not clipped; empty while
-  not calibrated
+## Privacy
 
-Each `ear_….csv` has an `ear_….calibration.json` next to it with the calibration
-those openness values used (open and closed EAR per eye, thresholds, time), so
-every file can be re-analysed from the raw EAR. One calibration per file: a
-recalibration starts a new one. Numbers only, no images. Settings › Data &
-privacy can switch it off and open the folder. About 1 MB per 10 minutes at 30
-frames per second.
+- Camera pictures never leave your computer and are never saved.
+- OcuSense saves numbers only, on your computer: your calibration, your settings, your garden,
+  time log and game scores, and (unless you switch it off) a recording of eye measurements.
+- Accounts are optional. They hold your email address, a username, your game scores and your
+  friends list. Eye measurements are never uploaded.
 
-**20-20-20 eye rest (off by default).** Switched on in Settings › Reminders, it
-asks after 20 minutes of monitored screen time to look about 6 m (20 ft) away for
-20 seconds, with a countdown; a pause of 20 s or more (e.g. a Pomodoro break)
-starts the count again.
+## Run it from the source code
 
-**Lighting check (off by default).** Switched on in Settings › Reminders, it
-suggests a lamp when the room stays dark for a minute while you study (a bright
-screen in a dark room is hard on the eyes). It uses only the picture's average
-brightness, never saved; webcams adjust exposure, so it is a rough guide.
-
-**Session summary.** After Stop, a card recaps the session: study time, blinks,
-blink rate, median closure, closed time, tracking coverage, Pomodoro focus rounds
-and the reminders that came up.
-
-**Menu bar.** The OcuSense eye in the macOS menu bar shows the monitoring and
-Pomodoro status and offers Start/Pause/Resume, Stop, the Pomodoro, Open and Quit.
-
-**The little painter.** Above Settings in the sidebar, a Miró-style painter in a
-beret dabs a circle, a dot, a star, a crescent and a curve onto his canvas, then
-starts a new painting. He is only decoration: he stands still when the Pomodoro
-page's Animations switch is off or macOS Reduce motion is on.
-
-**EyeGame** (Games). An endless runner made by our teammate MishkaNastia
-([github.com/MishkaNastia/EyeGame](https://github.com/MishkaNastia/EyeGame)), ported from
-Pygame into the app: blink to jump over toilets (from 300 points some of them fly), blink again
-in the air for an extra jump (the game uses a quicker blink rule than the study detector, so a fast
-second blink counts), grab coffee, a croissant or a Blink Mate can for
-double points. Blinks come from OcuSense's calibrated detector (the jump fires the moment
-your eyes close); Space / ↑ / ↓ / P work too. Like Blink Code, it never counts towards your
-study statistics, and the high score is remembered.
-
-**OcuSense Garden** (Games). Six illustrated crop beds in the app's Miró palette.
-Complete three camera-verified gentle eye holds to water
-a crop. Plants grow while the app is closed; return to harvest coins, buy seeds,
-and add decorations or extra beds. Local saves preserve every harvest and purchase.
-Optional, snoozable garden reminders follow monitored study time. See
-[the garden guide](docs/garden.md) for the controls, architecture, and limitations.
-
-**Distance reminder.** Calibration asks you to sit about an arm's length away. If
-your face later looks 1.6× as big for 3 s, OcuSense shows "Trying to lick the
-screen? Go easy on your eyes and move back a little." in the window, and as a macOS
-notification while it's in the background (shown under "Script Editor", like the
-break reminders). Settings › Reminders: "Remind again after" from 5 s to 10 min (default 5 min)
-and an on/off switch; both are remembered.
-
-**Blink distributions.** Statistics › Current session shows live histograms
-(closure duration by default; also time between blinks, blink rate per minute,
-frequency per blink and personal eye openness; both frequency views can be shown
-per minute or per second). Statistics › All time › *Import recording…* analyses
-saved `ear_….csv` files with their own `.calibration.json` (read-only), with an
-*Inspect detection* timeline to check the detector and *Export results…* for
-derived CSV/JSON/PNG files. Definitions, bins and exclusions are documented in
-`ocusense/core/distributions.py`; descriptive only, not a fatigue assessment.
-
-Statistics sessions are kept in memory only and forgotten when the app quits. To
-preview Statistics with clearly labelled demo sessions:
-`python -m ocusense --demo-history`.
-⌘. also stops. Tab reaches the sidebar; ↑/↓ move between its items and →/←
-open or close Statistics.
-
-## Windows
-
-The same app runs on Windows 10/11 x64. Platform differences live in `ocusense/system.py`.
-The portable Windows build is made with `packaging/build_windows.py` on Windows, or by the
-manual GitHub Actions workflow "Windows build (manual)", which gives a downloadable zip.
-It is **prepared but not yet verified on a Windows PC**. See [docs/windows.md](docs/windows.md)
-for building, the unsigned-build warning, and the verification checklist.
-
-## Linux (beta)
-
-A portable Linux build (x86_64) comes from `packaging/build_linux.py` on Linux, or from the
-manual GitHub Actions workflow "Linux build (manual)". Data lives in `~/.local/share/OcuSense`.
-Beta: not yet tried with a real webcam; login lasts until you quit (no keyring yet); on desktops
-without a system tray (e.g. default GNOME) there's no tray menu or notifications.
-
-## Build OcuSense.app (macOS)
-
-```
-.venv/bin/pip install -r requirements-build.txt
-./packaging/build_mac.sh
-```
-
-The script builds `dist/OcuSense.app` (about 380 MB), checks it, and replaces
-`~/Desktop/OcuSense.app` (quit OcuSense first; use `--no-install` to skip that). It is signed only for
-your own Mac (ad-hoc). Sharing it with others needs an Apple Developer ID and
-notarisation. The first time it opens the camera, macOS asks for permission
-for OcuSense itself.
-
-## Website
-
-The public website (information pages, a sample-session demo and a browser camera demo)
-is in [`website/`](website/README.md). It is separate from the desktop app:
+You need Python 3.12 or newer (the builds use 3.14).
 
 ```bash
-cd website && npm install && npm run dev   # open http://localhost:3000, Ctrl+C to stop
+git clone https://github.com/MishkaNastia/OcuSense.git
+cd OcuSense
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt     # on Windows: .venv\Scripts\pip install -r requirements.txt
+.venv/bin/python -m ocusense                  # on Windows: .venv\Scripts\python -m ocusense
 ```
 
-## Run the OpenCV prototype
+Press **Start**. The first time, macOS (or Windows) asks for the camera; after you allow it,
+OcuSense calibrates and starts. To see Statistics filled with clearly labelled demo sessions, run
+`python -m ocusense --demo-history`.
 
-```
-source .venv/bin/activate
-python -m prototype
-```
+Run the tests (no camera needed):
 
-In the video window:
-- **SPACE** (or **C**): start / redo the ~30-second personal calibration
-  (eyes open → eyes gently closed → a few natural blinks)
-- **M**: show / hide the face mesh (grey), outlines (blue) and the 12 EAR points (red)
-- **Q**: quit
-
-Blinks are only counted after a successful calibration.
-
-## How it works
-
-1. MediaPipe finds 6 points around each eye; we compute each eye's EAR
-   (eye height ÷ width) in pixel coordinates (`ocusense/core/eye_metrics.py`).
-2. Calibration stores *your* open and closed EAR for each eye (median of
-   many frames) and rejects calibrations that are unclear or unstable
-   (`ocusense/core/calibration.py`).
-3. Each eye's EAR becomes **personal eye openness**: 1 = as open as in
-   calibration, 0 = as closed. The two eyes are averaged.
-4. A blink is counted once per open → closed (below 0.35) → open
-   (above 0.65) sequence (`ocusense/core/blink_counter.py`). Measurement pauses when the
-   face is lost, too small or turned away.
-5. The OpenCV prototype also shows each eye separately: its openness, EAR,
-   calibration references and its own blink count. Per-eye counts also
-   include one-eyed winks; the main "Blinks" count needs both eyes.
-6. A live graph at the bottom shows the last 10 seconds of personal eye
-   openness and a mark for each counted blink (`ocusense/core/history.py`;
-   drawn by `ocusense/ui/widgets/openness_graph.py`). It is kept in memory only.
-
-Personal eye openness is relative to your own calibration only. It is not
-a fatigue or health measure, and accuracy has not been established for
-everyone - see [EVALUATION_CHECKLIST.md](EVALUATION_CHECKLIST.md).
-
-## Measurements (live study screen)
-
-All durations use monotonic timestamps of camera frames (never frame counts)
-and are only as precise as the frame interval (about ±33 ms at 30 frames/s).
-Definitions live in `ocusense/core/measurements.py`; defaults in `ocusense/config.py`.
-
-- **Personal eye openness (0–100 %, live)** — per eye:
-  `100 × (EAR − closed reference) / (open reference − closed reference)`,
-  using that eye's validated calibration. Shown clamped to 0–100 %; the
-  unclamped value is kept for diagnostics. The both-eyes value is the mean of
-  the two separately normalised eyes and is shown only when both are valid
-  ("—" otherwise, never 0 %). Relative to your calibration: not a fatigue
-  score or an anatomical percentage.
-- **Valid observation** — time between consecutive valid frames at most
-  `MAX_FRAME_GAP` (0.5 s) apart. Face lost, measurement paused, long frame
-  gaps and pauses are excluded. Tracking coverage = valid ÷ monitored time.
-- **Bilateral blink event** (unchanged detector) — both-eyes openness (mean
-  of the two clipped eyes) falls below 35 % → *closing*; it later rises above
-  65 % → *reopening* = one counted blink. Winks keep the mean around 50 % and
-  are not counted. Losing tracking or pausing forgets a half-finished blink.
-- **Blink rate (last 60 s)** — completed bilateral blinks ÷ valid observation
-  seconds × 60. Shown after 30 s of valid observation ("Collecting data" before).
-- **Median closure duration (last 60 s)** — median time from the closing to
-  the reopening transition of completed events that finished in the window.
-  This is the threshold-defined closed interval, not the whole blink movement.
-  Events interrupted by tracking loss, a frame gap or a pause are discarded.
-- **Time classified as closed (last 60 s)** — valid time spent in the
-  detector's closed state ÷ valid observation × 100, including ongoing and
-  long closures. Intervals crossing the window edge count only partly.
-  Not PERCLOS: calibrated EAR thresholds don't measure anatomical closure.
-
-**Engineering choices (not clinical standards):** the 30 s minimum before
-showing rate/closed time, the 0.5 s frame-gap limit, the 60 s window, and the
-35 %/65 % detector thresholds. `MEASUREMENT_VERSION` in `config.py` is stored
-with each session so later analysis can tell settings apart.
-
-## Project structure
-
-```
-ocusense/
-  config.py            documented defaults (thresholds, limits, camera, file paths)
-  core/                pure calculations — no PySide6, camera or MediaPipe
-    eye_metrics.py     EAR from eyelid points, tracking-quality checks
-    calibration.py     personal open/closed references, validation, personal openness
-    blink_counter.py   the blink rule (open → closed → open)
-    history.py         last 10 s of openness for the live graph
-    session.py         per-session recording: blink rate, closure times, gaps
-    models.py          shared data structures (SessionSummary, MinuteBin)
-    stats.py           Statistics maths: periods, weighted averages, display units
-    distributions.py   blink distributions: events, intervals, 60 s windows, histograms
-    replay.py          replays a saved recording through the real calibration and detector
-  monitoring/          camera + MediaPipe
-    pipeline.py        one camera frame → structured results (EyeMonitor)
-    camera_worker.py   background thread; sends results to the interface
-  system.py            macOS / Windows differences: data folder, camera APIs, wording, reduce motion
-  storage.py           where session summaries are kept (memory now, file later)
-  scores.py            game scores on this Mac (scores.json) and the ones waiting to go online
-  leaderboards.py      online leaderboards and friends (Supabase calls)
-  recording.py         writes the raw EAR recording (CSV + calibration JSON)
-  recording_files.py   reads and groups recordings for analysis (read-only)
-  exports.py           writes derived analysis results to a chosen folder
-  demo_data.py         labelled demo sessions for --demo-history
-  ui/                  PySide6 interface — displays results, relays actions
-    app.py             start-up, error dialogs, --self-test
-    main_window.py     session life cycle; connects the sidebar and pages
-    sidebar.py         vertical navigation and the monitoring status
-    study_page.py      study screen
-    calibration_view.py guided calibration screen
-    current_session_page.py  Statistics › Current session
-    all_time_page.py   Statistics › All time
-    distributions_panel.py  the "Blink distributions" histograms (live and imported)
-    recordings_section.py   All time: import, choose and inspect recordings (background loading)
-    pomodoro_page.py   Pomodoro (timer logic in core/pomodoro.py)
-    games_page.py      Games: Blink Code (Morse logic in core/morse.py) and the hub
-    leaderboard_view.py the Leaderboards under the games, and ScoreKeeper (records and uploads scores)
-    eye_runner_page.py EyeGame by MishkaNastia (rules in core/runner.py, drawing in
-                       widgets/runner_canvas.py, art in ocusense/assets/eye_runner/)
-    settings_page.py   Settings
-    account_page.py    Log in / Create account / your account (Supabase calls in accounts.py,
-                       background running in account_service.py; friends in friends_panel.py)
-    theme.py           colours (Miró and Keith Haring palettes), fonts, style sheet
-    widgets/           drawing-only pieces (graph, chart, artwork, status, icons, page)
-supabase/schema.sql    profiles, game scores, friends and leaderboards for the accounts' Supabase project
-prototype/             original OpenCV window (python -m prototype)
-packaging/             Mac build script and recipe; Windows build script and recipe; icon generator
-.github/workflows/     windows-build.yml — manual Windows build, artifact only (no releases)
-tests/                 one test file per area, plus structure guards
-models/                MediaPipe face model (python download_model.py)
+```bash
+QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest discover -s tests
 ```
 
-**Where future work goes**
+## Build the apps
 
-- **New measurement or formula** (e.g. a new eye metric): `ocusense/core/` —
-  one function, with tests. Per-session versions go in `core/session.py`;
-  period summaries in `core/stats.py`. Store internal values in seconds and
-  convert only for display (`stats.to_display`).
-- **New default or threshold**: `ocusense/config.py`, with a comment and unit.
-  A person's own calibration data is *not* config.
-- **Feedback rules** (break reminders, pattern check-ins): a new pure module in
-  `ocusense/core/` that takes session numbers and returns a decision; the
-  interface only shows it.
-- **Saving history**: replace `SessionStore` in `ocusense/storage.py`.
-- **Interface changes**: the page in `ocusense/ui/`; reusable drawing in
-  `ui/widgets/`; colours and fonts in `ui/theme.py`. Interface code never
-  recalculates EAR or blinks — `tests/test_structure.py` checks this.
-- **Files used at runtime** (models, fonts, images): load them with
-  `config.resource_path(...)` so they work in development and in OcuSense.app,
-  and add them to `packaging/OcuSense.spec`.
+| System | How |
+| --- | --- |
+| macOS | `.venv/bin/pip install -r requirements-build.txt`, then `./packaging/build_mac.sh` (makes `OcuSense.app` and puts it on your Desktop) |
+| Windows | `python packaging/build_windows.py` on Windows, or the GitHub Actions workflow **Windows build (manual)** |
+| Linux | `python packaging/build_linux.py` on Linux, or the GitHub Actions workflow **Linux build (manual)** |
 
-## Tests
+The GitHub workflows only run when started by hand and keep the result as a downloadable
+artifact for 14 days. More in [docs/windows.md](docs/windows.md).
 
-```
-python -m unittest
+## The website
+
+The website (information pages, a browser demo and the public leaderboard) lives in
+[`website/`](website/README.md):
+
+```bash
+cd website && npm install && npm run dev      # then open http://localhost:3000
 ```
 
-Runs every test in `tests/` (no camera needed; the window is tested offscreen).
+## Documentation
+
+| Document | What's in it |
+| --- | --- |
+| [docs/architecture.md](docs/architecture.md) | how the measuring works, the project layout and where new work goes |
+| [docs/measurements.md](docs/measurements.md) | every measurement and graph in depth |
+| [docs/accounts.md](docs/accounts.md) | accounts, leaderboards, friends and the Supabase setup |
+| [docs/garden.md](docs/garden.md) | OcuSense Garden |
+| [docs/gallery-paintings.md](docs/gallery-paintings.md) | the Gallery paintings |
+| [docs/windows.md](docs/windows.md) | the Windows version |
+| [docs/evaluation-checklist.md](docs/evaluation-checklist.md) | testing the measurements with real people |
+
+## Who made it
+
+A hackathon project on student and campus life by computer science engineering, life sciences
+engineering and data science students. EyeGame started as a separate game by MishkaNastia
+([MishkaNastia/EyeGame](https://github.com/MishkaNastia/EyeGame)).
+
+## Licence
+
+The OcuSense source code is released under the [MIT licence](LICENSE).
+
+Some files keep their own terms:
+- **Face tracking model** (`models/face_landmarker.task`): Google's MediaPipe Face Landmarker,
+  Apache License 2.0 (see [models/README.md](models/README.md)).
+- **Paintings by other artists** in the Gallery: public domain images from The Metropolitan
+  Museum of Art's Open Access program, listed in [docs/gallery-paintings.md](docs/gallery-paintings.md).
+- **Other artwork** in `ocusense/assets/` isn't covered by the MIT licence unless stated.
