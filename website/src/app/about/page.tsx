@@ -12,7 +12,7 @@ export default function AboutPage() {
       <header className="page-head">
         <div>
           <p className="eyebrow">About us</p>
-          <h1>Students building a calmer way to study.</h1>
+          <h1>Students who stare at screens too long, like you.</h1>
           <p className="lead">{team.intro}</p>
         </div>
         <QuietArt />
@@ -29,8 +29,8 @@ export default function AboutPage() {
           ))}
         </div>
         <p className="muted">
-          What OcuSense does not do: it doesn’t diagnose tiredness, dry eye or any other condition, and its suggestions
-          are not clinically validated. It describes what the camera measured and what you told it.
+          What OcuSense doesn’t do: diagnose tiredness, dry eye or any other condition. Its reminders aren’t clinically
+          tested. It tells you what the camera saw and leaves the conclusions to you.
         </p>
       </section>
 
@@ -49,8 +49,8 @@ export default function AboutPage() {
           </ul>
         ) : (
           <p className="prose">
-            We’re a small team of computer science engineering, life sciences engineering and data science students. Individual introductions will
-            appear here soon.
+            We’re a small team of computer science engineering, life sciences engineering and data science students. Proper
+            introductions are coming soon, once we find photos where our eyes are open.
           </p>
         )}
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>

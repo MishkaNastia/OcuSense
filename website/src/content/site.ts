@@ -5,10 +5,11 @@
 
 export const site = {
   name: "OcuSense",
-  tagline: "A study companion that helps you notice your eye patterns",
+  tagline: "A study buddy that looks out for your eyes",
   description:
-    "OcuSense is a personalised study companion. It uses webcam-based eye measurements, calibrated to you, " +
-    "to help you notice changes while studying, take breaks, and reflect on what helps you. Not a medical device.",
+    "OcuSense is a desktop study app for students. It watches your blinks through your webcam, calibrated to you, " +
+    "reminds you to take breaks, and makes those breaks fun with games, a little garden and a painting gallery. " +
+    "Camera pictures never leave your computer. Not a medical device.",
   /** Verified public repository (checked: HTTP 200). */
   repositoryUrl: "https://github.com/MishkaNastia/OcuSense",
   /** Add a real team contact address here when you have one (leave null to hide it). */

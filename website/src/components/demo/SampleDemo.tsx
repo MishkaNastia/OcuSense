@@ -80,7 +80,7 @@ export function SampleDemo() {
       case "Take a break": setOutcome(""); goToBreak("select"); break;
       case "Add feedback": setOutcome(""); goToBreak("after", "walking"); break;
       case "Check in": setOutcome(""); setCheckInOpen(true); break;
-      case "Snooze 5 min": setOutcome("Snoozed for 5 minutes. (In this demo it won’t come back on its own — use the buttons above.)"); break;
+      case "Snooze 5 min": setOutcome("Snoozed for 5 minutes. (In this demo it won’t come back on its own, so use the buttons above.)"); break;
       case "Remind me later": setOutcome("We’d ask once more a little later. (Demo: nothing is scheduled.)"); break;
       default: setOutcome("Dismissed. Nothing was recorded.");
     }
@@ -143,7 +143,7 @@ export function SampleDemo() {
           </div>
         ) : null}
         {checkIns.length ? (
-          <p className="muted">Your check-ins in this demo: {checkIns.map((c) => `sleepiness ${c.sleepy ?? "—"}, eye comfort ${c.comfort ?? "—"}`).join(" · ")}</p>
+          <p className="muted">Your check-ins in this demo: {checkIns.map((c) => `sleepiness ${c.sleepy ?? "none"}, eye comfort ${c.comfort ?? "none"}`).join(" · ")}</p>
         ) : null}
         <OpennessGraph samples={s.session.graphSamples()} now={s.t} label="Simulated personal eye openness over the last 10 seconds" />
         <MeasurementPanel snapshot={snapshot} opennessRaw={s.latestOpenness} source="sample" />
@@ -151,7 +151,7 @@ export function SampleDemo() {
           <p className="notice">
             <b>Simulated change:</b> the sample person’s closures are now longer. Watch the median closure duration
             rise over the next minute. In a future version, a sustained change like this could trigger the
-            experimental “A quick check-in?” prompt — it would ask, never diagnose.
+            experimental “A quick check-in?” prompt. It would ask, never diagnose.
           </p>
         ) : null}
         {alert ? <MacNotificationPreview kind={alert} /> : null}

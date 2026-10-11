@@ -13,7 +13,7 @@ const body = Atkinson_Hyperlegible_Next({ subsets: ["latin"], variable: "--font-
 const mono = Atkinson_Hyperlegible_Mono({ subsets: ["latin"], variable: "--font-atkinson-mono", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: `${site.name} — ${site.tagline}`, template: `%s · ${site.name}` },
+  title: { default: `${site.name} · ${site.tagline}`, template: `%s · ${site.name}` },
   description: site.description,
 };
 

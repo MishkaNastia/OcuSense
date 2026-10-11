@@ -37,14 +37,14 @@ export default function DemoPage() {
           <ul>
             <li>The camera starts only when you press Start.</li>
             <li>Frames are processed in this browser tab and never uploaded or recorded.</li>
-            <li>30-second calibration, then live eye openness, blinks and measurements.</li>
+            <li>A quick calibration, then live eye openness, blinks and measurements.</li>
           </ul>
           <Link href="/demo/camera" className="btn btn-secondary">Use my camera</Link>
         </section>
       </div>
       <p className="muted">
-        Short on time? The sample session has a “Skip ahead 1 minute” button so you can see every measurement
-        straight away. OcuSense is a prototype and not a medical device.
+        Short on time? The sample session has a “Skip ahead 1 minute” button, so you can see every measurement
+        straight away. The games, garden and gallery live in the desktop app. OcuSense is not a medical device.
       </p>
     </div>
   );

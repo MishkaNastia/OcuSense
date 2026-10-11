@@ -1,18 +1,45 @@
 import Link from "next/link";
 
-import { AlertGallery } from "@/components/alerts/Alerts";
-import { HeroArt, LocalArt, QuietArt, StepMark } from "@/components/art/Art";
+import { HeroArt, LocalArt, QuietArt } from "@/components/art/Art";
 import { SCIENCE_HIGHLIGHTS } from "@/content/science";
 import { team } from "@/content/team";
 
 import styles from "./home.module.css";
 
-const STEPS = [
-  { mark: "calibrate", title: "Calibrate", text: "Thirty seconds: eyes comfortably open, gently closed, a few natural blinks. Every measurement is then relative to you.", status: "In the Mac app and the camera demo" },
-  { mark: "study", title: "Study", text: "OcuSense watches eye openness and counts completed blinks while you work. Images are processed on your device.", status: "In the Mac app and the camera demo" },
-  { mark: "notice", title: "Notice patterns", text: "Blink rate, closure duration and time classified as closed over the last minute — with tracking gaps left out, never counted as zero.", status: "Measurements: available · pattern prompts: experimental" },
-  { mark: "break", title: "Take a break", text: "A gentle reminder at your planned interval. Pick a walk, a stretch, looking away, quiet rest or a nap.", status: "Demo on this site · planned for the Mac app" },
-  { mark: "reflect", title: "Reflect", text: "Rate sleepiness and eye comfort before and after. Over time you see which breaks you said helped — your words, not a verdict.", status: "Demo on this site · planned for the Mac app" },
+/** What the desktop app does today. Keep this list true to the app. */
+const FEATURES = [
+  {
+    title: "Watches your blinks",
+    text: "A 25 second calibration teaches OcuSense what your eyes look like open and closed. Then it counts your blinks, times them and shows your blink rate while you study.",
+  },
+  {
+    title: "Taps you on the shoulder",
+    text: "Leaning in too close, blinking slower than usual, studying in the dark, slumping like a croissant: you get a friendly nudge, also when OcuSense is in the background.",
+  },
+  {
+    title: "Keeps time for you",
+    text: "A Pomodoro timer that starts and pauses eye monitoring for you, and a Time log that remembers whether you spent the afternoon on statistics or on “statistics”.",
+  },
+  {
+    title: "Makes breaks fun",
+    text: "Learn Morse code by blinking, jump over toilets in EyeGame, or water a little garden with an eye exercise. Your eyes rest, your brain gets a treat.",
+  },
+  {
+    title: "Pays you in paintings",
+    text: "Harvest your garden for coins and spend them on a gallery: Van Gogh, Vermeer, Rosa Bonheur and friends. Hang your favourites in the sidebar. Compare scores with friends.",
+  },
+  {
+    title: "Dresses up",
+    text: "Pick the calm Miró look with a little painter at his easel, or the loud Keith Haring look with two dancers. It switches instantly, no restart.",
+  },
+] as const;
+
+/** Real messages the app sends (ocusense/ui/main_window.py and friends). */
+const MESSAGES = [
+  { title: "Trying to lick the screen?", body: "Go easy on your eyes and move back a little." },
+  { title: "Time for a break", body: "Hey, you should take a break, else your eyes will become drier than the Sahara desert." },
+  { title: "Focus round done, nice work!", body: "Short break time. Look out of a window: your eyes have been staring at pixels for a while." },
+  { title: "Your garden needs a little water", body: "Some plants are thirsty. Time for a quick eye break in the garden?" },
 ] as const;
 
 export default function Home() {
@@ -22,22 +49,50 @@ export default function Home() {
         <div className={styles.heroText}>
           <h1>Big Brother watches you. OcuSense looks out for you.</h1>
           <p className="lead">
-            OcuSense monitors your blinking and eye patterns in real time through your webcam, offering personalised
-            check-ins and break suggestions to help you stay mindful of eye dryness and fatigue during long hours at
-            your computer.
+            A study app for people who open their laptop for “one quick hour” and look up at midnight. It watches
+            your blinks through your webcam, reminds you to take breaks before your eyes turn into raisins, and
+            makes those breaks something you actually want to take.
           </p>
           <div className={styles.ctas}>
             <Link href="/demo" className="btn btn-primary">Try the demo</Link>
-            <Link href="/download" className="btn btn-secondary">Get the Mac app</Link>
+            <Link href="/download" className="btn btn-secondary">Get the app</Link>
           </div>
-          <p className={styles.small}>No account needed for the demo. Not a medical device.</p>
+          <p className={styles.small}>The demo needs no account. Your camera pictures never leave your computer.</p>
         </div>
         <HeroArt className={styles.heroArt} />
       </section>
 
+      <section className={`container ${styles.section}`} aria-labelledby="features-title">
+        <p className="eyebrow">What the app does</p>
+        <h2 id="features-title">Your study buddy, with a webcam and opinions</h2>
+        <ul className={styles.features}>
+          {FEATURES.map((f) => (
+            <li key={f.title} className={styles.feature}>
+              <h3>{f.title}</h3>
+              <p>{f.text}</p>
+            </li>
+          ))}
+        </ul>
+        <Link href="/how-it-works" className="btn btn-secondary" style={{ alignSelf: "flex-start" }}>How it works</Link>
+      </section>
+
+      <section className={`container ${styles.section}`} aria-labelledby="messages-title">
+        <p className="eyebrow">Straight from the app</p>
+        <h2 id="messages-title">The kind of messages you’ll get</h2>
+        <p className="lead">One at a time, easy to dismiss, and you can switch each kind off in Settings.</p>
+        <ul className={styles.messages}>
+          {MESSAGES.map((m) => (
+            <li key={m.title} className={styles.message}>
+              <b>{m.title}</b>
+              <span>{m.body}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <section className={`container ${styles.section}`} aria-labelledby="science-title">
         <p className="eyebrow">The science behind it</p>
-        <h2 id="science-title">Why blinking is worth watching</h2>
+        <h2 id="science-title">Why we care about your blinks</h2>
         <div className="three-col">
           {SCIENCE_HIGHLIGHTS.map((h) => (
             <div key={h.title}>
@@ -46,79 +101,56 @@ export default function Home() {
             </div>
           ))}
         </div>
-        <Link href="/science" className="btn btn-secondary" style={{ alignSelf: "flex-start" }}>Learn more about the science</Link>
-      </section>
-
-      <section className={`container ${styles.section}`} aria-labelledby="how-title">
-        <p className="eyebrow">How it works</p>
-        <h2 id="how-title">Calibrate, study, notice, pause, reflect</h2>
-        <ol className={styles.steps}>
-          {STEPS.map((s, i) => (
-            <li key={s.title} className={styles.step}>
-              <StepMark step={s.mark} />
-              <span className={`mono ${styles.stepNumber}`}>{String(i + 1).padStart(2, "0")}</span>
-              <h3>{s.title}</h3>
-              <p>{s.text}</p>
-              <p className={styles.status}>{s.status}</p>
-            </li>
-          ))}
-        </ol>
-        <Link href="/how-it-works" className="btn btn-secondary" style={{ alignSelf: "flex-start" }}>Read how it works</Link>
+        <Link href="/science" className="btn btn-secondary" style={{ alignSelf: "flex-start" }}>Read the science</Link>
       </section>
 
       <section className={`container ${styles.split}`} aria-labelledby="local-title">
         <LocalArt className={styles.localArt} />
         <div className={styles.splitText}>
-          <p className="eyebrow">Calibration and privacy</p>
-          <h2 id="local-title">Measured against your eyes, processed on your device.</h2>
+          <p className="eyebrow">Privacy</p>
+          <h2 id="local-title">Your face stays on your computer.</h2>
           <p>
-            Eyes differ, so OcuSense doesn’t use one threshold for everyone. A short calibration records how your
-            eyes look comfortably open and gently closed, and checks that your natural blinks can be detected.
+            OcuSense looks at each camera picture, measures your eyes and throws the picture away. Nothing is
+            recorded or uploaded. What it keeps is numbers: your calibration, your settings, your garden, your time
+            log and, if you switch it on, a recording of eye measurements.
           </p>
           <p>
-            Camera images are analysed on your computer — in the Mac app, or in your browser for the demo — and are
-            never recorded or uploaded. The site only downloads the face model from this website.
+            You only need an account for the online leaderboards, and then the only things shared are your username
+            and your game scores. Nobody sees your blinks. Not us, not your flatmates.
           </p>
-          <Link href="/privacy">How we handle data</Link>
+          <Link href="/privacy">The full privacy page</Link>
         </div>
       </section>
 
       <section className={`container ${styles.section}`} aria-labelledby="where-title">
-        <p className="eyebrow">Desktop and browser</p>
-        <h2 id="where-title">Two ways to try OcuSense</h2>
+        <p className="eyebrow">App and browser</p>
+        <h2 id="where-title">Two ways to try it</h2>
         <div className={styles.compare}>
           <div>
-            <h3>Mac app</h3>
+            <h3>Desktop app</h3>
             <ul>
-              <li>Built for long study sessions, with the window in the background.</li>
-              <li>Live eye openness, blink rate, closure and closed time.</li>
-              <li>Session statistics for today, the week and the month (kept until you quit, for now).</li>
+              <li>Made for long study sessions, running quietly behind your notes.</li>
+              <li>Everything above: blinks, reminders, Pomodoro, Time log, games, garden and gallery.</li>
+              <li>Mac first. A Windows version is being tested.</li>
               <li><Link href="/download">Download status</Link></li>
             </ul>
           </div>
           <div>
             <h3>Browser demo</h3>
             <ul>
-              <li>No installation: a sample session, or your camera in this tab.</li>
-              <li>Same measurement rules, ported from the app and tested against it.</li>
-              <li>Browsers slow down hidden tabs, so the demo pauses when you switch away.</li>
+              <li>Nothing to install: a sample session, or your own camera in this tab.</li>
+              <li>The same blink rules as the app, tested against it.</li>
+              <li>A taste of the measuring part. The games and garden live in the app.</li>
               <li><Link href="/demo">Open the demo</Link></li>
             </ul>
           </div>
         </div>
       </section>
 
-      <section className={`container ${styles.section}`} aria-labelledby="prompts-title">
-        <p className="eyebrow">Gentle prompts</p>
-        <h2 id="prompts-title">Reminders that ask, not alarms that judge</h2>
-        <p className="lead">No sound, no flashing, one at a time, and always easy to dismiss.</p>
-        <AlertGallery />
-      </section>
-
       <section className={`container ${styles.split}`} aria-labelledby="team-title">
         <div className={styles.splitText}>
           <p className="eyebrow">Who we are</p>
-          <h2 id="team-title">Built by engineering students, for students</h2>
+          <h2 id="team-title">Made by students who also stare at screens too long</h2>
           <p>{team.intro}</p>
           <Link href="/about" className="btn btn-secondary">About us</Link>
         </div>

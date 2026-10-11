@@ -14,6 +14,8 @@
  *  - It is ad-hoc signed only: NOT signed with an Apple Developer ID and NOT notarised.
  *  - It has only been built and run on an Apple Silicon Mac; other Macs are untested.
  *  - It is not hosted anywhere public, so there is no download link yet.
+ *  - Windows: the same code is prepared for Windows (packaging/build_windows.py and a manual
+ *    GitHub Actions build), but no Windows build has been tested on a Windows PC yet.
  */
 
 export type ReleaseStatus = "available" | "coming-soon" | "planned";
@@ -38,10 +40,18 @@ export const releases: Release[] = [
     verified: [
       "Builds as a Mac app from the source code (Python, PySide6, MediaPipe).",
       "Built and run so far on an Apple Silicon Mac only.",
-      "Not yet signed with an Apple Developer ID or notarised — macOS will warn before opening it.",
+      "Not yet signed with an Apple Developer ID or notarised, so macOS will warn before opening it.",
     ],
-    notes: "We will publish a download here once a build is hosted publicly.",
+    notes: "We’ll put a download here once a build is hosted publicly.",
   },
-  { platform: "Windows", status: "planned" },
+  {
+    platform: "Windows",
+    status: "coming-soon",
+    verified: [
+      "Same app, same code, packaged as a portable folder for Windows 10 and 11 (64 bit).",
+      "Not tested on a Windows PC yet, so no download until it is.",
+    ],
+    notes: "A Windows version is being prepared.",
+  },
   { platform: "Linux", status: "planned" },
 ];

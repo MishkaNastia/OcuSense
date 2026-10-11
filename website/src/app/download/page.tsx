@@ -22,8 +22,8 @@ export default function DownloadPage() {
         <p className="eyebrow">Download</p>
         <h1>OcuSense for your computer</h1>
         <p className="lead">
-          The desktop app is made for real study sessions. Until a public build is available, you can try everything in
-          the browser demo.
+          The desktop app is made for real study sessions. There’s no public download yet, so for now the browser demo
+          is the quickest way to try it.
         </p>
       </header>
 
@@ -41,7 +41,7 @@ export default function DownloadPage() {
                 {r.sha256 ? <p className="muted mono" style={{ wordBreak: "break-all" }}>SHA-256 {r.sha256}</p> : null}
               </>
             ) : (
-              <p className="muted">{r.status === "planned" ? "Not built yet. We started with macOS." : r.notes}</p>
+              <p className="muted">{r.status === "planned" ? "Not built yet. Mac and Windows come first." : r.notes}</p>
             )}
             {r.verified?.length ? (
               <ul className={styles.facts}>{r.verified.map((fact) => <li key={fact}>{fact}</li>)}</ul>
@@ -53,10 +53,10 @@ export default function DownloadPage() {
       <section className="section-rule" aria-labelledby="which">
         <h2 id="which">Desktop app or browser demo?</h2>
         <dl className="def">
-          <dt>Desktop app (macOS)</dt>
-          <dd>Runs during your study session, with its own calibration, live measurements and session statistics. Camera images stay on your Mac.</dd>
+          <dt>Desktop app</dt>
+          <dd>Runs during your study session: calibration, live measurements, reminders, Pomodoro, Time log, games, garden and gallery. Camera images stay on your computer.</dd>
           <dt>Browser demo</dt>
-          <dd>No installation. A sample session with synthetic data, or a short live test with your camera in this tab. It pauses when the tab is hidden.</dd>
+          <dd>No installation. A sample session with made up data, or a short live test with your camera in this tab. It pauses when the tab is hidden.</dd>
         </dl>
         <Link href="/demo" className="btn btn-secondary" style={{ alignSelf: "flex-start" }}>Try the demo</Link>
       </section>
@@ -69,7 +69,7 @@ export default function DownloadPage() {
             The current builds are <b>not notarised by Apple</b>, so the first time, right-click (or Control-click)
             OcuSense and choose <b>Open</b>, then <b>Open</b> again.
           </li>
-          <li>Press <b>Start</b>. macOS asks whether OcuSense may use the camera — choose <b>Allow</b>.</li>
+          <li>Press <b>Start</b>. macOS asks whether OcuSense may use the camera. Choose <b>Allow</b> and it carries on by itself.</li>
           <li>
             If you clicked “Don’t Allow”: open <b>System Settings › Privacy &amp; Security › Camera</b>, switch on
             OcuSense, quit it (⌘Q) and open it again.

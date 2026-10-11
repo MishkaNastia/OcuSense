@@ -60,12 +60,48 @@
 .compare > div + div { padding-left: 28px; border-left: 1px solid var(--rule); }
 .compare ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
 
+.features {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 2px solid var(--ink);
+}
+.feature { display: flex; flex-direction: column; gap: 8px; padding: 22px 22px 22px 0; border-bottom: 1px solid var(--rule); }
+.feature:not(:nth-child(3n + 1)) { padding-left: 22px; border-left: 1px solid var(--rule); }
+.feature p { font-size: 0.98rem; }
+
+.messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.message {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+  background: var(--paper-light);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-card);
+}
+.message span { color: var(--graphite); }
+
 @media (max-width: 960px) {
+  .features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .feature, .feature:not(:nth-child(3n + 1)) { padding: 20px 20px 20px 0; border-left: 0; }
+  .feature:nth-child(2n) { padding-left: 20px; border-left: 1px solid var(--rule); }
   .steps { grid-template-columns: minmax(0, 1fr); }
   .step, .step + .step { padding: 18px 0; border-left: 0; border-bottom: 1px solid var(--rule); display: grid; grid-template-columns: 72px minmax(0, 1fr); column-gap: 18px; }
   .step > svg { grid-row: span 4; }
 }
 @media (max-width: 760px) {
+  .features, .messages { grid-template-columns: minmax(0, 1fr); }
+  .feature, .feature:nth-child(2n), .feature:not(:nth-child(3n + 1)) { padding: 18px 0; border-left: 0; }
   .hero, .split, .split:last-child { grid-template-columns: minmax(0, 1fr); }
   .heroArt { max-width: 420px; justify-self: center; order: -1; }
   .quietArt { justify-self: start; }

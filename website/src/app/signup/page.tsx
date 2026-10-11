@@ -12,8 +12,8 @@ export default function SignUpPage() {
       title="Create an account"
       intro={
         <p>
-          An account holds only your email address and sign-in details. Eye measurements and check-ins are never
-          uploaded to it.
+          An account holds your email address and sign-in details, plus a username and game scores if you use the
+          leaderboards in the app. Eye measurements are never uploaded to it.
         </p>
       }
     >

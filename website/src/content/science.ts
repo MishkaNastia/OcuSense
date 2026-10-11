@@ -39,13 +39,13 @@ export const SCIENCE_WHY = [
     title: "Eyes carry useful signals",
     text:
       "Blinking and eye closure change during screen work. A webcam can measure some of this without " +
-      "special hardware — if the measurement is careful and honest about its limits.",
+      "special hardware, as long as the measurement is careful and clear about its limits.",
   },
   {
-    title: "Feedback beats guesswork",
+    title: "You are the baseline",
     text:
-      "Instead of telling you what you feel, OcuSense asks. Your own check-ins, next to what the camera " +
-      "measured, are a better starting point for finding breaks that help you.",
+      "OcuSense compares you with you. A break reminder comes when your blinking slows down compared with " +
+      "your own earlier study time, not with a number from a textbook.",
   },
 ];
 
@@ -53,7 +53,7 @@ export const SCIENCE_WHY = [
 export const SCIENCE_HIGHLIGHTS = [
   {
     title: "Screens change how we blink",
-    text: "Studies of computer work found that people blink less, and less completely, while looking at a screen — a pattern linked to dry, tired-feeling eyes.",
+    text: "Studies of computer work found that people blink less, and less completely, while looking at a screen. That pattern is linked to dry, tired feeling eyes.",
   },
   {
     title: "Drowsiness shows in the eyelids",
@@ -78,7 +78,7 @@ export const SCIENCE_SECTIONS: ScienceSection[] = [
     title: "Blinking at a screen",
     paragraphs: [
       "Every blink spreads a fresh tear film over the front of the eye. When we concentrate on a screen we blink noticeably less often: an early study of display work measured a clear drop in blink rate during screen use compared with before it.",
-      "Screen work can also change how we blink. Many blinks become incomplete — the lid doesn’t close all the way — and in one study, eye-strain symptoms after a reading task were linked to the share of incomplete blinks more than to the total number of blinks. Looking straight ahead at a monitor also leaves more of the eye’s surface exposed, which favours drying.",
+      "Screen work can also change how we blink. Many blinks become incomplete (the lid doesn’t close all the way), and in one study, eye strain symptoms after a reading task were linked to the share of incomplete blinks more than to the total number of blinks. Looking straight ahead at a monitor also leaves more of the eye’s surface exposed, which favours drying.",
       "Reviews of “digital eye strain” describe dryness, tired or sore eyes and blurred vision as common among people who spend long hours at a computer, and list regular breaks among the simple measures that can help.",
     ],
     sources: ["patel1991", "tsubota1993", "portello2013", "sheppard2018"],
@@ -96,8 +96,8 @@ export const SCIENCE_SECTIONS: ScienceSection[] = [
     id: "effectiveness",
     title: "Why fatigue makes studying less effective",
     paragraphs: [
-      "Fatigue is not just a feeling. A large meta-analysis of sleep-deprivation studies found that losing sleep impairs simple attention and vigilance most strongly, and also affects other thinking skills. In practice, the longer you push on while very tired, the less you tend to get out of each extra minute.",
-      "A short, well-chosen break — a walk, a stretch, looking into the distance, or real rest — gives your eyes and attention a chance to recover. Which break works best differs from person to person, which is why OcuSense asks you how you felt before and after.",
+      "Being tired changes how well you think. A large meta-analysis of sleep deprivation studies found that losing sleep impairs simple attention and vigilance most strongly, and also affects other thinking skills. In practice, the longer you push on while very tired, the less you tend to get out of each extra minute.",
+      "A short break (a walk, a stretch, looking into the distance, or real rest) gives your eyes and attention a chance to recover. Which break works best differs from person to person, so OcuSense offers a few kinds and leaves the choice to you.",
     ],
     sources: ["lim2010", "sheppard2018"],
   },

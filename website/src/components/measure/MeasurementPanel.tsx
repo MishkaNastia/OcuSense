@@ -42,7 +42,7 @@ export function MeasurementPanel({ snapshot, opennessRaw, source }: {
           <div>
             <dt>Median closure duration</dt>
             <dd className="mono">{fmt.closureMs(snapshot?.medianClosure ?? null)}</dd>
-            <p>Time between the closing and reopening thresholds — not the whole blink movement.</p>
+            <p>Time from closing to reopening, measured at the two thresholds (not the whole blink movement).</p>
           </div>
           <div>
             <dt>Time classified as closed</dt>

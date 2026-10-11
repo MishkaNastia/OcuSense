@@ -18,8 +18,8 @@ export function AuthPage({ eyebrow, title, intro, children }: { eyebrow: string;
         {!configured ? (
           <div className="notice notice-attention" role="note">
             <b>Accounts aren’t set up on this copy of the website yet.</b> The forms are shown so you can see the flow, but
-            nothing can be submitted until the sign-in service is configured (see the website README). Everything else —
-            including the <Link href="/demo">demo</Link> — works without an account.
+            nothing can be submitted until the sign-in service is configured (see the website README). Everything else,
+            including the <Link href="/demo">demo</Link>, works without an account.
           </div>
         ) : null}
         <QuietArt />

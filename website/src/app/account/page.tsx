@@ -10,7 +10,7 @@ import { createAuthClient } from "@/lib/auth/server";
 export const metadata: Metadata = { title: "Your account" };
 
 const when = (iso?: string | null) =>
-  iso ? new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC" : "—";
+  iso ? new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC" : "never";
 
 export default function AccountPage(props: PageProps<"/account">) {
   return (
@@ -26,7 +26,7 @@ async function AccountContent({ searchParams }: Pick<PageProps<"/account">, "sea
   if (!supabase) {
     return (
       <AuthPage eyebrow="Account" title="Your account" intro={<p>Accounts aren’t available yet.</p>}>
-        <p>Nothing to show — please use the <Link href="/demo">demo</Link>, which needs no account.</p>
+        <p>Nothing to show here yet. Try the <Link href="/demo">demo</Link>, which needs no account.</p>
       </AuthPage>
     );
   }
@@ -46,13 +46,13 @@ async function AccountContent({ searchParams }: Pick<PageProps<"/account">, "sea
         <h2 id="details">Account details</h2>
         <dl className="def">
           <dt>Email</dt><dd>{user.email}</dd>
-          <dt>Email confirmed</dt><dd>{user.email_confirmed_at ? when(user.email_confirmed_at) : "Not yet — check your inbox"}</dd>
+          <dt>Email confirmed</dt><dd>{user.email_confirmed_at ? when(user.email_confirmed_at) : "Not yet, check your inbox"}</dd>
           <dt>Account created</dt><dd>{when(user.created_at)}</dd>
           <dt>Last sign-in</dt><dd>{when(user.last_sign_in_at)}</dd>
         </dl>
         <p className="muted">
-          That’s everything stored for this account. Eye measurements, check-ins and break history are not uploaded —
-          there is no cloud sync.
+          That’s the sign-in part of your account. If you use the leaderboards in the app, it also holds your username,
+          game scores and friends list. Eye measurements are never uploaded, and there is no cloud sync.
         </p>
         <form action={signOutAction}>
           <button type="submit" className="btn btn-secondary">Log out</button>

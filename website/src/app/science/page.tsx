@@ -14,17 +14,17 @@ export default function SciencePage() {
       <header className="page-head">
         <div>
           <p className="eyebrow">The science behind it</p>
-          <h1>What your blinks can say about fatigue</h1>
+          <h1>What your blinks say about you (a bit)</h1>
           <p className="lead">
-            Research on screen work and drowsiness links how we blink to dry, tired eyes and to falling alertness.
-            Here is a short summary of what that research found, with the original articles.
+            Research on screen work and drowsiness links how we blink to dry, tired eyes and to fading focus. Here’s
+            the short version, with the original articles if you want to check our homework.
           </p>
         </div>
         <QuietArt />
       </header>
 
       <section className="section-rule" aria-labelledby="why">
-        <h2 id="why">Why study habits, eye activity and personal feedback</h2>
+        <h2 id="why">Why we built it this way</h2>
         <div className="three-col">
           {SCIENCE_WHY.map((item) => (
             <div key={item.title}>
@@ -54,12 +54,12 @@ export default function SciencePage() {
       ))}
 
       <section className="section-rule" aria-labelledby="ocusense">
-        <h2 id="ocusense">How OcuSense uses this — and what it doesn’t claim</h2>
+        <h2 id="ocusense">How OcuSense uses this, and what it doesn’t claim</h2>
         <div className="prose">
           <p>
             OcuSense measures the same kinds of signals these studies describe: your <b>blink rate</b>, how long each
-            eye <b>closure</b> lasts, and the share of time your eyes are <b>classified as closed</b> — all relative to
-            your own calibration. It uses them to offer check-ins and break suggestions, and asks you how you feel.
+            eye <b>closure</b> lasts, and the share of time your eyes are <b>classified as closed</b>, all relative to
+            your own calibration. When your blinking slows down compared with your own reference, it suggests a break.
           </p>
           <p>
             The studies describe patterns across groups of people, mostly in laboratory settings. OcuSense is not a

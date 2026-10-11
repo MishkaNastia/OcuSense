@@ -35,9 +35,9 @@ const durationsFor = (a: Activity | null) => (a === "nap" ? [20, 30, 45] : [5, 1
 
 function compare(before: number | null, after: number | null, name: string, lower: string, higher: string): string {
   if (before === null && after === null) return `${name}: not answered.`;
-  if (before === null || after === null) return `${name}: not compared — one answer was skipped.`;
-  if (before === after) return `${name}: ${before} before, ${after} after — no change reported.`;
-  return `${name}: ${before} before, ${after} after — you reported ${after < before ? lower : higher}.`;
+  if (before === null || after === null) return `${name}: not compared, one answer was skipped.`;
+  if (before === after) return `${name}: ${before} before, ${after} after, no change reported.`;
+  return `${name}: ${before} before, ${after} after, so you reported ${after < before ? lower : higher}.`;
 }
 
 /**
@@ -90,7 +90,7 @@ export function BreakFlow({ onSave, startAt, onStageChange }: {
           </div>
         </div>
         <p className={`mono ${styles.countdown}`} role="timer" aria-label="Time left in your break">{clock(left).slice(3)}</p>
-        <p className="muted">of {draft.minutes} min planned{left === 0 ? " — your planned break time is over. Finish when you’re ready." : ""}</p>
+        <p className="muted">of {draft.minutes} min planned{left === 0 ? ". Your planned break time is over. Finish when you’re ready." : ""}</p>
         <p className="muted">In the app, camera measurement is paused during a break. No sound plays when the time is up.</p>
         <div className={styles.row}>
           <button type="button" className="btn btn-primary" onClick={() => setStage("after")}>Finish break</button>
@@ -128,7 +128,7 @@ export function BreakFlow({ onSave, startAt, onStageChange }: {
         {draft.activity === "nap" ? (
           <label className={styles.check}>
             <input type="checkbox" checked={draft.napLater} onChange={(e) => update({ napLater: e.target.checked })} />
-            Check in again later <span className="muted">(prototype — no reminder is actually scheduled)</span>
+            Check in again later <span className="muted">(demo only, no reminder is actually scheduled)</span>
           </label>
         ) : null}
         <div className={styles.row}>
@@ -149,7 +149,7 @@ export function BreakFlow({ onSave, startAt, onStageChange }: {
           <li>{compare(saved.sleepy[0], saved.sleepy[1], "Sleepiness", "feeling less sleepy", "feeling sleepier")}</li>
           <li>{compare(saved.comfort[0], saved.comfort[1], "Eye comfort", "less comfortable eyes", "more comfortable eyes")}</li>
           {saved.helpful ? <li>Helpful: {HELPFUL_LABELS[saved.helpful]}</li> : null}
-          {draft.napLater ? <li>Later check-in requested (prototype — nothing is scheduled)</li> : null}
+          {draft.napLater ? <li>Later check-in requested (demo only, nothing is scheduled)</li> : null}
         </ul>
         <p className="muted">These are your own ratings. A change after a break doesn’t show what caused it.</p>
         <div className={styles.row}>

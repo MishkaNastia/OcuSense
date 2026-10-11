@@ -11,10 +11,10 @@ export default function PrivacyPage() {
       <header className="page-head">
         <div>
           <p className="eyebrow">Privacy</p>
-          <h1>Your camera images stay with you.</h1>
+          <h1>Your face stays on your computer.</h1>
           <p className="lead">
-            A plain description of what OcuSense and this website actually do with your data. If something here
-            changes, this page changes with it.
+            What OcuSense and this website actually do with your data, in plain words. If something changes, this page
+            changes with it.
           </p>
         </div>
         <LocalArt />
@@ -28,12 +28,13 @@ export default function PrivacyPage() {
             The camera starts only after you press “Start camera”. Frames are analysed in your browser with MediaPipe
             and immediately discarded. No image, video or face landmark is uploaded, recorded or stored.
           </dd>
-          <dt>Mac app</dt>
+          <dt>Desktop app</dt>
           <dd>
-            Frames are analysed in memory on your Mac and thrown away; images are never saved or uploaded. The app
-            saves the raw Eye Aspect Ratio of each frame (numbers only, with a time stamp) to files on your Mac, which
-            you can switch off in its settings, and your personal calibration (a few numbers) so you only calibrate
-            once. Session statistics are kept only until you quit the app.
+            Frames are analysed in memory on your computer and thrown away; images are never saved or uploaded. The
+            app saves numbers only, on your computer: your personal calibration (so you calibrate once), your settings,
+            your garden and gallery, your time log, your game scores, and (unless you switch it off) the Eye Aspect
+            Ratio of each frame with a time stamp. Session statistics are kept until you quit the app. Posture is shown
+            live and never saved.
           </dd>
         </dl>
       </section>
@@ -43,8 +44,8 @@ export default function PrivacyPage() {
         <dl className="def">
           <dt>Network requests</dt>
           <dd>
-            Your browser downloads this site’s pages, fonts, and — for the camera demo — the MediaPipe program files and
-            the face model, all from this website. Images go the other way never: nothing is sent back.
+            Your browser downloads this site’s pages and fonts, and for the camera demo the MediaPipe program files and
+            the face model, all from this website. Nothing goes the other way: no images are sent back.
           </dd>
           <dt>Demo data</dt>
           <dd>
@@ -63,9 +64,10 @@ export default function PrivacyPage() {
         <h2 id="accounts">Accounts</h2>
         <p className="prose">
           Accounts are handled by Supabase Auth, a managed sign-in service. It stores your email address, a securely
-          hashed password, and sign-in times. We don’t see your password. Your account page shows only this account
-          information: eye measurements and check-ins are <b>not</b> uploaded to your account, and there is no cloud sync.
-          Accounts are optional — the demo works without one.
+          hashed password and sign-in times. We don’t see your password. If you use the leaderboards in the app, your
+          account also holds a username, your game scores and your friends list, because that’s what other players
+          see. Eye measurements are <b>never</b> uploaded, and there is no cloud sync. Accounts are optional: the app
+          and the demo work without one.
         </p>
       </section>
 
@@ -78,8 +80,8 @@ export default function PrivacyPage() {
           <li><b>Revoke access:</b> your browser’s site settings let you remove camera permission at any time.</li>
         </ul>
         <p className="muted">
-          OcuSense is a student prototype, not a medical device. Measurements and pattern prompts are experimental and
-          don’t diagnose tiredness, dry eye or anything else. See <Link href="/how-it-works">how it works</Link>.
+          OcuSense is a student project, not a medical device. Its measurements and reminders don’t diagnose tiredness,
+          dry eye or anything else. See <Link href="/how-it-works">how it works</Link>.
         </p>
       </section>
     </div>

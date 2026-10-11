@@ -15,7 +15,7 @@ function Status({ state }: { state: CameraState }) {
   if (state.phase === "starting") text = "Starting the camera…";
   if (state.phase === "calibrating" || state.phase === "monitoring") {
     if (!state.face.found || !state.face.reliable) {
-      text = state.face.found ? `Tracking paused — ${state.face.reason}` : "Tracking paused — face not found";
+      text = state.face.found ? `Tracking paused: ${state.face.reason}` : "Tracking paused: face not found";
       shape = <path d="M6 1 L11.5 11 H0.5 Z" fill="var(--golden)" stroke="var(--ink)" strokeWidth="1.4" strokeLinejoin="round" />;
     } else {
       text = state.phase === "calibrating" ? "Calibrating · face tracked" : "Monitoring · face tracked";
@@ -23,7 +23,7 @@ function Status({ state }: { state: CameraState }) {
     }
   }
   if (state.phase === "paused") {
-    text = state.pausedBecause === "hidden" ? "Paused — the tab was hidden" : "Paused";
+    text = state.pausedBecause === "hidden" ? "Paused because the tab was hidden" : "Paused";
     shape = <circle cx="6" cy="6" r="4.5" fill="none" stroke="var(--ink)" strokeWidth="1.6" />;
   }
   return (
@@ -88,13 +88,13 @@ export function CameraDemo() {
       {state.phase === "error" && state.error ? (
         <div className="notice notice-attention" role="alert">
           <b>{state.error.message}</b>{" "}
-          <Link href="/demo/sample">Explore the sample session</Link> — it needs no camera.
+          <Link href="/demo/sample">Explore the sample session</Link>. It needs no camera.
         </div>
       ) : null}
       {state.phase === "paused" && state.pausedBecause === "hidden" ? (
         <p className="notice" role="status">
           Browsers slow down or stop background tabs, so the demo paused and turned the camera off when you switched away.
-          Your calibration and measurements are kept — press Resume camera to continue.
+          Your calibration and measurements are kept. Press Resume camera to continue.
         </p>
       ) : null}
 
@@ -154,7 +154,7 @@ export function CameraDemo() {
             label="Your personal eye openness over the last 10 seconds" />
           <MeasurementPanel snapshot={state.snapshot} opennessRaw={latest?.valid ? [latest.leftRaw!, latest.rightRaw!] : null} source="camera" />
           <p className="muted">
-            <span className="tag">Experimental</span> Pattern feedback (like “A quick check-in?”) isn’t switched on in this demo — try it in the{" "}
+            <span className="tag">Experimental</span> Pattern feedback (like “A quick check-in?”) isn’t switched on in this demo. Try it in the{" "}
             <Link href="/demo/sample">sample session</Link>. Nothing here diagnoses tiredness or any condition.
           </p>
           <button type="button" className="btn btn-quiet btn-small" aria-expanded={showDetails} onClick={() => setShowDetails((v) => !v)} style={{ alignSelf: "flex-start" }}>
@@ -162,9 +162,9 @@ export function CameraDemo() {
           </button>
           {showDetails ? (
             <div className={styles.details}>
-              <span>EAR left {latest?.leftEar?.toFixed(3) ?? "—"} · right {latest?.rightEar?.toFixed(3) ?? "—"}</span>
-              <span>Unclamped openness left {latest?.leftRaw != null ? `${Math.round(latest.leftRaw * 100)}%` : "—"} · right {latest?.rightRaw != null ? `${Math.round(latest.rightRaw * 100)}%` : "—"}</span>
-              <span>Processing rate {state.snapshot?.processingRate ? `${state.snapshot.processingRate.toFixed(1)} frames/s` : "—"} · coverage {state.snapshot?.coverage != null ? `${Math.round(state.snapshot.coverage * 100)}%` : "—"}</span>
+              <span>EAR left {latest?.leftEar?.toFixed(3) ?? "none"} · right {latest?.rightEar?.toFixed(3) ?? "none"}</span>
+              <span>Unclamped openness left {latest?.leftRaw != null ? `${Math.round(latest.leftRaw * 100)}%` : "none"} · right {latest?.rightRaw != null ? `${Math.round(latest.rightRaw * 100)}%` : "none"}</span>
+              <span>Processing rate {state.snapshot?.processingRate ? `${state.snapshot.processingRate.toFixed(1)} frames/s` : "none"} · coverage {state.snapshot?.coverage != null ? `${Math.round(state.snapshot.coverage * 100)}%` : "none"}</span>
             </div>
           ) : null}
         </section>

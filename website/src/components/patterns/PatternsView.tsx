@@ -57,7 +57,7 @@ export function PatternsView({ breaks }: { breaks: BreakRecord[] }) {
                   <span className="mono">{m.value(d).toFixed(metric === "closure" ? 0 : 1)} {m.unit}</span>
                   <span className="muted">{d.studyMinutes} min · {Math.round(d.trackedShare * 100)}% tracked</span>
                 </>
-              ) : <span className="muted">No study session — left blank, not zero</span>}
+              ) : <span className="muted">No study session, so left blank rather than zero</span>}
             </li>
           ))}
         </ul>
@@ -67,7 +67,7 @@ export function PatternsView({ breaks }: { breaks: BreakRecord[] }) {
         <div className={styles.head}>
           <div>
             <h3 id="felt">How you felt</h3>
-            <p className="muted">Before (ring) and after (dot) a break, on a 1–5 scale.</p>
+            <p className="muted">Before (ring) and after (dot) a break, on a scale from 1 to 5.</p>
           </div>
           <span className="tag tag-solid">Self-reported</span>
         </div>
@@ -87,7 +87,7 @@ export function PatternsView({ breaks }: { breaks: BreakRecord[] }) {
                   {before !== null ? <i className={styles.before} style={{ left: pos(before) }} /> : null}
                   {after !== null ? <i className={styles.after} style={{ left: pos(after) }} /> : null}
                 </span>
-                <span className="mono muted">{before ?? "—"} → {after ?? "—"}</span>
+                <span className="mono muted">{before ?? "none"} → {after ?? "none"}</span>
               </li>
             );
           })}
@@ -109,7 +109,7 @@ export function PatternsView({ breaks }: { breaks: BreakRecord[] }) {
             const sentence = !s.complete
               ? "No break with both check-ins yet."
               : s.stillLearning
-                ? `${s.improved} of ${s.complete} with ${word} so far — too few to see a pattern.`
+                ? `${s.improved} of ${s.complete} with ${word} so far. That’s too few to see a pattern.`
                 : `You reported ${word} after ${s.improved} of ${s.complete} ${s.label.toLowerCase()} breaks.`;
             return (
               <li key={s.activity}>
@@ -136,7 +136,7 @@ export function PatternsView({ breaks }: { breaks: BreakRecord[] }) {
             <li key={b.id}>
               <span><b>{b.day}</b> · {b.label} · {b.minutes} min {b.sample ? <span className="tag">sample</span> : <span className="tag tag-solid">added by you</span>}</span>
               <span className="muted">
-                Sleepiness {b.sleepy[0] ?? "—"} → {b.sleepy[1] ?? "—"} · eye comfort {b.comfort[0] ?? "—"} → {b.comfort[1] ?? "—"}
+                Sleepiness {b.sleepy[0] ?? "none"} → {b.sleepy[1] ?? "none"} · eye comfort {b.comfort[0] ?? "none"} → {b.comfort[1] ?? "none"}
                 {b.helpful ? ` · ${HELPFUL_LABELS[b.helpful]}` : ""}{b.note ? ` · “${b.note}”` : ""}
               </span>
             </li>

@@ -14,10 +14,10 @@ export default function HowItWorksPage() {
       <header className="page-head">
         <div>
           <p className="eyebrow">How it works</p>
-          <h1>Understandable measurements, calibrated to you.</h1>
+          <h1>How OcuSense knows you blinked</h1>
           <p className="lead">
-            OcuSense turns six points around each eye into a few clearly defined numbers. Here is exactly what they
-            mean — and what they don’t.
+            Six points around each eye become a handful of clearly defined numbers. Here’s what each one means, and
+            what it can’t tell you.
           </p>
         </div>
         <StepMark step="calibrate" size={220} />
@@ -40,8 +40,8 @@ export default function HowItWorksPage() {
           <dt>Personal eye openness</dt>
           <dd>
             For each eye: 100 × (EAR − closed reference) ÷ (open reference − closed reference). Shown from 0 to 100 %;
-            the two eyes are averaged only when both are measured. Relative to your calibration — not a fatigue score
-            and not a literal anatomical percentage.
+            the two eyes are averaged only when both are measured. It’s relative to your calibration, so it isn’t a
+            tiredness score or a ruler for your eyelids.
           </dd>
           <dt>Blink (both eyes)</dt>
           <dd>
@@ -52,7 +52,7 @@ export default function HowItWorksPage() {
           <dt>Valid observation</dt>
           <dd>
             Time between two usable frames at most {MAX_FRAME_GAP} s apart. Lost tracking, longer gaps and pauses are
-            left out of every calculation — never counted as zero or as “closed”.
+            left out of every calculation. They never count as zero or as “closed”.
           </dd>
           <dt>Blink rate</dt>
           <dd>Completed blinks ÷ valid seconds × 60, over the last {ROLLING_WINDOW_SECONDS} seconds.</dd>
@@ -64,34 +64,66 @@ export default function HowItWorksPage() {
         <p className="muted">
           Blink rate and closed time are shown after {MIN_VALID_SECONDS_FOR_RATE} seconds of valid observation;
           before that you see “Collecting data”. Durations are timed between camera frames, so they are only as
-          precise as the frame rate (about ±33 ms at 30 frames per second). These limits are engineering choices
-          for a prototype, not clinical standards.
+          precise as the frame rate (about ±33 ms at 30 frames per second). These limits are our own choices for a
+          student project, not clinical standards.
         </p>
       </section>
 
       <section className="section-rule two-col" aria-labelledby="calibration">
         <div className="prose">
-          <h2 id="calibration">Calibration is not learning</h2>
+          <h2 id="calibration">Calibrate once</h2>
           <p>
-            <b>Calibration</b> takes about 30 seconds: eyes comfortably open, gently closed, then a few natural blinks.
-            It produces two reference values per eye and is rejected if they are too similar, unstable, or if blinks
-            can’t be detected. It is measurement setup — nothing is “learned” about you.
+            <b>Calibration</b> takes under half a minute: eyes comfortably open, gently closed, then a few natural
+            blinks. It produces two reference values per eye and is rejected if they are too similar, unstable, or if
+            blinks can’t be detected. The app saves it, so next time you press Start and go. New glasses or a new lamp?
+            Recalibrate.
           </p>
         </div>
         <div className="prose">
-          <h2>Personal patterns are experimental</h2>
+          <h2>Reminders that know your normal</h2>
           <p>
-            <b>Patterns</b> come from comparing your measurements over time with your own check-ins (“how sleepy?”,
-            “how comfortable are your eyes?”). OcuSense reports what you said and what was measured. It does not decide
-            that you are tired, and it doesn’t claim a break <i>caused</i> a change. Pattern prompts are labelled experimental.
+            The first 10 minutes of one session become your <b>reference</b> for how often you blink. Later, if the
+            gaps between your blinks stay longer than in your reference for several minutes in a row, the app suggests a
+            break. It compares you with you, never with other people, and it doesn’t decide that you are tired.
           </p>
         </div>
+      </section>
+
+      <section className="section-rule" aria-labelledby="app">
+        <h2 id="app">What else is in the app</h2>
+        <dl className="def">
+          <dt>Reminders</dt>
+          <dd>
+            Too close to the screen (“Trying to lick the screen?”), blinking slower than your reference, an optional
+            eye rest every 20 minutes, an optional lighting check for dark rooms, and optional posture monitoring that
+            speaks up after 15 seconds of slumping or leaning in. They show in the window and as notifications when
+            OcuSense is in the background.
+          </dd>
+          <dt>Pomodoro and Time log</dt>
+          <dd>
+            Focus rounds and breaks that start and pause eye monitoring for you, with a notification when each one ends.
+            The Time log keeps track of which subject you worked on and for how long.
+          </dd>
+          <dt>Games</dt>
+          <dd>
+            Blink Code (Morse code with your blinks), EyeGame (an endless runner you play by blinking) and OcuSense
+            Garden (water crops with a gentle eye exercise, harvest them for coins). Game blinks never count in your
+            study statistics.
+          </dd>
+          <dt>Gallery and leaderboards</dt>
+          <dd>
+            Spend garden coins on paintings by famous artists and hang two in the sidebar. With an account you can put
+            your game scores on leaderboards and compare them with friends.
+          </dd>
+          <dt>Themes</dt>
+          <dd>Miró (warm paper, calm colours) or Keith Haring (bold colours, thick lines, dancing figures). Switch any time.</dd>
+        </dl>
       </section>
 
       <section className="section-rule prose" aria-labelledby="where">
         <h2 id="where">Where it runs</h2>
         <p>
-          In the <Link href="/download">Mac app</Link>, everything runs on your Mac. In the <Link href="/demo/camera">camera demo</Link>,
+          In the <Link href="/download">desktop app</Link>, everything runs on your computer. In the <Link href="/demo/camera">camera demo</Link>,
           the same rules run in your browser: the TypeScript code is a port of the app’s Python code and is tested against
           its results. Read more on the <Link href="/privacy">privacy page</Link>.
         </p>

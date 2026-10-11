@@ -15,8 +15,8 @@ export function SiteFooter() {
             <Wordmark size={22} />
           </div>
           <p className="muted">
-            A hackathon project by computer science engineering, life sciences engineering and data science students. OcuSense is not a medical device
-            and does not diagnose tiredness, dry eye or any other condition.
+            A hackathon project by computer science engineering, life sciences engineering and data science students. OcuSense
+            is not a medical device and doesn’t diagnose tiredness, dry eye or any other condition.
           </p>
         </div>
         <nav aria-label="Footer">
