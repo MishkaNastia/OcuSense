@@ -47,7 +47,9 @@ HEAD_DROPPED = "head dropped"
 HEAD_TILTED = "head tilted"
 TOO_CLOSE = "too close"
 SLUMPED = "slumped"
-LIMITS = (HEAD_DROPPED, HEAD_TILTED, TOO_CLOSE, SLUMPED)
+# Distance isn't one of them: being close to the screen has its own reminder (core/proximity.py), so the
+# posture message is only about how you sit. The estimated distance is still shown.
+LIMITS = (HEAD_DROPPED, HEAD_TILTED, SLUMPED)
 
 
 # ------------------------------------------------------------------ measurements
@@ -220,10 +222,6 @@ class PostureMonitor:
             out.add(HEAD_DROPPED)
         if reading.roll is not None and abs(angle_difference(reading.roll, b.roll)) > self.roll_limit:
             out.add(HEAD_TILTED)
-        d = reading.distance_cm
-        if d is not None and (d < self.min_distance_cm
-                              or (b.distance_cm is not None and d < b.distance_cm * (1 - self.closer_fraction))):
-            out.add(TOO_CLOSE)
         lower = centre_y - b.centre_y > self.centre_drop
         bigger = bool(b.size) and reading.size / b.size >= 1 + self.slump_growth
         if lower and (bigger or lid_change is not None):

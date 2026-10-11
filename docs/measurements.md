@@ -664,7 +664,6 @@ in a row** (see below for what counts as "in a row"):
 | --- | --- |
 | head dropped | pitch more than **12°** lower (chin down) |
 | head tilted | roll more than **10°** either way |
-| too close | closer than **50 cm**, or more than **20 %** closer than in the baseline |
 | slumped | face centre more than **5 %** of the frame height lower **and** the face at least **5 %** bigger; with the lid angle sensor, **5 % lower** is enough |
 
 Without the sensor "slumped" needs both, because sliding down in a chair almost always brings
@@ -706,9 +705,9 @@ with an external camera, or if it can't be read, posture uses the camera alone.
   gives no second message. During a recalibration that is already running, a tilt just starts
   that minute again.
 
-**Not the distance reminder.** The distance reminder (section 13) compares apparent face size
-with the eye calibration and reacts after 3 s; the posture "too close" limit uses the
-estimated centimetres and the 20 s rule. They can disagree a little.
+**Distance isn't a posture limit.** Being close to the screen has its own, independent
+reminder ("Trying to lick the screen?", section 13). Posture and its message are only about how
+you sit; the estimated distance in cm is shown on the page for information.
 
 **Limits of the method.** The head angle and iris points come from a single 2D camera, so
 expect a few degrees and several centimetres of noise. Glasses can hide the iris edges. Moving

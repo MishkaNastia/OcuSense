@@ -5,7 +5,7 @@ import unittest
 
 from ocusense.core.models import PostureBaseline, PostureReading, PostureStatus
 from ocusense.core.posture import (
-    HEAD_DROPPED, HEAD_TILTED, IRIS_EDGES, SLUMPED, TOO_CLOSE, PostureCalibration, PostureMonitor, PostureReminder,
+    HEAD_DROPPED, HEAD_TILTED, IRIS_EDGES, SLUMPED, PostureCalibration, PostureMonitor, PostureReminder,
     TiltWatcher,
     angle_difference, corrected_for_tilt, distance_cm, head_pose, iris_width_px, read_posture,
 )
@@ -151,9 +151,6 @@ class CalibrationTest(unittest.TestCase):
         cal = self.record(lambda i: reading(distance=None))  # iris never measured
         self.assertEqual(cal.status, PostureCalibration.DONE)
         self.assertIsNone(cal.result.distance_cm)
-        monitor = PostureMonitor(cal.result)
-        self.assertEqual(monitor.exceeded(reading(distance=60.0)), set())  # no "closer than baseline" check
-        self.assertEqual(monitor.exceeded(reading(distance=45.0)), {TOO_CLOSE})  # the 50 cm limit still counts
 
     def test_no_lid_angle_without_the_sensor(self):
         self.assertIsNone(self.record(lambda i: reading()).result.lid_angle)
@@ -176,12 +173,8 @@ class LimitTest(unittest.TestCase):
         self.assertEqual(self.check(roll=1.0 - 11), {HEAD_TILTED})
         self.assertEqual(self.check(roll=1.0 + 9), set())
 
-    def test_too_close_absolute_and_relative(self):
-        self.assertEqual(self.check(distance=49.0), {TOO_CLOSE})  # under 50 cm
-        self.assertEqual(self.check(distance=51.0), {TOO_CLOSE})  # > 20 % closer than 65 cm (< 52 cm)
-        self.assertEqual(self.check(distance=53.0), set())
-        far = PostureMonitor(PostureBaseline(2.0, 1.0, 100.0, 0.45, 0.3))
-        self.assertEqual(far.exceeded(reading(distance=79.0)), {TOO_CLOSE})  # 21 % closer, still far away
+    def test_distance_isnt_a_posture_limit(self):
+        self.assertEqual(self.check(distance=30.0), set())  # the distance reminder handles closeness
 
     def test_slumped_means_lower_and_bigger(self):
         self.assertEqual(self.check(centre_y=0.45 + 0.06, size=0.30 * 1.06), {SLUMPED})
