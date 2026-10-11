@@ -12,7 +12,6 @@ from .. import theme
 from .artwork import draw_star
 from .common import label
 
-PAPER_LIGHT = theme.CARD
 
 
 class TooCloseMark(QWidget):
@@ -59,7 +58,7 @@ class AlertBanner(QFrame):
     def __init__(self, title: str, body: str, actions: tuple[str, ...], mark: QWidget, parent=None):
         super().__init__(parent)
         self.setObjectName("AlertBanner")
-        self.setStyleSheet(f"QFrame#AlertBanner {{ background: {PAPER_LIGHT}; border: 2px solid {theme.INK}; "
+        self.setStyleSheet(f"QFrame#AlertBanner {{ background: {theme.CARD}; border: 2px solid {theme.INK}; "
                            "border-radius: 14px; }")
         self.setAccessibleName(title)
         self.setAccessibleDescription(body)

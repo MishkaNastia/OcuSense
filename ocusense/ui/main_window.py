@@ -23,6 +23,7 @@ States:
   error        camera could not be used
 """
 
+import re
 import time
 from dataclasses import asdict
 from datetime import datetime
@@ -52,8 +53,9 @@ from ocusense.monitoring.pipeline import (
 )
 from ocusense.recording import EarRecording
 from ocusense.storage import SessionStore
-from ocusense.system import COMPUTER, camera_help, camera_permission, relaunch, request_camera_permission
+from ocusense.system import COMPUTER, camera_help, camera_permission, request_camera_permission
 
+from . import theme, time_log_page
 from .account_page import AccountPage
 from .account_service import AccountService
 from .all_time_page import AllTimePage
@@ -236,7 +238,6 @@ class MainWindow(QMainWindow):
         self.settings_page.clear_history_requested.connect(self.clear_history)
         self.settings_page.new_reference_requested.connect(self.make_new_reference)
         self.settings_page.theme_chosen.connect(self._set_theme)
-        self.settings_page.restart_requested.connect(self.restart)
         self.settings_page.record.toggled.connect(self._set_recording)
         self.settings_page.distance.setChecked(self.distance_reminder)
         self.settings_page.set_distance_interval(self.preferences.distance_reminder_interval)
@@ -617,12 +618,30 @@ class MainWindow(QMainWindow):
     def _set_theme(self, name: str) -> None:
         self.preferences.theme = name
         self.preferences.save()
+        self.apply_theme(name)
 
-    def restart(self) -> None:
-        """Open a fresh OcuSense (for a new theme) and close this one; the session is saved on close."""
-        if relaunch():
-            self.close()
-            QApplication.instance().quit()
+    def apply_theme(self, name: str) -> None:
+        """Switch colours while OcuSense runs: nothing closes, a running session carries on."""
+        if name == theme.ACTIVE:
+            return
+        old_line = theme.LINE
+        changes = theme.apply(name)
+        app = QApplication.instance()
+        app.setStyleSheet(theme.STYLE_SHEET)
+        time_log_page.HEX.update(cobalt=theme.COBALT, vermilion=theme.VERMILION, golden=theme.GOLDEN,
+                                 green=theme.GREEN, ink=theme.INK)
+        # Some widgets baked colours into their own style when they were made: swap those too.
+        pattern = re.compile("|".join(re.escape(old) for old in changes), re.IGNORECASE) if changes else None
+        for widget in app.allWidgets():
+            sheet = widget.styleSheet()
+            if sheet and pattern is not None:
+                new = pattern.sub(lambda m: changes[m.group(0).lower()], sheet)
+                new = new.replace(f"{old_line}px solid", f"{theme.LINE}px solid")
+                if new != sheet:
+                    widget.setStyleSheet(new)
+            widget.update()  # everything drawn by hand picks the new colours up when it repaints
+        self.sidebar.set_theme_art()
+        self._apply_painter_animations()
 
     def in_background(self) -> bool:
         """True when you're not looking at OcuSense (another app in front, or the window hidden)."""

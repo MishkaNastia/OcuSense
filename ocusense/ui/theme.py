@@ -7,7 +7,7 @@
 Colour meanings stay the same in both (see the style board): cobalt = main action and
 the eye-openness line, vermilion = counted blink, golden + triangle = tracking needs
 attention, ink = text and structure. The theme is read from preferences.json when this
-module is first imported, before any window exists, so every page uses one palette.
+module is first imported, and apply() switches it while OcuSense runs (no restart).
 """
 
 from PySide6.QtGui import QColor, QFont, QFontDatabase
@@ -67,7 +67,9 @@ def number_font(pixel_size, weight=QFont.Weight.Medium):
     return font
 
 
-STYLE_SHEET = f"""
+def style_sheet() -> str:
+    """The application style sheet in the active palette."""
+    return f"""
 QWidget#Root {{ background: {PAPER}; }}
 QLabel {{ color: {INK}; background: transparent; }}
 QLabel[role="secondary"] {{ color: {GRAPHITE}; }}
@@ -157,3 +159,21 @@ QPushButton[kind="step"]:focus {{ border-color: {COBALT}; }}
 
 QToolTip {{ background: {PAPER}; color: {INK}; border: 1px solid {INK}; padding: 4px; }}
 """
+
+
+STYLE_SHEET = style_sheet()
+
+
+def apply(name: str) -> dict[str, str]:
+    """Switch the palette while OcuSense runs. Returns {old colour: new colour} (lowercase hex),
+    so styles that already baked the old colours in can be updated (see MainWindow.apply_theme)."""
+    global ACTIVE, STYLE_SHEET
+    if name not in THEMES:
+        name = DEFAULT_THEME
+    old = THEMES[ACTIVE]
+    new = THEMES[name]
+    changes = {old[k].lower(): new[k] for k in old if isinstance(old[k], str) and old[k] != new[k]}
+    ACTIVE = name
+    globals().update(new)
+    STYLE_SHEET = style_sheet()
+    return changes

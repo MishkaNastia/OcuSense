@@ -68,8 +68,7 @@ class SettingsPage(Page):
     lighting_changed = Signal(bool)  # lighting check switched on or off
     clear_history_requested = Signal()
     new_reference_requested = Signal()
-    theme_chosen = Signal(str)  # "miro" or "haring"
-    restart_requested = Signal()
+    theme_chosen = Signal(str)  # "miro" or "haring", applied at once
 
     def __init__(self, parent=None):
         super().__init__("Settings", "Settings", "Reminder choices are remembered; the other settings apply while "
@@ -154,23 +153,16 @@ class SettingsPage(Page):
         self.section("Appearance")
         self.theme_switch = Segmented(tuple(theme.THEME_NAMES.items()), theme.ACTIVE, "Theme")
         self.theme_switch.changed.connect(self._theme_picked)
-        self.restart_button = QPushButton("Restart now")
-        self.restart_button.setProperty("kind", "secondary")
-        self.restart_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.restart_button.clicked.connect(self.restart_requested.emit)
-        self.restart_button.setVisible(False)
         theme_controls = QWidget()
         theme_row = QHBoxLayout(theme_controls)
         theme_row.setContentsMargins(0, 0, 0, 0)
         theme_row.setSpacing(12)
         theme_row.addWidget(self.theme_switch)
-        theme_row.addWidget(self.restart_button)
         theme_row.addStretch(1)
-        self.theme_note = label("", "secondary", theme.ui_font(14), wrap=True)
         self.body.addWidget(setting_row(
             "Theme", "Miró: warm paper and calm colours. Keith Haring: bold colours, thick black lines and a "
-            "couple of dancers in the sidebar. A new theme shows up when OcuSense opens again.",
-            theme_controls, extra=(self.theme_note,)))
+            "couple of dancers in the sidebar. Switches right away, and OcuSense remembers your pick.",
+            theme_controls))
         self.body.addWidget(setting_row("Motion", "Animations follow the Animations switch on the Pomodoro page, "
                                                   "and turn off when your system asks for reduced motion."))
 
@@ -286,10 +278,6 @@ class SettingsPage(Page):
 
     def _theme_picked(self, name: str) -> None:
         self.theme_chosen.emit(name)
-        changed = name != theme.ACTIVE
-        self.restart_button.setVisible(changed)
-        self.theme_note.setText(f"{theme.THEME_NAMES[name]} is saved. Restart OcuSense to see it (a running "
-                                "session is saved first)." if changed else "")
 
     def _open_folder(self) -> None:
         if self.folder is not None:

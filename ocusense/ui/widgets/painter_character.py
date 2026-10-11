@@ -43,8 +43,8 @@ def _ease(t: float) -> float:
 
 class PainterCharacter(QWidget):
     # marks on the canvas: (kind, x, y as fractions of the canvas, paint colour)
-    MARKS = (("circle", 0.34, 0.38, theme.COBALT), ("dot", 0.72, 0.28, theme.VERMILION),
-             ("star", 0.68, 0.66, theme.INK), ("moon", 0.26, 0.74, theme.GOLDEN), ("curve", 0.5, 0.5, theme.INK))
+    MARKS = (("circle", 0.34, 0.38, "COBALT"), ("dot", 0.72, 0.28, "VERMILION"),
+             ("star", 0.68, 0.66, "INK"), ("moon", 0.26, 0.74, "GOLDEN"), ("curve", 0.5, 0.5, "INK"))
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -166,7 +166,7 @@ class PainterCharacter(QWidget):
         p.setPen(_pen(_c(theme.INK), 2))
         p.drawLine(hand, tip)
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QBrush(_c(current[3] if current else theme.VERMILION)))
+        p.setBrush(QBrush(_c(getattr(theme, current[3]) if current else theme.VERMILION)))
         p.drawEllipse(tip, 3, 3)
 
         head = QPointF(52, 46)  # the head, with a vermilion beret
@@ -197,7 +197,8 @@ class PainterCharacter(QWidget):
         p.end()
 
     def _mark(self, p: QPainter, canvas: QRectF, mark, grow: float, alpha: float) -> None:
-        kind, fx, fy, colour = mark
+        kind, fx, fy, tone = mark
+        colour = getattr(theme, tone)  # looked up when drawn, so a theme switch shows at once
         c = QPointF(canvas.x() + canvas.width() * fx, canvas.y() + canvas.height() * fy)
         if grow <= 0 or alpha <= 0:
             return

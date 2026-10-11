@@ -58,8 +58,8 @@ The sidebar on the left switches pages without interrupting monitoring:
   each session's summary, and "What these numbers mean" at the bottom).
 - **Settings** — recalibration, measurement details, data & privacy (including
   clearing the session history) and the **theme**: Miró (default) or one inspired by
-  Keith Haring (bold colours, thick black lines, dancers in the sidebar), applied after
-  a quick restart.
+  Keith Haring (bold colours, thick black lines, dancers in the sidebar). It switches
+  instantly; nothing closes.
 - **Log in** — optional OcuSense accounts (the same as on the website): log in, create an
   account with a username for the game leaderboards, add friends, reset a password, log out.
   Set-up: [docs/accounts.md](docs/accounts.md).

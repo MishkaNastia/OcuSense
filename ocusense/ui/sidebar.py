@@ -223,6 +223,18 @@ class Sidebar(QWidget):
         """e.g. "18:42" while a Pomodoro phase runs, "" when it isn't."""
         self.items["pomodoro"].set_text(f"Pomodoro · {status}" if status else "Pomodoro")
 
+    def set_theme_art(self) -> None:
+        """After a theme switch: the Miró painter or the Keith Haring dancers, in the same spot."""
+        wanted = HaringDancer if theme.ACTIVE == "haring" else PainterCharacter
+        if isinstance(self.painter, wanted):
+            return
+        layout = self.layout()
+        index = layout.indexOf(self.painter)
+        old, self.painter = self.painter, wanted()
+        layout.insertWidget(index, self.painter)
+        old.hide()
+        old.deleteLater()
+
     def set_time_log_status(self, status: str) -> None:
         """e.g. "0:12:03" while a time-log timer runs, "" when none does."""
         self.items["time_log"].set_text(f"Time log · {status}" if status else "Time log")

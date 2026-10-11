@@ -9,7 +9,6 @@ import unittest
 from pathlib import Path
 
 from ocusense.preferences import Preferences
-from ocusense.system import relaunch_command
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -47,18 +46,9 @@ class ThemeTest(unittest.TestCase):
         path.write_text(json.dumps({"theme": 42}))
         self.assertEqual(Preferences.load(path).theme, "miro")
 
-    def test_relaunch_command(self):
-        app = "/Applications/OcuSense.app/Contents/MacOS/OcuSense"
-        self.assertEqual(relaunch_command(["x"], app, True, "darwin"),
-                         ["open", "-n", "/Applications/OcuSense.app", "--args"])
-        self.assertEqual(relaunch_command(["x", "--demo-history"], r"C:\OcuSense\OcuSense.exe", True, "win32"),
-                         [r"C:\OcuSense\OcuSense.exe", "--demo-history"])
-        self.assertEqual(relaunch_command(["x"], "/usr/bin/python3", False, "darwin"),
-                         ["/usr/bin/python3", "-m", "ocusense"])
-
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-from tests.test_main_window import MODEL_PATH  # noqa: E402
+from tests.test_main_window import MODEL_PATH, FakeThread  # noqa: E402
 
 
 @unittest.skipUnless(MODEL_PATH.exists(), "model file missing - run download_model.py")
@@ -71,17 +61,35 @@ class ThemeSettingTest(unittest.TestCase):
     def tearDown(self):
         self.window.close()
 
-    def test_choosing_a_theme_saves_it_and_offers_a_restart(self):
+    def test_choosing_a_theme_switches_at_once_without_closing(self):
+        from PySide6.QtWidgets import QApplication
         from ocusense.ui import theme
-        page = self.window.settings_page
-        other = "haring" if theme.ACTIVE == "miro" else "miro"
-        page.theme_switch.buttons[other].click()
-        self.assertEqual(self.window.preferences.theme, other)
-        self.assertEqual(Preferences.load().theme, other)  # saved for the next launch
-        self.assertFalse(page.restart_button.isHidden())
-        self.assertIn("Restart", page.theme_note.text())
-        page.theme_switch.buttons[theme.ACTIVE].click()  # back to the current one: nothing to restart
-        self.assertTrue(page.restart_button.isHidden())
+        from ocusense.ui.widgets.haring_dancer import HaringDancer
+        from ocusense.ui.widgets.painter_character import PainterCharacter
+        w = self.window
+        app = QApplication.instance()
+        w.monitor.calibration = object()
+        w._start_camera = lambda: (setattr(w, "thread", FakeThread()), True)[1]
+        w.show()
+        w.start()
+        self.assertEqual(w.state, "monitoring")
+        banner_sheet = w.distance_banner.styleSheet()
+        self.assertIn(theme.THEMES["miro"]["CARD"], banner_sheet)
+        try:
+            w.settings_page.theme_switch.buttons["haring"].click()
+            self.assertEqual(theme.ACTIVE, "haring")
+            self.assertEqual(Preferences.load().theme, "haring")  # remembered for next time
+            self.assertEqual(app.styleSheet(), theme.STYLE_SHEET)
+            self.assertIn("#FFFFFF", w.distance_banner.styleSheet())  # baked-in colours swapped too
+            self.assertIsInstance(w.sidebar.painter, HaringDancer)
+            self.assertTrue(w.isVisible())  # nothing closed
+            self.assertEqual(w.state, "monitoring")  # the session carries on
+            self.assertFalse(w.sidebar.painter.grab().isNull())
+        finally:
+            w.settings_page.theme_switch.buttons["miro"].click()
+        self.assertEqual(theme.ACTIVE, "miro")
+        self.assertIsInstance(w.sidebar.painter, PainterCharacter)
+        self.assertIn(theme.THEMES["miro"]["CARD"], w.distance_banner.styleSheet())
 
     def test_haring_dancers_draw_and_stay_still_without_animations(self):
         from ocusense.ui.widgets.haring_dancer import HaringDancer
