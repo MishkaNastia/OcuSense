@@ -44,7 +44,10 @@ OpenCV it needs doesn't.
 The workflow `.github/workflows/windows-build.yml` only runs when someone starts it.
 It doesn't run on push, it can't publish anything, and it only reads the repository.
 
-1. Push the `windows-gallery` branch. (This step is yours; nothing was pushed for you.)
+1. For login in the Windows build, add two **repository variables** once (GitHub › Settings ›
+   Secrets and variables › Actions › Variables): `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`.
+   They're the same public values as in `ocusense/supabase.json`. Without them the build works,
+   but its Log in page says accounts aren't set up.
 2. On GitHub, go to **Actions › "Windows build (manual)" › Run workflow**, and choose
    the branch.
 3. When it finishes, download **OcuSense-windows-x64** from the run's *Artifacts*
