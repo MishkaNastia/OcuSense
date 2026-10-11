@@ -15,15 +15,13 @@ const STATUS_TEXT: Record<Release["status"], string> = {
 };
 
 export default function DownloadPage() {
-  const mac = releases[0];
   return (
     <div className="container page">
       <header className="prose">
         <p className="eyebrow">Download</p>
         <h1>OcuSense for your computer</h1>
         <p className="lead">
-          The desktop app is made for real study sessions. There’s no public download yet, so for now the browser demo
-          is the quickest way to try it.
+          The desktop app is made for real study sessions. Download it for free, or try the browser demo first.
         </p>
       </header>
 
@@ -62,22 +60,32 @@ export default function DownloadPage() {
       </section>
 
       <section className="section-rule prose" aria-labelledby="install">
-        <h2 id="install">Installing on a Mac (once a download is available)</h2>
+        <h2 id="install">Installing it</h2>
+        <h3>Mac</h3>
         <ol>
-          <li>Open the downloaded file and drag <b>OcuSense</b> to your Applications folder or Desktop.</li>
+          <li>Double click the downloaded zip, then drag <b>OcuSense</b> to your Applications folder.</li>
           <li>
-            The current builds are <b>not notarised by Apple</b>, so the first time, right-click (or Control-click)
-            OcuSense and choose <b>Open</b>, then <b>Open</b> again.
+            It isn’t <b>notarised by Apple</b> yet, so the first time, right click (or Control click) OcuSense and
+            choose <b>Open</b>, then <b>Open</b> again.
           </li>
           <li>Press <b>Start</b>. macOS asks whether OcuSense may use the camera. Choose <b>Allow</b> and it carries on by itself.</li>
           <li>
-            If you clicked “Don’t Allow”: open <b>System Settings › Privacy &amp; Security › Camera</b>, switch on
+            Clicked “Don’t Allow” by accident? Open <b>System Settings › Privacy &amp; Security › Camera</b>, switch on
             OcuSense, quit it (⌘Q) and open it again.
           </li>
         </ol>
+        <h3>Windows (beta)</h3>
+        <ol>
+          <li>Right click the zip, choose <b>Extract All</b>, and open <b>OcuSense\OcuSense.exe</b>. Keep it next to its <b>_internal</b> folder.</li>
+          <li>It isn’t signed yet, so SmartScreen may say “Windows protected your PC”: choose <b>More info</b>, then <b>Run anyway</b>.</li>
+          <li>If the camera doesn’t start: <b>Settings › Privacy &amp; security › Camera</b>, turn on camera access for desktop apps, and close Teams or Zoom.</li>
+        </ol>
+        <h3>Linux (beta)</h3>
+        <ol>
+          <li>Unpack the archive (<span className="mono">tar xzf OcuSense-linux-x64.tar.gz</span>) and run <span className="mono">./OcuSense/OcuSense</span>.</li>
+        </ol>
         <p className="muted">
-          Developers can build the app today from the <a href={site.repositoryUrl}>source code</a> (see the README there).
-          {mac.status !== "available" ? " There is no prebuilt download yet." : ""}
+          Developers can also build the app from the <a href={site.repositoryUrl}>source code</a> (see the README there).
         </p>
       </section>
     </div>

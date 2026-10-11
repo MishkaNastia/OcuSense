@@ -36,30 +36,37 @@ export interface Release {
 export const releases: Release[] = [
   {
     platform: "macOS",
-    status: "coming-soon",
+    status: "available",
+    version: "0.1.0",
+    url: "https://github.com/MishkaNastia/OcuSense/releases/download/v0.1.0/OcuSense-macOS.zip",
+    fileName: "OcuSense for Mac",
+    sizeLabel: "195 MB zip · Apple Silicon (M1 or newer)",
+    sha256: "02564f1b29097191dfe50aff649fe5c7be837e42cc48270b7ae56a76ea370964",
     verified: [
-      "Builds as a Mac app from the source code.",
-      "Built and run so far on an Apple Silicon Mac only.",
-      "Not yet signed with an Apple Developer ID or notarised, so macOS will warn before opening it.",
+      "Built and tested on an Apple Silicon Mac.",
+      "Not notarised by Apple yet: the first time, right click OcuSense and choose Open.",
     ],
-    notes: "We’ll put a download here once a build is hosted publicly.",
   },
   {
     platform: "Windows (beta)",
-    status: "coming-soon",
+    status: "available",
+    version: "0.1.0",
+    url: "https://github.com/MishkaNastia/OcuSense/releases/download/v0.1.0/OcuSense-windows-x64.zip",
+    fileName: "OcuSense for Windows",
+    sizeLabel: "204 MB zip · Windows 10 and 11, 64 bit",
+    sha256: "31f5d98c668e176b6c8e60812bf6d8e5e3c8fc6f55e29565e6f97a2f1cf230a8",
     verified: [
-      "Same app and code as the Mac version, as a portable folder for Windows 10 and 11 (64 bit).",
       "Built and checked automatically on Windows, but not yet tried with a real webcam. Tell us what breaks!",
+      "Not signed yet, so SmartScreen may warn: choose More info, then Run anyway.",
     ],
-    notes: "Beta: the download appears here once the first build is published.",
   },
   {
     platform: "Linux (beta)",
     status: "coming-soon",
     verified: [
       "Same app and code, as a portable folder for 64 bit Linux (x86_64).",
-      "Built and checked automatically on Ubuntu, not yet tried with a real webcam. Login lasts until you quit.",
+      "Not yet tried with a real webcam. Login lasts until you quit.",
     ],
-    notes: "Beta: the download appears here once the first build is published.",
+    notes: "Beta: the download appears here as soon as the build is ready.",
   },
 ];
