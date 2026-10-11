@@ -53,6 +53,7 @@ class MonitorUpdate:
     posture_cal_error: str = ""
     lid_sensor: bool = False  # the screen angle could be read (tilt is corrected and watched)
     posture_enabled: bool = False  # Settings › Monitoring › Posture monitoring
+    posture_needs_recalibration: bool = False  # the screen was tilted: waiting for "Recalibrate now"
 
 
 def open_camera(index: int = CAMERA_INDEX, backends=None, check_frame: bool | None = None) -> cv2.VideoCapture | None:
@@ -116,6 +117,7 @@ def snapshot(monitor: EyeMonitor, result: FrameResult, now: float) -> MonitorUpd
         posture_cal_error=monitor.posture_calibrator.error,
         lid_sensor=result.posture is not None and result.posture.lid_angle is not None,
         posture_enabled=monitor.posture_enabled,
+        posture_needs_recalibration=monitor.posture_needs_recalibration,
     )
 
 

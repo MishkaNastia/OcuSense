@@ -270,6 +270,11 @@ class CurrentSessionPage(Page):
             self.posture_detail.setText("Keep working, sitting the way you want to, at a good distance from the "
                                         "screen. Posture isn't judged until this is done.")
             return
+        if update.posture_needs_recalibration:
+            self.posture_indicator.set("warning", "Screen angle changed — recalibrate your posture")
+            self.posture_detail.setText("Posture isn't checked until you recalibrate: press Recalibrate posture (or "
+                                        "Recalibrate now on the card), then keep working for a minute.")
+            return
         if update.posture_cal_status == PostureCalibration.FAILED and update.posture_status is None:
             self.posture_indicator.set("paused", "Posture calibration failed")
             self.posture_detail.setText(update.posture_cal_error)

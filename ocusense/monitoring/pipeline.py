@@ -30,7 +30,7 @@ CALIBRATION_DONE = "calibration_done"
 CALIBRATION_FAILED = "calibration_failed"
 POSTURE_CALIBRATION_DONE = "posture_calibration_done"
 POSTURE_CALIBRATION_FAILED = "posture_calibration_failed"
-SCREEN_TILTED = "screen_tilted"  # the screen was clearly tilted: the posture baseline is being recorded again
+SCREEN_TILTED = "screen_tilted"  # the screen was clearly tilted: posture waits for "Recalibrate now"
 
 
 def create_landmarker(model_path: Path = MODEL_PATH):
@@ -72,6 +72,7 @@ class EyeMonitor:
         self.posture_calibrator = PostureCalibration()  # separate from the eye calibration
         self.posture_monitor: PostureMonitor | None = None  # once posture is calibrated
         self.tilt = TiltWatcher()  # screen tilt since the posture baseline (MacBook lid sensor)
+        self.posture_needs_recalibration = False  # tilted since the baseline: not judged until recalibrated
         self._start = time.monotonic()
         self._last_timestamp_ms = -1
 
@@ -98,6 +99,7 @@ class EyeMonitor:
         if enabled == self.posture_enabled:
             return
         self.posture_enabled = enabled
+        self.posture_needs_recalibration = False
         self.posture_calibrator = PostureCalibration()
         self.posture_monitor = None
         self.tilt.set_reference(None)
@@ -107,6 +109,7 @@ class EyeMonitor:
     def start_posture_calibration(self, now: float) -> None:
         """Record a new posture baseline; the eye calibration and blink counting carry on unchanged."""
         self.posture_calibrator.start(now)
+        self.posture_needs_recalibration = False
         self.tilt.set_reference(None)  # taken from the next lid reading
 
     def _info(self, calibration, calibrated_at: datetime) -> CalibrationInfo:
@@ -217,9 +220,15 @@ class EyeMonitor:
             if self.tilt.reference is None:
                 self.tilt.set_reference(lid_angle)  # the angle this baseline is (being) made at
             elif self.tilt.update(now, lid_angle):
-                result.events.append(SCREEN_TILTED)
-                self.start_posture_calibration(now)
-                self.tilt.set_reference(lid_angle)
+                if calibrator.status == PostureCalibration.RUNNING:
+                    self.start_posture_calibration(now)  # already recalibrating: just start that minute again
+                    self.tilt.set_reference(lid_angle)
+                elif not self.posture_needs_recalibration:  # one message until recalibrated
+                    # The baseline no longer fits the screen. Say so and wait: the person chooses when to
+                    # recalibrate (window: "Recalibrate now"); judging now could give false "slouching".
+                    result.events.append(SCREEN_TILTED)
+                    self.posture_needs_recalibration = True
+                    self.posture_monitor.reset()
         if calibrator.status == PostureCalibration.RUNNING:
             calibrator.update(now, result.posture)
             if calibrator.status == PostureCalibration.DONE:
@@ -228,7 +237,7 @@ class EyeMonitor:
             elif calibrator.status == PostureCalibration.FAILED:
                 result.events.append(POSTURE_CALIBRATION_FAILED)
             return  # not judged while the baseline is being recorded
-        if self.posture_monitor is not None:
+        if self.posture_monitor is not None and not self.posture_needs_recalibration:
             result.posture_status = self.posture_monitor.update(now, result.posture)
 
     def close(self) -> None:

@@ -107,14 +107,32 @@ class PostureUiTest(unittest.TestCase):
         self.assertEqual(self.page.posture_indicator.text.text(), "Poor posture: head dropped, slumped")
         self.assertEqual(self.page.posture_indicator.glyph.kind, "warning")
 
-    def test_screen_tilt_sends_the_message(self):
+    def test_screen_tilt_asks_you_to_recalibrate(self):
         self.monitoring()
-        self.send(events=[SCREEN_TILTED], posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=60)
-        self.assertEqual(self.notifications, [("OcuSense", "You tilted your screen, recalibrating now")])
-        self.assertIn("You tilted your screen, recalibrating now", self.window.study.message_label.text())
-        self.assertEqual(self.page.posture_indicator.text.text(), "Recording your posture: 1:00 left")
-        self.send(posture_cal_status=PostureCalibration.RUNNING, posture_cal_seconds_left=59)
+        requests = self.thread.posture_calibration_requests
+        self.send(events=[SCREEN_TILTED], posture_cal_status=PostureCalibration.DONE, posture_needs_recalibration=True)
+        message = "You changed your screen angle — recalibrate your posture now"
+        self.assertEqual(self.notifications, [("OcuSense", message)])
+        self.assertIn(message, self.window.study.message_label.text())
+        self.assertFalse(self.window.tilt_holder.isHidden())  # the card with "Recalibrate now"
+        self.assertEqual(self.page.posture_indicator.text.text(), "Screen angle changed — recalibrate your posture")
+        self.assertEqual(self.thread.posture_calibration_requests, requests)  # nothing recalibrates by itself
+        self.send(posture_cal_status=PostureCalibration.DONE, posture_needs_recalibration=True)
         self.assertEqual(len(self.notifications), 1)  # once per tilt
+        self.window.tilt_banner.buttons["Recalibrate now"].click()
+        self.assertEqual(self.thread.posture_calibration_requests, requests + 1)
+        self.assertTrue(self.window.tilt_holder.isHidden())
+
+    def test_not_now_keeps_waiting(self):
+        self.monitoring()
+        requests = self.thread.posture_calibration_requests
+        self.send(events=[SCREEN_TILTED], posture_cal_status=PostureCalibration.DONE, posture_needs_recalibration=True)
+        self.window.tilt_banner.buttons["Not now"].click()
+        self.assertTrue(self.window.tilt_holder.isHidden())
+        self.assertEqual(self.thread.posture_calibration_requests, requests)
+        self.send(posture_cal_status=PostureCalibration.DONE, posture_needs_recalibration=True)
+        self.assertTrue(self.window.tilt_holder.isHidden())  # not shown again until the next tilt
+        self.assertEqual(self.page.posture_indicator.text.text(), "Screen angle changed — recalibrate your posture")
 
     def test_poor_posture_sends_the_message_once(self):
         self.monitoring()

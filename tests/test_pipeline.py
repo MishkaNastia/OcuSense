@@ -102,7 +102,7 @@ class EyeMonitorTest(unittest.TestCase):
         self.assertIsNone(self.monitor.posture_monitor)
         self.assertEqual(self.monitor.posture_calibrator.status, PostureCalibration.IDLE)
 
-    def test_settled_screen_tilt_records_a_new_baseline(self):
+    def test_settled_screen_tilt_waits_for_recalibrate_now(self):
         self.monitor.posture_enabled = True
         self.monitor.posture_monitor = PostureMonitor(PostureBaseline(0.0, 0.0, 60.0, 0.5, 0.3, lid_angle=118.0))
         frame = np.zeros((480, 640, 3), np.uint8)
@@ -110,8 +110,27 @@ class EyeMonitorTest(unittest.TestCase):
         for i, lid in enumerate([118, 118, 121, 125, 125, 125, 125, 125, 125, 125]):  # tilted, then left at 125°
             events += self.monitor.process(frame, now=1.0 + i * 0.5, lid_angle=float(lid)).events
         self.assertEqual(events.count(SCREEN_TILTED), 1)
+        self.assertTrue(self.monitor.posture_needs_recalibration)
+        self.assertEqual(self.monitor.posture_calibrator.status, PostureCalibration.IDLE)  # nothing starts by itself
+        result = self.monitor.process(frame, now=7.0, lid_angle=135.0)
+        self.assertIsNone(result.posture_status)  # not judged until recalibrated
+        for i in range(8):  # tilted again before recalibrating: no second message
+            events = self.monitor.process(frame, now=7.5 + i * 0.5, lid_angle=135.0).events
+            self.assertNotIn(SCREEN_TILTED, events)
+        self.monitor.start_posture_calibration(now=12.0)  # "Recalibrate now"
+        self.assertFalse(self.monitor.posture_needs_recalibration)
+
+    def test_tilt_during_a_recalibration_just_restarts_it(self):
+        self.monitor.posture_enabled = True
+        self.monitor.start_posture_calibration(now=0.5)
+        frame = np.zeros((480, 640, 3), np.uint8)
+        events = []
+        for i, lid in enumerate([118, 118, 125, 125, 125, 125, 125, 125, 125]):
+            events += self.monitor.process(frame, now=1.0 + i * 0.5, lid_angle=float(lid)).events
+        self.assertNotIn(SCREEN_TILTED, events)
         self.assertEqual(self.monitor.posture_calibrator.status, PostureCalibration.RUNNING)
-        self.assertEqual(self.monitor.tilt.reference, 125.0)
+        self.assertGreater(self.monitor.posture_calibrator._started, 0.5)  # started again
+        self.assertFalse(self.monitor.posture_needs_recalibration)
 
     def test_pause_forgets_posture_timers(self):
         monitor = PostureMonitor(PostureBaseline(0.0, 0.0, 60.0, 0.5, 0.3))

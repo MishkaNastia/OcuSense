@@ -72,9 +72,13 @@ from .session_summary import SessionExtras, SessionSummaryCard
 from .study_page import StudyPage
 from .time_log_page import TimeLogPage
 from .widgets.alert_banner import AlertBanner, TooCloseMark
+from .widgets.tilt_mark import TiltMark
 from .widgets.common import vline
 
-TILT_MESSAGE = "You tilted your screen, recalibrating now"
+TILT_MESSAGE = "You changed your screen angle — recalibrate your posture now"
+TILT_TITLE = "Screen angle changed"
+TILT_BODY = ("Recalibrate your posture now: press Recalibrate now, then sit the way you want to and keep working "
+             "for a minute. Until then posture isn't checked.")
 POSTURE_MESSAGE = "Stop slouching, hunchbacks are not particularly sexy you know"
 BREAK_MESSAGE = "Hey, you should take a break, else your eyes will become drier than the Sahara desert."
 POMODORO_MESSAGES = {  # next phase → (title, message)
@@ -201,6 +205,15 @@ class MainWindow(QMainWindow):
         self.banner_holder = holder
         holder.setVisible(False)
         column.addWidget(holder)
+        self.tilt_banner = AlertBanner(TILT_TITLE, TILT_BODY, ("Recalibrate now", "Not now"), TiltMark())
+        self.tilt_banner.action.connect(self._tilt_banner_action)
+        tilt_holder = QWidget()  # its own holder: independent of the distance reminder's card
+        tilt_row = QVBoxLayout(tilt_holder)
+        tilt_row.setContentsMargins(40, 16, 40, 0)
+        tilt_row.addWidget(self.tilt_banner)
+        self.tilt_holder = tilt_holder
+        tilt_holder.setVisible(False)
+        column.addWidget(tilt_holder)
         self.eye_rest_card = EyeRestCard()  # the 20-20-20 reminder, below the distance reminder
         self.eye_rest_card.finished.connect(lambda _how: self.eye_rest.rested())
         column.addWidget(self.eye_rest_card)
@@ -438,8 +451,11 @@ class MainWindow(QMainWindow):
             self.notify(POSTURE_MESSAGE, "Posture")
             self.study.message_label.setText(f"{POSTURE_MESSAGE} ({datetime.now():%H:%M}).")
         if SCREEN_TILTED in update.events:
-            self.notify(TILT_MESSAGE, "OcuSense")  # the posture baseline is recorded again (1 min)
+            self.notify(TILT_MESSAGE, "OcuSense")  # posture waits for "Recalibrate now"
             self.study.message_label.setText(f"{TILT_MESSAGE} ({datetime.now():%H:%M}).")
+            self.tilt_holder.setVisible(True)
+        elif not update.posture_needs_recalibration and not self.tilt_holder.isHidden():
+            self.tilt_holder.setVisible(False)  # recalibrated (or posture turned off) some other way
         self._check_distance(update.now, update.closeness)
         self._check_lighting(update.now, update.brightness)
         self.study.set_live_openness(update.observation)
@@ -738,6 +754,7 @@ class MainWindow(QMainWindow):
     def _clear_distance_reminder(self) -> None:
         self.proximity.reset()
         self.banner_holder.setVisible(False)
+        self.tilt_holder.setVisible(False)  # "Recalibrate now" only works while monitoring (Current session says why)
         self.lighting.reset()  # pause/stop/recalibrate: the dark stretch starts over
         self._lighting_waiting = False
 
@@ -769,6 +786,11 @@ class MainWindow(QMainWindow):
         if not on:
             self._lighting_waiting = False
             self.lighting_card.setVisible(False)
+
+    def _tilt_banner_action(self, name: str) -> None:
+        self.tilt_holder.setVisible(False)
+        if name == "Recalibrate now":
+            self.calibrate_posture()  # a new 1-minute posture baseline
 
     def _banner_action(self, name: str) -> None:
         self.banner_holder.setVisible(False)

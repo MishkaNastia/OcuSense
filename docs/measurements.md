@@ -334,7 +334,7 @@ files rotate every **10 minutes**.
 | **Last 60 seconds** | rolling window (section 9): blink rate, median closure duration, time classified as closed, plus valid observation, monitored time and tracking coverage. Rate and closed time show "Collecting data" until 30 s of valid observation. |
 | Precision note | the measured frames per second and the resulting timing precision (8.6) |
 | Posture message | "Stop slouching, hunchbacks are not particularly sexy you know" under the buttons (with the time) when posture turns poor — see [14](#14-posture) |
-| Screen tilted | "You tilted your screen, recalibrating now" under the buttons (with the time) after a clear screen tilt — see [14](#14-posture) |
+| Screen angle changed | "You changed your screen angle — recalibrate your posture now" under the buttons (with the time) after a clear screen tilt, plus a card at the top of the window with **Recalibrate now** — see [14](#14-posture) |
 | Break reminder | a note under the buttons (with the time) when a break reminder was given, until dismissed — see [11.7](#117-compared-with-your-reference) |
 | Show details (or Settings › Measurement details) | raw EAR of both eyes, unclipped openness, whether the frame is valid and closed, processing rate, number of blinks and timed closures in the window, and the calibration in use |
 
@@ -686,10 +686,15 @@ with an external camera, or if it can't be read, posture uses the camera alone.
 - **Small tilts are corrected**: with δ = screen angle now − at the baseline (+ = opened
   further, camera looking more upwards), pitch is taken as `pitch − δ` and the face centre as
   `centre − 1.0 × (width ÷ height) × tan δ`.
-- **A clear tilt records a new baseline**: when the screen has moved **5°** or more from the
+- **A clear tilt asks you to recalibrate**: when the screen has moved **5°** or more from the
   baseline's angle and then stayed within ±1° for **2 seconds** (so adjusting it gives one
-  message, at the end), a Mac notification says **"You tilted your screen, recalibrating now"**
-  (also shown under the Study page buttons), and the 1-minute baseline starts again.
+  message, at the end), a Mac notification says **"You changed your screen angle — recalibrate
+  your posture now"** (also shown under the Study page buttons), and a card at the top of the
+  window offers **Recalibrate now** (starts the 1-minute baseline) or **Not now**. Until you
+  recalibrate, posture isn't checked, because the old baseline no longer fits the screen; Current
+  session says so and its Recalibrate posture button does the same. Tilting again before that
+  gives no second message. During a recalibration that is already running, a tilt just starts
+  that minute again.
 
 **Not the distance reminder.** The distance reminder (section 13) compares apparent face size
 with the eye calibration and reacts after 3 s; the posture "too close" limit uses the
